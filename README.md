@@ -586,7 +586,7 @@ All messages are encrypted **on the client** before being sent to the server. Th
 
 ## Continuous Integration & Auto-Fix
 
-This repository includes automated GitHub Actions workflows that detect issues and attempt to fix them automatically:
+This repository includes automated GitHub Actions workflows that detect issues and **use Claude Code AI** to fix them automatically:
 
 - **CI Workflow** (`.github/workflows/ci.yml`) — Runs on every push and PR, checking:
   - Client linting (ESLint)
@@ -594,14 +594,32 @@ This repository includes automated GitHub Actions workflows that detect issues a
   - Server tests
   - Server build
 
-- **Auto-Fix Workflow** (`.github/workflows/auto-fix.yml`) — Automatically attempts to fix issues labeled with `auto-fix`:
-  - Runs linters with auto-fix enabled
+- **Claude Auto-Fix Workflow** (`.github/workflows/claude-auto-fix.yml`) — **Primary fix mechanism**:
+  - Automatically assigns issues with `auto-fix` label to Claude Code AI agent
+  - Claude analyzes the error and creates intelligent PR with fixes
+  - Follows project conventions from CLAUDE.md
+  - Can handle complex logic errors, add tests, update docs
+
+- **Fallback Auto-Fix Workflow** (`.github/workflows/auto-fix.yml`) — Simple scripted fixes:
+  - Runs linters with auto-fix enabled (`npm run lint --fix`)
   - Reinstalls dependencies for build issues
-  - Creates a PR with the fixes
+  - Used when Claude is unavailable or for simple mechanical fixes
 
-When a CI check fails, an issue is automatically created with the `auto-fix` label. The auto-fix workflow then attempts to resolve the issue and creates a PR if successful.
+When a CI check fails, an issue is automatically created with the `auto-fix` label. Claude Code is then notified and creates an intelligent PR to fix the issue.
 
-For more details, see [.github/AUTO_FIX.md](.github/AUTO_FIX.md).
+**Tracking Claude's work:**
+```bash
+# List all issues/PRs built or fixed by Claude
+.github/scripts/list-claude-issues.sh --state all
+
+# Or use GitHub CLI directly
+gh issue list --label "auto-fix"
+gh pr list --author "Claude"
+```
+
+For more details, see:
+- [.github/AUTO_FIX.md](.github/AUTO_FIX.md) — Auto-fix workflow documentation
+- [.github/CLAUDE_TRACKING.md](.github/CLAUDE_TRACKING.md) — Complete tracking guide
 
 ---
 
