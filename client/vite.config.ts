@@ -8,4 +8,7 @@ export default defineConfig({
     port: 8888,
     allowedHosts: ['dilla.thim.dev'],
   },
+  optimizeDeps: {
+    exclude: ['@jitsi/rnnoise-wasm'],
+  },
 })

@@ -1,5 +1,6 @@
 import { ws } from './websocket';
 import { api } from './api';
+import { noiseSuppression } from './noiseSuppression';
 import { useVoiceStore } from '../stores/voiceStore';
 import { useAuthStore } from '../stores/authStore';
 import { useUserSettingsStore } from '../stores/userSettingsStore';
@@ -11,6 +12,7 @@ const VAD_INTERVAL_MS = 100;
 class WebRTCService {
   private pc: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
+  private rawStream: MediaStream | null = null;
   private screenStream: MediaStream | null = null;
   private remoteStreams: Map<string, MediaStream> = new Map();
   private remoteVideoStreams: Map<string, MediaStream> = new Map();
@@ -42,8 +44,18 @@ class WebRTCService {
       const { useAudioSettingsStore } = await import('../stores/audioSettingsStore');
       const { useUserSettingsStore } = await import('../stores/userSettingsStore');
       const deviceId = useUserSettingsStore.getState().selectedInputDevice;
-      const audioConstraints = useAudioSettingsStore.getState().getAudioConstraints(deviceId);
-      this.localStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
+      const audioSettings = useAudioSettingsStore.getState();
+      const audioConstraints = audioSettings.getAudioConstraints(deviceId);
+      this.rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
+
+      // Apply enhanced noise suppression (RNNoise via AudioWorklet)
+      if (audioSettings.enhancedNoiseSuppression) {
+        noiseSuppression.setEnabled(true);
+        this.localStream = await noiseSuppression.processStream(this.rawStream);
+      } else {
+        noiseSuppression.setEnabled(false);
+        this.localStream = this.rawStream;
+      }
     } catch {
       throw new Error('Microphone access denied');
     }
@@ -298,11 +310,15 @@ class WebRTCService {
       ws.voiceLeave(this.teamId, this.channelId);
     }
 
-    // Stop local tracks
-    if (this.localStream) {
-      this.localStream.getTracks().forEach((t) => t.stop());
-      this.localStream = null;
+    // Clean up noise suppression pipeline
+    noiseSuppression.cleanup();
+
+    // Stop local tracks (raw stream holds the actual mic tracks)
+    if (this.rawStream) {
+      this.rawStream.getTracks().forEach((t) => t.stop());
+      this.rawStream = null;
     }
+    this.localStream = null;
 
     // Close peer connection
     if (this.pc) {
@@ -567,11 +583,13 @@ class WebRTCService {
   }
 
   startVAD(): void {
-    if (!this.localStream) return;
+    // Use raw (unprocessed) stream for VAD — gives more accurate threshold detection
+    const vadStream = this.rawStream ?? this.localStream;
+    if (!vadStream) return;
 
     try {
       const ctx = this.getAudioContext();
-      const source = ctx.createMediaStreamSource(this.localStream);
+      const source = ctx.createMediaStreamSource(vadStream);
       this.analyser = ctx.createAnalyser();
       this.analyser.fftSize = 512;
       source.connect(this.analyser);

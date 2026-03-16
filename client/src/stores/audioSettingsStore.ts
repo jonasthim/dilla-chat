@@ -5,10 +5,12 @@ interface AudioSettingsStore {
   echoCancellation: boolean;
   noiseSuppression: boolean;
   autoGainControl: boolean;
+  enhancedNoiseSuppression: boolean;
 
   setEchoCancellation: (v: boolean) => void;
   setNoiseSuppression: (v: boolean) => void;
   setAutoGainControl: (v: boolean) => void;
+  setEnhancedNoiseSuppression: (v: boolean) => void;
 
   /** Build MediaTrackConstraints for getUserMedia audio */
   getAudioConstraints: (deviceId?: string) => MediaTrackConstraints | boolean;
@@ -20,10 +22,12 @@ export const useAudioSettingsStore = create<AudioSettingsStore>()(
       echoCancellation: true,
       noiseSuppression: true,
       autoGainControl: true,
+      enhancedNoiseSuppression: true,
 
       setEchoCancellation: (v) => set({ echoCancellation: v }),
       setNoiseSuppression: (v) => set({ noiseSuppression: v }),
       setAutoGainControl: (v) => set({ autoGainControl: v }),
+      setEnhancedNoiseSuppression: (v) => set({ enhancedNoiseSuppression: v }),
 
       getAudioConstraints: (deviceId?: string) => {
         const { echoCancellation, noiseSuppression, autoGainControl } = get();

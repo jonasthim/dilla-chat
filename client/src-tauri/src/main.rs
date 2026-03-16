@@ -670,6 +670,22 @@ async fn add_server_passkey(
     Ok(())
 }
 
+// ─── Voice: RNNoise Noise Suppression ─────────────────────────────────────────
+
+static DENOISE_STATE: Mutex<Option<Box<nnnoiseless::DenoiseState<'static>>>> = Mutex::new(None);
+
+#[tauri::command]
+fn denoise_frame(samples: Vec<f32>) -> Vec<f32> {
+    if samples.len() != 480 {
+        return samples;
+    }
+    let mut state_guard = DENOISE_STATE.lock().unwrap();
+    let state = state_guard.get_or_insert_with(|| Box::new(nnnoiseless::DenoiseState::new()));
+    let mut output = vec![0.0f32; 480];
+    state.process_frame(&mut output, &samples);
+    output
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -700,6 +716,8 @@ fn main() {
             passkey_register_via_browser,
             passkey_login_via_browser,
             add_server_passkey,
+            // Voice: noise suppression
+            denoise_frame,
             // Identity blob escrow
             upload_identity_blob,
             recover_identity_from_server,

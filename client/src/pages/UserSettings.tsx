@@ -28,8 +28,8 @@ export default function UserSettings() {
   const navigate = useNavigate();
   const { publicKey, logout, teams } = useAuthStore();
   const {
-    echoCancellation, noiseSuppression, autoGainControl,
-    setEchoCancellation, setNoiseSuppression, setAutoGainControl,
+    echoCancellation, noiseSuppression, autoGainControl, enhancedNoiseSuppression,
+    setEchoCancellation, setNoiseSuppression, setAutoGainControl, setEnhancedNoiseSuppression,
   } = useAudioSettingsStore();
   const {
     selectedInputDevice, selectedOutputDevice, inputThreshold,
@@ -233,6 +233,14 @@ export default function UserSettings() {
               <div className="settings-toggle-description">{t('userSettings.noiseSuppressionDesc', 'Filters background noise like fans, keyboard clicks, and ambient sound')}</div>
             </div>
             <button className={`toggle-switch ${noiseSuppression ? 'active' : ''}`} onClick={() => setNoiseSuppression(!noiseSuppression)} />
+          </div>
+
+          <div className="settings-toggle">
+            <div className="settings-toggle-info">
+              <div className="settings-toggle-label">{t('userSettings.enhancedNoiseSuppression', 'Enhanced Noise Suppression')}</div>
+              <div className="settings-toggle-description">{t('userSettings.enhancedNoiseSuppressionDesc', 'AI-powered noise removal using RNNoise. More effective than browser-native suppression — takes effect on next voice connection')}</div>
+            </div>
+            <button className={`toggle-switch ${enhancedNoiseSuppression ? 'active' : ''}`} onClick={() => setEnhancedNoiseSuppression(!enhancedNoiseSuppression)} />
           </div>
 
           <div className="settings-toggle">
