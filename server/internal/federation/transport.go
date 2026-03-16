@@ -2,6 +2,7 @@ package federation
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -95,6 +96,10 @@ func (t *Transport) ConnectToPeer(address string) error {
 		return nil
 	}
 
+	if t.node.config.JoinSecret == "" {
+		return fmt.Errorf("federation: join secret required for outbound connections")
+	}
+
 	url := "ws://" + address + "/federation/ws"
 	if t.node.config.TLSCert != "" {
 		url = "wss://" + address + "/federation/ws"
@@ -124,15 +129,19 @@ func (t *Transport) ConnectToPeer(address string) error {
 
 // HandleIncoming handles an incoming federation WebSocket connection.
 func (t *Transport) HandleIncoming(w http.ResponseWriter, r *http.Request) {
-	// Validate federation auth using the JoinSecret as a shared bearer token.
-	if t.node.config.JoinSecret != "" {
-		authHeader := r.Header.Get("Authorization")
-		expected := "Bearer " + t.node.config.JoinSecret
-		if authHeader != expected {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			slog.Warn("federation: rejected unauthenticated peer", "addr", r.RemoteAddr)
-			return
-		}
+	// Federation requires a JoinSecret to be configured.
+	if t.node.config.JoinSecret == "" {
+		http.Error(w, "federation not configured: join secret required", http.StatusServiceUnavailable)
+		slog.Warn("federation: rejected peer connection — no join secret configured")
+		return
+	}
+
+	authHeader := r.Header.Get("Authorization")
+	expected := "Bearer " + t.node.config.JoinSecret
+	if authHeader != expected {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		slog.Warn("federation: rejected unauthenticated peer", "addr", r.RemoteAddr)
+		return
 	}
 
 	conn, err := fedUpgrader.Upgrade(w, r, nil)

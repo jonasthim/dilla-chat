@@ -23,9 +23,10 @@ type HmacSha256 = Hmac<Sha256>;
 /// Derive an X25519 StaticSecret from an Ed25519 SigningKey.
 /// We hash the Ed25519 secret scalar with SHA-256 and clamp the result.
 fn ed25519_signing_to_x25519_secret(sk: &SigningKey) -> StaticSecret {
-    let hash = <sha2::Sha256 as sha2::Digest>::digest(sk.to_bytes());
+    // RFC 8032 §5.1.5: SHA-512 the secret scalar, take first 32 bytes, clamp
+    let hash = <sha2::Sha512 as sha2::Digest>::digest(sk.to_bytes());
     let mut secret = [0u8; 32];
-    secret.copy_from_slice(&hash);
+    secret.copy_from_slice(&hash[..32]);
     // clamp per X25519
     secret[0] &= 248;
     secret[31] &= 127;
@@ -225,7 +226,7 @@ pub fn x3dh_initiate(
     ikm.extend_from_slice(dh3.as_bytes());
 
     let otpk_index = if !bob_bundle.one_time_prekeys.is_empty() {
-        let idx = 0usize;
+        let idx = (OsRng.next_u32() as usize) % bob_bundle.one_time_prekeys.len();
         let bob_otpk = x25519_pub_from_bytes(&bob_bundle.one_time_prekeys[idx])?;
         let dh4 = ephemeral_secret.diffie_hellman(&bob_otpk);
         ikm.extend_from_slice(dh4.as_bytes());
@@ -857,12 +858,17 @@ impl CryptoManager {
     }
 }
 
-/// Simple passphrase-to-key for session file encryption (uses HKDF, not Argon2, for speed)
+/// Derive encryption key from passphrase using Argon2id (brute-force resistant)
 fn passphrase_to_key(passphrase: &str) -> Result<[u8; 32], String> {
-    let hk = Hkdf::<Sha256>::new(Some(b"DillaSessions"), passphrase.as_bytes());
+    use argon2::{Argon2, Algorithm, Version, Params};
+    let salt = b"DillaSessionsV2!"; // 16-byte fixed salt (sessions are per-device)
+    let params = Params::new(19456, 2, 1, Some(32))
+        .map_err(|e| format!("Argon2 params error: {e}"))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut key = [0u8; 32];
-    hk.expand(b"session-encryption", &mut key)
-        .map_err(|e| format!("HKDF error: {e}"))?;
+    argon2
+        .hash_password_into(passphrase.as_bytes(), salt, &mut key)
+        .map_err(|e| format!("Argon2 error: {e}"))?;
     Ok(key)
 }
 

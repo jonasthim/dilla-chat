@@ -12,11 +12,12 @@ import (
 )
 
 const (
-	writeWait      = 10 * time.Second
-	pongWait       = 60 * time.Second
-	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 64 * 1024
-	typingCooldown = 3 // seconds
+	writeWait            = 10 * time.Second
+	pongWait             = 60 * time.Second
+	pingPeriod           = (pongWait * 9) / 10
+	maxMessageSize       = 64 * 1024
+	typingCooldown       = 3 // seconds
+	maxMessagesPerSecond = 10
 )
 
 type Client struct {
@@ -28,6 +29,8 @@ type Client struct {
 	teamID         string
 	channels       map[string]bool
 	voiceChannelID string // tracks active voice channel for cleanup on disconnect
+	lastMsgTime    time.Time
+	msgCount       int
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn, userID, username, teamID string) *Client {
@@ -759,6 +762,18 @@ func (c *Client) handleVoiceWebcamStop(p VoiceWebcamStopPayload) {
 }
 
 func (c *Client) handleMessageSend(p MessageSendPayload) {
+	// Per-user message rate limiting.
+	now := time.Now()
+	if now.Sub(c.lastMsgTime) > time.Second {
+		c.msgCount = 0
+		c.lastMsgTime = now
+	}
+	c.msgCount++
+	if c.msgCount > maxMessagesPerSecond {
+		c.sendError("rate limit exceeded: too many messages")
+		return
+	}
+
 	if p.ChannelID == "" || p.Content == "" {
 		c.sendError("channel_id and content are required")
 		return
@@ -775,6 +790,11 @@ func (c *Client) handleMessageSend(p MessageSendPayload) {
 	ch, err := c.hub.DB.GetChannelByID(p.ChannelID)
 	if err != nil || ch == nil {
 		c.sendError("channel not found")
+		return
+	}
+	// Verify the channel belongs to the user's team.
+	if ch.TeamID != c.teamID {
+		c.sendError("channel does not belong to your team")
 		return
 	}
 
@@ -1251,6 +1271,16 @@ func (c *Client) handleMessagesList(req RequestEvent) {
 	}
 	if p.Limit <= 0 || p.Limit > 100 {
 		p.Limit = 50
+	}
+	// Verify the channel belongs to the user's team.
+	ch, err := c.hub.DB.GetChannelByID(p.ChannelID)
+	if err != nil || ch == nil {
+		c.sendResponse(req.ID, req.Action, false, nil, "channel not found")
+		return
+	}
+	if ch.TeamID != c.teamID {
+		c.sendResponse(req.ID, req.Action, false, nil, "channel does not belong to your team")
+		return
 	}
 	messages, err := c.hub.DB.GetMessagesByChannel(p.ChannelID, p.Before, p.Limit)
 	if err != nil {

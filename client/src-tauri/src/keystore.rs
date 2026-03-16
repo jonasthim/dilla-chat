@@ -650,10 +650,7 @@ fn wrap_mek_with_passphrase(
 fn unwrap_mek_with_passphrase(slots: &[PasswordSlot], passphrase: &str) -> Result<[u8; 32], String> {
     for slot in slots {
         let derived_key = derive_aes_from_passphrase(passphrase, &slot.pbkdf2_salt, slot.pbkdf2_iterations)?;
-        let key_hash = sha256_hash(&derived_key);
-        if key_hash != slot.passphrase_hash {
-            continue;
-        }
+        // Rely on AES-GCM authentication tag for wrong-key detection (no hash oracle).
         let cipher = Aes256Gcm::new_from_slice(&derived_key).map_err(|e| e.to_string())?;
         let nonce = Nonce::from_slice(&slot.wrapped_nonce);
         if let Ok(mek_bytes) = cipher.decrypt(nonce, slot.wrapped_mek.as_slice()) {

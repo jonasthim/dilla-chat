@@ -364,6 +364,13 @@ func (m *MeshNode) handleReplicatedMessage(event FederationEvent) {
 		return
 	}
 
+	// Validate the channel exists locally.
+	ch, err := m.db.GetChannelByID(msg.ChannelID)
+	if err != nil || ch == nil {
+		slog.Warn("federation: replicated message for unknown channel", "channel_id", msg.ChannelID)
+		return
+	}
+
 	existing, err := m.db.GetMessageByID(msg.MessageID)
 	if err == nil && existing != nil {
 		return
@@ -411,6 +418,13 @@ func (m *MeshNode) handleReplicatedEdit(event FederationEvent) {
 		return
 	}
 
+	// Validate the message exists locally before editing.
+	existing, err := m.db.GetMessageByID(data.MessageID)
+	if err != nil || existing == nil {
+		slog.Warn("federation: replicated edit for unknown message", "message_id", data.MessageID)
+		return
+	}
+
 	if err := m.db.UpdateMessageContent(data.MessageID, data.Content); err != nil {
 		slog.Warn("federation: replicated edit failed", "id", data.MessageID, "error", err)
 		return
@@ -435,6 +449,13 @@ func (m *MeshNode) handleReplicatedDelete(event FederationEvent) {
 		ChannelID string `json:"channel_id"`
 	}
 	if err := json.Unmarshal(event.Payload, &data); err != nil {
+		return
+	}
+
+	// Validate the message exists locally before deleting.
+	existing, err := m.db.GetMessageByID(data.MessageID)
+	if err != nil || existing == nil {
+		slog.Warn("federation: replicated delete for unknown message", "message_id", data.MessageID)
 		return
 	}
 

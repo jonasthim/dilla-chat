@@ -97,8 +97,9 @@ func (a *AuthService) GenerateJWT(userID string) (string, error) {
 // ValidateJWT validates a JWT token and returns the user ID.
 func (a *AuthService) ValidateJWT(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		// Explicitly require HS256 — reject all other algorithms including "none".
+		if token.Method.Alg() != "HS256" {
+			return nil, fmt.Errorf("unexpected signing method")
 		}
 		return a.jwtSecret, nil
 	})
@@ -165,7 +166,7 @@ func (a *AuthService) cleanupChallenges() {
 	for range ticker.C {
 		a.challenges.Range(func(key, value interface{}) bool {
 			c := value.(*challenge)
-			if time.Since(c.createdAt) > 5*time.Minute {
+			if time.Since(c.createdAt) > 6*time.Minute {
 				a.challenges.Delete(key)
 			}
 			return true

@@ -7,6 +7,8 @@
  * Works in both the browser and Tauri webview (both support AudioWorklet).
  */
 
+import { useAudioSettingsStore } from '../stores/audioSettingsStore';
+
 const WORKLET_URL = '/noise-suppressor-worklet.js';
 
 class NoiseSuppression {
@@ -16,6 +18,7 @@ class NoiseSuppression {
   private destinationNode: MediaStreamAudioDestinationNode | null = null;
   private enabled = true;
   private initialized = false;
+  private storeUnsubscribe: (() => void) | null = null;
 
   /**
    * Process an input MediaStream through RNNoise and return a new
@@ -54,6 +57,33 @@ class NoiseSuppression {
       // Send initial enabled state
       this.workletNode.port.postMessage({ type: 'enable', enabled: this.enabled });
 
+      // Send initial VAD settings from store
+      const { vadThreshold, vadGracePeriodMs, retroactiveGraceMs } =
+        useAudioSettingsStore.getState();
+      this.workletNode.port.postMessage({ type: 'vadThreshold', value: vadThreshold });
+      this.workletNode.port.postMessage({ type: 'vadGracePeriodMs', value: vadGracePeriodMs });
+      this.workletNode.port.postMessage({ type: 'retroactiveGraceMs', value: retroactiveGraceMs });
+
+      // Subscribe to store changes and forward to worklet
+      this.storeUnsubscribe = useAudioSettingsStore.subscribe((state, prev) => {
+        if (!this.workletNode) return;
+        if (state.vadThreshold !== prev.vadThreshold) {
+          this.workletNode.port.postMessage({ type: 'vadThreshold', value: state.vadThreshold });
+        }
+        if (state.vadGracePeriodMs !== prev.vadGracePeriodMs) {
+          this.workletNode.port.postMessage({
+            type: 'vadGracePeriodMs',
+            value: state.vadGracePeriodMs,
+          });
+        }
+        if (state.retroactiveGraceMs !== prev.retroactiveGraceMs) {
+          this.workletNode.port.postMessage({
+            type: 'retroactiveGraceMs',
+            value: state.retroactiveGraceMs,
+          });
+        }
+      });
+
       console.log('[NoiseSuppression] AudioWorklet pipeline created');
       return this.destinationNode.stream;
     } catch (err) {
@@ -79,8 +109,24 @@ class NoiseSuppression {
     return this.initialized;
   }
 
+  setVadThreshold(value: number): void {
+    this.workletNode?.port.postMessage({ type: 'vadThreshold', value });
+  }
+
+  setVadGracePeriodMs(value: number): void {
+    this.workletNode?.port.postMessage({ type: 'vadGracePeriodMs', value });
+  }
+
+  setRetroactiveGraceMs(value: number): void {
+    this.workletNode?.port.postMessage({ type: 'retroactiveGraceMs', value });
+  }
+
   /** Tear down the audio processing pipeline. */
   cleanup(): void {
+    if (this.storeUnsubscribe) {
+      this.storeUnsubscribe();
+      this.storeUnsubscribe = null;
+    }
     if (this.workletNode) {
       this.workletNode.disconnect();
       this.workletNode = null;

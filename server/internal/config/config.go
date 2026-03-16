@@ -84,7 +84,7 @@ func Load() *Config {
 	cfg.OTelProtocol = envStr("DILLA_OTEL_PROTOCOL", "http")
 	cfg.OTelEndpoint = envStr("DILLA_OTEL_ENDPOINT", "localhost:4317")
 	cfg.OTelHTTPEndpoint = envStr("DILLA_OTEL_HTTP_ENDPOINT", "")
-	cfg.OTelInsecure = envBool("DILLA_OTEL_INSECURE", true)
+	cfg.OTelInsecure = envBool("DILLA_OTEL_INSECURE", false)
 	cfg.OTelServiceName = envStr("DILLA_OTEL_SERVICE_NAME", "dilla-server")
 	cfg.OTelAPIKey = envStr("DILLA_OTEL_API_KEY", "")
 	cfg.OTelAPIHeader = envStr("DILLA_OTEL_API_HEADER", "")
@@ -135,6 +135,9 @@ func (c *Config) WarnInsecureDefaults() {
 		} else {
 			slog.Error("SECURITY: DB passphrase is empty — database will be unencrypted. Set DILLA_DB_PASSPHRASE or use --insecure to acknowledge this risk")
 		}
+	}
+	if len(c.AllowedOrigins) == 0 {
+		slog.Warn("SECURITY: CORS allows all origins — set DILLA_ALLOWED_ORIGINS for production")
 	}
 }
 

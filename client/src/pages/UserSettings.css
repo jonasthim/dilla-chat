@@ -292,6 +292,19 @@
   padding: 8px 0;
 }
 
+/* ─── RNNoise VAD Settings ─── */
+.voice-rnnoise-settings {
+  padding: 4px 0 8px;
+}
+
+.voice-rnnoise-settings .settings-field {
+  margin-bottom: 12px;
+}
+
+.voice-rnnoise-settings .settings-toggle-description {
+  margin-bottom: 4px;
+}
+
 /* ─── PTT Key Capture Button ─── */
 .ptt-key-capture {
   display: inline-flex;

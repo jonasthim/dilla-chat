@@ -274,6 +274,11 @@ func (h *RoleHandler) HandleReorder(w http.ResponseWriter, r *http.Request) {
 		if err != nil || role == nil {
 			continue
 		}
+		// Validate the role belongs to this team.
+		if role.TeamID != team.ID {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "role does not belong to this team"})
+			return
+		}
 		role.Position = i
 		if err := h.db.UpdateRole(role); err != nil {
 			slog.Error("reorder role failed", "error", err, "role_id", roleID)

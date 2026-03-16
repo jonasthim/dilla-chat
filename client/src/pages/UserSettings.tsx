@@ -37,8 +37,10 @@ export default function UserSettings() {
   const {
     echoCancellation, autoGainControl,
     inputProfile, noiseSuppressionMode, pushToTalk, pushToTalkKey,
+    vadThreshold, vadGracePeriodMs, retroactiveGraceMs,
     setEchoCancellation, setAutoGainControl,
     setInputProfile, setNoiseSuppressionMode, setPushToTalk, setPushToTalkKey,
+    setVadThreshold, setVadGracePeriodMs, setRetroactiveGraceMs,
   } = useAudioSettingsStore();
   const {
     selectedInputDevice, selectedOutputDevice, inputThreshold,
@@ -372,6 +374,73 @@ export default function UserSettings() {
                   <option value="rnnoise">{t('userSettings.nsRNNoise', 'RNNoise')}</option>
                 </select>
               </div>
+
+              {/* RNNoise VAD settings — only shown when noise suppression is rnnoise */}
+              {noiseSuppressionMode === 'rnnoise' && (
+                <div className="voice-rnnoise-settings">
+                  <div className="settings-field">
+                    <label>{t('userSettings.vadThreshold', 'VAD Threshold')}</label>
+                    <div className="settings-toggle-description">
+                      {t('userSettings.vadThresholdDesc', 'How confident Dilla must be that you\'re speaking before passing audio')}
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="95"
+                      value={Math.round(vadThreshold * 100)}
+                      onChange={(e) => setVadThreshold(Number(e.target.value) / 100)}
+                      className="voice-volume-slider"
+                      aria-label={t('userSettings.vadThreshold', 'VAD Threshold')}
+                      aria-valuemin={0}
+                      aria-valuemax={95}
+                      aria-valuenow={Math.round(vadThreshold * 100)}
+                    />
+                    <span className="voice-volume-label">{Math.round(vadThreshold * 100)}%</span>
+                  </div>
+
+                  <div className="settings-field">
+                    <label>{t('userSettings.vadGracePeriod', 'Grace Period')}</label>
+                    <div className="settings-toggle-description">
+                      {t('userSettings.vadGracePeriodDesc', 'How long to keep your mic open after you stop speaking')}
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="500"
+                      step="10"
+                      value={vadGracePeriodMs}
+                      onChange={(e) => setVadGracePeriodMs(Number(e.target.value))}
+                      className="voice-volume-slider"
+                      aria-label={t('userSettings.vadGracePeriod', 'Grace Period')}
+                      aria-valuemin={0}
+                      aria-valuemax={500}
+                      aria-valuenow={vadGracePeriodMs}
+                    />
+                    <span className="voice-volume-label">{vadGracePeriodMs} ms</span>
+                  </div>
+
+                  <div className="settings-field">
+                    <label>{t('userSettings.retroactiveGrace', 'Retroactive Grace')}</label>
+                    <div className="settings-toggle-description">
+                      {t('userSettings.retroactiveGraceDesc', 'Recovers the very start of words that begin during silence')}
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="10"
+                      value={retroactiveGraceMs}
+                      onChange={(e) => setRetroactiveGraceMs(Number(e.target.value))}
+                      className="voice-volume-slider"
+                      aria-label={t('userSettings.retroactiveGrace', 'Retroactive Grace')}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={retroactiveGraceMs}
+                    />
+                    <span className="voice-volume-label">{retroactiveGraceMs} ms</span>
+                  </div>
+                </div>
+              )}
 
               {/* Echo Cancellation toggle */}
               <div className="settings-toggle">

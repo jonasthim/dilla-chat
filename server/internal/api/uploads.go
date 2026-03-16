@@ -142,6 +142,23 @@ func (h *UploadHandler) HandleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate the storage path is within the upload directory to prevent path traversal.
+	absStorage, err := filepath.Abs(attachment.StoragePath)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "invalid storage path"})
+		return
+	}
+	absUploadDir, err := filepath.Abs(h.uploadDir)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "invalid upload directory"})
+		return
+	}
+	if !strings.HasPrefix(absStorage, absUploadDir+string(filepath.Separator)) {
+		slog.Error("uploads: path traversal attempt", "path", attachment.StoragePath, "upload_dir", h.uploadDir)
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "access denied"})
+		return
+	}
+
 	// Serve the raw encrypted blob.
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", "attachment")

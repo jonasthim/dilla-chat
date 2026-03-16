@@ -23,19 +23,28 @@ type DB struct {
 func Open(dataDir, passphrase string) (*DB, error) {
 	dbPath := filepath.Join(dataDir, "dilla.db")
 
-	dsn := fmt.Sprintf("file:%s?_pragma_key=%s&_journal_mode=WAL", dbPath, passphrase)
-	if passphrase == "" {
-		dsn = fmt.Sprintf("file:%s?_journal_mode=WAL", dbPath)
-	}
+	dsn := fmt.Sprintf("file:%s?_journal_mode=WAL", dbPath)
 
 	conn, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
+	// Set encryption key via PRAGMA (avoids exposing passphrase in DSN/process list).
+	if passphrase != "" {
+		if _, err := conn.Exec("PRAGMA key = ?", passphrase); err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("set database passphrase: %w", err)
+		}
+	}
+
 	if err := conn.Ping(); err != nil {
+		conn.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
+
+	// Set max open connections to 1 for write serialization (SQLite WAL).
+	conn.SetMaxOpenConns(1)
 
 	slog.Info("database opened", "path", dbPath)
 	return &DB{conn: conn}, nil
@@ -48,6 +57,11 @@ func (d *DB) RunMigrations() error {
 	)`)
 	if err != nil {
 		return fmt.Errorf("create migrations table: %w", err)
+	}
+
+	_, err = d.conn.Exec(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`)
+	if err != nil {
+		return fmt.Errorf("create settings table: %w", err)
 	}
 
 	entries, err := migrationsFS.ReadDir("migrations")

@@ -13,6 +13,9 @@ interface AudioSettingsStore {
   noiseSuppressionMode: NoiseSuppressionMode;
   pushToTalk: boolean;
   pushToTalkKey: string;
+  vadThreshold: number;
+  vadGracePeriodMs: number;
+  retroactiveGraceMs: number;
 
   setEchoCancellation: (v: boolean) => void;
   setNoiseSuppression: (v: boolean) => void;
@@ -22,6 +25,9 @@ interface AudioSettingsStore {
   setNoiseSuppressionMode: (v: NoiseSuppressionMode) => void;
   setPushToTalk: (v: boolean) => void;
   setPushToTalkKey: (v: string) => void;
+  setVadThreshold: (v: number) => void;
+  setVadGracePeriodMs: (v: number) => void;
+  setRetroactiveGraceMs: (v: number) => void;
 
   /** Build MediaTrackConstraints for getUserMedia audio */
   getAudioConstraints: (deviceId?: string) => MediaTrackConstraints | boolean;
@@ -38,6 +44,9 @@ export const useAudioSettingsStore = create<AudioSettingsStore>()(
       noiseSuppressionMode: 'rnnoise',
       pushToTalk: false,
       pushToTalkKey: 'KeyV',
+      vadThreshold: 0.5,
+      vadGracePeriodMs: 200,
+      retroactiveGraceMs: 20,
 
       setEchoCancellation: (v) => set({ echoCancellation: v }),
       setNoiseSuppression: (v) => set({ noiseSuppression: v }),
@@ -80,6 +89,9 @@ export const useAudioSettingsStore = create<AudioSettingsStore>()(
 
       setPushToTalk: (v) => set({ pushToTalk: v }),
       setPushToTalkKey: (v) => set({ pushToTalkKey: v }),
+      setVadThreshold: (v) => set({ vadThreshold: v }),
+      setVadGracePeriodMs: (v) => set({ vadGracePeriodMs: v }),
+      setRetroactiveGraceMs: (v) => set({ retroactiveGraceMs: v }),
 
       getAudioConstraints: (deviceId?: string) => {
         const { echoCancellation, noiseSuppression, autoGainControl } = get();

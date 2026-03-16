@@ -582,20 +582,29 @@ func (d *DB) DeletePrekeyBundle(userID string) error {
 
 // ConsumeOneTimePrekey removes and returns one one-time prekey from the user's bundle.
 func (d *DB) ConsumeOneTimePrekey(userID string) ([]byte, error) {
-	bundle, err := d.GetPrekeyBundle(userID)
-	if err != nil || bundle == nil {
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var bundleKeys json.RawMessage
+	err = tx.QueryRow(`SELECT one_time_prekeys FROM prekey_bundles WHERE user_id = ? ORDER BY uploaded_at DESC LIMIT 1`, userID).Scan(&bundleKeys)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 
 	var keys []string
-	if err := json.Unmarshal(bundle.OneTimePrekeys, &keys); err != nil {
+	if err := json.Unmarshal(bundleKeys, &keys); err != nil {
 		return nil, fmt.Errorf("unmarshal one_time_prekeys: %w", err)
 	}
 	if len(keys) == 0 {
 		return nil, nil
 	}
 
-	// Pop the first key.
 	consumed := keys[0]
 	remaining := keys[1:]
 
@@ -604,13 +613,16 @@ func (d *DB) ConsumeOneTimePrekey(userID string) ([]byte, error) {
 		return nil, fmt.Errorf("marshal remaining prekeys: %w", err)
 	}
 
-	_, err = d.conn.Exec(
+	_, err = tx.Exec(
 		`UPDATE prekey_bundles SET one_time_prekeys = ? WHERE user_id = ?`,
 		updatedJSON, userID)
 	if err != nil {
 		return nil, err
 	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
 	return []byte(consumed), nil
 }
 
@@ -1013,22 +1025,20 @@ func (d *DB) GetInviteByID(id string) (*Invite, error) {
 
 // GetSetting retrieves a value from the settings table.
 func (d *DB) GetSetting(key string) (string, error) {
-d.conn.Exec(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`)
-var value string
-err := d.conn.QueryRow(`SELECT value FROM settings WHERE key = ?`, key).Scan(&value)
-if err == sql.ErrNoRows {
-return "", nil
-}
-return value, err
+	var value string
+	err := d.conn.QueryRow(`SELECT value FROM settings WHERE key = ?`, key).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return value, err
 }
 
 // SetSetting stores a value in the settings table.
 func (d *DB) SetSetting(key, value string) error {
-d.conn.Exec(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`)
-_, err := d.conn.Exec(
-`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
-key, value)
-return err
+	_, err := d.conn.Exec(
+		`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`,
+		key, value)
+	return err
 }
 
 // UpsertIdentityBlob stores or updates an encrypted identity blob for a user.

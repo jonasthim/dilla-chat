@@ -237,6 +237,16 @@ func (h *TeamHandler) HandleUpdateMember(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		for _, roleID := range req.RoleIDs {
+			// Validate the role belongs to this team.
+			role, err := h.db.GetRoleByID(roleID)
+			if err != nil || role == nil {
+				slog.Warn("assign role: role not found", "role_id", roleID)
+				continue
+			}
+			if role.TeamID != team.ID {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "role does not belong to this team"})
+				return
+			}
 			if err := h.db.AssignRoleToMember(member.ID, roleID); err != nil {
 				slog.Error("assign role failed", "error", err, "role_id", roleID)
 			}

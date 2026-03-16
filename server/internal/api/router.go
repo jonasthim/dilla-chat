@@ -6,7 +6,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"runtime"
 	"strings"
 	"time"
 
@@ -133,11 +132,12 @@ func NewRouterWithConfig(database *db.DB, authSvc *auth.AuthService, hub *ws.Hub
 	// Invite info (public)
 	mux.HandleFunc("GET /api/v1/invites/{token}/info", inviteHandler.HandleInfo)
 
-	// Identity blob routes — GET is public (for recovery), PUT is authenticated
+	// Identity blob routes — both GET and PUT require authentication
 	identityBlobHandler := NewIdentityBlobHandler(authSvc, database)
-	mux.HandleFunc("GET /api/v1/identity/blob", identityBlobHandler.HandleGet)
 	identityBlobMux := http.NewServeMux()
+	identityBlobMux.HandleFunc("GET /api/v1/identity/blob", identityBlobHandler.HandleGet)
 	identityBlobMux.HandleFunc("PUT /api/v1/identity/blob", identityBlobHandler.HandleUpload)
+	mux.Handle("GET /api/v1/identity/blob", authSvc.AuthMiddleware(identityBlobMux))
 	mux.Handle("PUT /api/v1/identity/blob", authSvc.AuthMiddleware(identityBlobMux))
 
 	// User profile routes
@@ -274,8 +274,10 @@ func NewRouterWithConfig(database *db.DB, authSvc *auth.AuthService, hub *ws.Hub
 		mux.Handle("/api/v1/federation/", authSvc.AuthMiddleware(fedMux))
 	}
 
-	// OTLP proxy — forwards browser telemetry to the OTel collector.
-	mux.HandleFunc("POST /api/v1/telemetry", handleTelemetryProxy)
+	// Telemetry proxy (authenticated to prevent abuse)
+	telemetryMux := http.NewServeMux()
+	telemetryMux.HandleFunc("POST /api/v1/telemetry", handleTelemetryProxy)
+	mux.Handle("POST /api/v1/telemetry", authSvc.AuthMiddleware(telemetryMux))
 
 	// Also add a top-level /health for Docker/k8s health checks.
 	mux.HandleFunc("GET /health", handleHealth)
@@ -343,8 +345,7 @@ func handleHealth(w http.ResponseWriter, _ *http.Request) {
 func handleVersion(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
-		"version":    Version,
-		"go_version": runtime.Version(),
+		"version": Version,
 	})
 }
 
@@ -484,6 +485,7 @@ func securityHeadersMiddleware(tlsEnabled bool) func(http.Handler) http.Handler 
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			w.Header().Set("X-Frame-Options", "DENY")
 			w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss: ws:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
 			if tlsEnabled {
 				w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 			}
