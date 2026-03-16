@@ -52,25 +52,32 @@ class WebRTCService {
       const audioConstraints = audioSettings.getAudioConstraints(deviceId);
       this.rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
 
-      // Apply enhanced noise suppression (RNNoise via AudioWorklet)
-      if (audioSettings.enhancedNoiseSuppression) {
-        noiseSuppression.setEnabled(true);
-        this.localStream = await noiseSuppression.processStream(this.rawStream);
-      } else {
-        noiseSuppression.setEnabled(false);
-        this.localStream = this.rawStream;
-      }
+      // Build a single audio graph: source → [worklet] → gain → destination
+      const useRNNoise = audioSettings.enhancedNoiseSuppression;
+      const ctx = useRNNoise
+        ? new AudioContext({ sampleRate: 48000 })
+        : this.getAudioContext();
+      if (useRNNoise) this.audioContext = ctx;
 
-      // Insert GainNode for mic volume control
-      const ctx = this.getAudioContext();
-      const source = ctx.createMediaStreamSource(this.localStream);
+      const source = ctx.createMediaStreamSource(this.rawStream);
       const gainNode = ctx.createGain();
       gainNode.gain.value = useUserSettingsStore.getState().inputVolume;
       this.gainNode = gainNode;
       const destination = ctx.createMediaStreamDestination();
-      source.connect(gainNode);
+
+      if (useRNNoise) {
+        noiseSuppression.setEnabled(true);
+        await noiseSuppression.initWorklet(ctx);
+        const workletNode = noiseSuppression.getWorkletNode()!;
+        source.connect(workletNode);
+        workletNode.connect(gainNode);
+        await noiseSuppression.waitForReady();
+      } else {
+        noiseSuppression.setEnabled(false);
+        source.connect(gainNode);
+      }
+
       gainNode.connect(destination);
-      // Use the gain-controlled stream for the peer connection
       this.localStream = destination.stream;
     } catch {
       throw new Error('Microphone access denied');
@@ -458,12 +465,12 @@ class WebRTCService {
       this.pc = null;
     }
 
-    // Close audio context
+    // Close audio context (we always own it now)
     if (this.audioContext) {
       this.audioContext.close().catch(() => {});
-      this.audioContext = null;
-      this.analyser = null;
     }
+    this.audioContext = null;
+    this.analyser = null;
 
     this.remoteAnalysers.clear();
     this.remoteStreams.clear();

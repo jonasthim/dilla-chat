@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useAudioSettingsStore, type InputProfile, type NoiseSuppressionMode } from '../stores/audioSettingsStore';
 import { useUserSettingsStore } from '../stores/userSettingsStore';
 import { useTelemetryStore } from '../stores/telemetryStore';
+import { NoiseSuppression } from '../services/noiseSuppression';
 import { notificationService } from '../services/notifications';
 import { api } from '../services/api';
 import './UserSettings.css';
@@ -666,6 +667,8 @@ function MicTest({ deviceId, inputVolume }: { deviceId: string; inputVolume: num
   const ctxRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const animRef = useRef<number>(0);
+  const nsRef = useRef<NoiseSuppression | null>(null);
+  const enhancedNoiseSuppression = useAudioSettingsStore((s) => s.enhancedNoiseSuppression);
 
   // Update gain when inputVolume changes during test
   useEffect(() => {
@@ -674,21 +677,53 @@ function MicTest({ deviceId, inputVolume }: { deviceId: string; inputVolume: num
     }
   }, [inputVolume]);
 
+  const stopTest = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (nsRef.current) {
+      nsRef.current.cleanup();
+      nsRef.current = null;
+    }
+    if (ctxRef.current) {
+      ctxRef.current.close();
+      ctxRef.current = null;
+    }
+    gainRef.current = null;
+    cancelAnimationFrame(animRef.current);
+    setLevel(0);
+    setTesting(false);
+  }, []);
+
   const startTest = useCallback(async () => {
     try {
       const audioConstraints = useAudioSettingsStore.getState().getAudioConstraints(deviceId);
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-      streamRef.current = stream;
+      const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      streamRef.current = rawStream;
 
-      const audioCtx = new AudioContext();
+      // Build a single audio graph: source → [worklet] → gain → analyser
+      const useRNNoise = useAudioSettingsStore.getState().enhancedNoiseSuppression;
+      const audioCtx = useRNNoise
+        ? new AudioContext({ sampleRate: 48000 })
+        : new AudioContext();
       ctxRef.current = audioCtx;
-      const source = audioCtx.createMediaStreamSource(stream);
+      const source = audioCtx.createMediaStreamSource(rawStream);
 
-      // Apply inputVolume gain to the test pipeline
       const gainNode = audioCtx.createGain();
       gainNode.gain.value = inputVolume;
       gainRef.current = gainNode;
-      source.connect(gainNode);
+
+      if (useRNNoise) {
+        const ns = new NoiseSuppression();
+        nsRef.current = ns;
+        await ns.initWorklet(audioCtx);
+        const worklet = ns.getWorkletNode()!;
+        source.connect(worklet);
+        worklet.connect(gainNode);
+      } else {
+        source.connect(gainNode);
+      }
 
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 1024;
@@ -714,23 +749,20 @@ function MicTest({ deviceId, inputVolume }: { deviceId: string; inputVolume: num
     }
   }, [deviceId, inputVolume]);
 
-  const stopTest = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
+  // Restart test when noise suppression setting changes during active test
+  useEffect(() => {
+    if (testing) {
+      stopTest();
+      startTest();
     }
-    if (ctxRef.current) {
-      ctxRef.current.close();
-      ctxRef.current = null;
-    }
-    gainRef.current = null;
-    cancelAnimationFrame(animRef.current);
-    setLevel(0);
-    setTesting(false);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enhancedNoiseSuppression]);
 
   useEffect(() => {
     return () => {
+      if (nsRef.current) {
+        nsRef.current.cleanup();
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }

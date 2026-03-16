@@ -1,8 +1,8 @@
 /**
  * Noise suppression service.
  *
- * Inserts an AudioWorklet node running RNNoise (via @jitsi/rnnoise-wasm)
- * between the raw microphone MediaStream and the RTCPeerConnection.
+ * Loads an AudioWorklet running RNNoise (via @jitsi/rnnoise-wasm) and exposes
+ * the worklet node so callers can wire it into their own audio graph.
  *
  * Works in both the browser and Tauri webview (both support AudioWorklet).
  */
@@ -11,86 +11,68 @@ import { useAudioSettingsStore } from '../stores/audioSettingsStore';
 
 const WORKLET_URL = '/noise-suppressor-worklet.js';
 
-class NoiseSuppression {
-  private audioContext: AudioContext | null = null;
+export class NoiseSuppression {
   private workletNode: AudioWorkletNode | null = null;
-  private sourceNode: MediaStreamAudioSourceNode | null = null;
-  private destinationNode: MediaStreamAudioDestinationNode | null = null;
   private enabled = true;
   private initialized = false;
   private storeUnsubscribe: (() => void) | null = null;
 
   /**
-   * Process an input MediaStream through RNNoise and return a new
-   * MediaStream with suppressed audio.
-   *
-   * If AudioWorklet isn't available or setup fails, returns the
-   * original stream unchanged (graceful fallback).
+   * Load the RNNoise worklet module into the given AudioContext and create
+   * the worklet node. The caller owns the AudioContext and wires the node
+   * into its own graph via getWorkletNode().
    */
-  async processStream(inputStream: MediaStream): Promise<MediaStream> {
-    try {
-      // Create an AudioContext at 48 kHz to match RNNoise expectations
-      this.audioContext = new AudioContext({ sampleRate: 48000 });
+  async initWorklet(audioContext: AudioContext): Promise<void> {
+    await audioContext.audioWorklet.addModule(WORKLET_URL);
 
-      // Load the worklet processor
-      await this.audioContext.audioWorklet.addModule(WORKLET_URL);
+    this.workletNode = new AudioWorkletNode(audioContext, 'noise-suppressor');
 
-      // Create nodes
-      this.sourceNode = this.audioContext.createMediaStreamSource(inputStream);
-      this.workletNode = new AudioWorkletNode(this.audioContext, 'noise-suppressor');
-      this.destinationNode = this.audioContext.createMediaStreamDestination();
+    // Listen for ready/error from the worklet
+    this.workletNode.port.onmessage = (e) => {
+      if (e.data.type === 'ready') {
+        console.log('[NoiseSuppression] RNNoise worklet ready');
+        this.initialized = true;
+      } else if (e.data.type === 'error') {
+        console.warn('[NoiseSuppression] Worklet error:', e.data.message);
+      }
+    };
 
-      // Wire up: mic → worklet → destination
-      this.sourceNode.connect(this.workletNode);
-      this.workletNode.connect(this.destinationNode);
+    // Send initial enabled state
+    this.workletNode.port.postMessage({ type: 'enable', enabled: this.enabled });
 
-      // Listen for ready/error from the worklet
-      this.workletNode.port.onmessage = (e) => {
-        if (e.data.type === 'ready') {
-          console.log('[NoiseSuppression] RNNoise worklet ready');
-          this.initialized = true;
-        } else if (e.data.type === 'error') {
-          console.warn('[NoiseSuppression] Worklet error:', e.data.message);
-        }
-      };
+    // Send initial VAD settings from store
+    const { vadThreshold, vadGracePeriodMs, retroactiveGraceMs } =
+      useAudioSettingsStore.getState();
+    this.workletNode.port.postMessage({ type: 'vadThreshold', value: vadThreshold });
+    this.workletNode.port.postMessage({ type: 'vadGracePeriodMs', value: vadGracePeriodMs });
+    this.workletNode.port.postMessage({ type: 'retroactiveGraceMs', value: retroactiveGraceMs });
 
-      // Send initial enabled state
-      this.workletNode.port.postMessage({ type: 'enable', enabled: this.enabled });
+    // Subscribe to store changes and forward to worklet
+    this.storeUnsubscribe = useAudioSettingsStore.subscribe((state, prev) => {
+      if (!this.workletNode) return;
+      if (state.vadThreshold !== prev.vadThreshold) {
+        this.workletNode.port.postMessage({ type: 'vadThreshold', value: state.vadThreshold });
+      }
+      if (state.vadGracePeriodMs !== prev.vadGracePeriodMs) {
+        this.workletNode.port.postMessage({
+          type: 'vadGracePeriodMs',
+          value: state.vadGracePeriodMs,
+        });
+      }
+      if (state.retroactiveGraceMs !== prev.retroactiveGraceMs) {
+        this.workletNode.port.postMessage({
+          type: 'retroactiveGraceMs',
+          value: state.retroactiveGraceMs,
+        });
+      }
+    });
 
-      // Send initial VAD settings from store
-      const { vadThreshold, vadGracePeriodMs, retroactiveGraceMs } =
-        useAudioSettingsStore.getState();
-      this.workletNode.port.postMessage({ type: 'vadThreshold', value: vadThreshold });
-      this.workletNode.port.postMessage({ type: 'vadGracePeriodMs', value: vadGracePeriodMs });
-      this.workletNode.port.postMessage({ type: 'retroactiveGraceMs', value: retroactiveGraceMs });
+    console.log('[NoiseSuppression] AudioWorklet node created');
+  }
 
-      // Subscribe to store changes and forward to worklet
-      this.storeUnsubscribe = useAudioSettingsStore.subscribe((state, prev) => {
-        if (!this.workletNode) return;
-        if (state.vadThreshold !== prev.vadThreshold) {
-          this.workletNode.port.postMessage({ type: 'vadThreshold', value: state.vadThreshold });
-        }
-        if (state.vadGracePeriodMs !== prev.vadGracePeriodMs) {
-          this.workletNode.port.postMessage({
-            type: 'vadGracePeriodMs',
-            value: state.vadGracePeriodMs,
-          });
-        }
-        if (state.retroactiveGraceMs !== prev.retroactiveGraceMs) {
-          this.workletNode.port.postMessage({
-            type: 'retroactiveGraceMs',
-            value: state.retroactiveGraceMs,
-          });
-        }
-      });
-
-      console.log('[NoiseSuppression] AudioWorklet pipeline created');
-      return this.destinationNode.stream;
-    } catch (err) {
-      console.warn('[NoiseSuppression] Failed to initialize, falling back to raw stream:', err);
-      this.cleanup();
-      return inputStream;
-    }
+  /** Returns the worklet node for the caller to wire into its audio graph. */
+  getWorkletNode(): AudioWorkletNode | null {
+    return this.workletNode;
   }
 
   /** Toggle noise suppression on/off without reconnecting. */
@@ -121,7 +103,24 @@ class NoiseSuppression {
     this.workletNode?.port.postMessage({ type: 'retroactiveGraceMs', value });
   }
 
-  /** Tear down the audio processing pipeline. */
+  /** Wait for the RNNoise worklet to post 'ready' (with timeout). */
+  waitForReady(timeoutMs = 3000): Promise<boolean> {
+    if (this.initialized) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const interval = setInterval(() => {
+        if (this.initialized) {
+          clearInterval(interval);
+          resolve(true);
+        }
+      }, 50);
+      setTimeout(() => {
+        clearInterval(interval);
+        resolve(this.initialized);
+      }, timeoutMs);
+    });
+  }
+
+  /** Tear down the worklet node and store subscription. Caller owns the AudioContext. */
   cleanup(): void {
     if (this.storeUnsubscribe) {
       this.storeUnsubscribe();
@@ -130,18 +129,6 @@ class NoiseSuppression {
     if (this.workletNode) {
       this.workletNode.disconnect();
       this.workletNode = null;
-    }
-    if (this.sourceNode) {
-      this.sourceNode.disconnect();
-      this.sourceNode = null;
-    }
-    if (this.destinationNode) {
-      this.destinationNode.disconnect();
-      this.destinationNode = null;
-    }
-    if (this.audioContext) {
-      this.audioContext.close().catch(() => {});
-      this.audioContext = null;
     }
     this.initialized = false;
   }
