@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState, type UIEvent } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo, type UIEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -93,7 +93,7 @@ export default function ThreadPanel({ thread, onClose }: Props) {
   const currentUser = teamEntry?.user as { id?: string; username?: string } | null;
   const currentUserId = currentUser?.id ?? '';
 
-  const msgs = threadMessages[thread.id] ?? [];
+  const msgs = useMemo(() => threadMessages[thread.id] ?? [], [threadMessages, thread.id]);
 
   // Find parent message from channel messages
   const allChannelMsgs = channelMessages.get(thread.channel_id) ?? [];
@@ -140,7 +140,7 @@ export default function ThreadPanel({ thread, onClose }: Props) {
       }
     };
     load();
-  }, [activeTeamId, thread.id, setThreadMessages]);
+  }, [activeTeamId, thread.id, setThreadMessages, derivedKey, thread.channel_id]);
 
   // Subscribe to thread WebSocket events
   useEffect(() => {
@@ -184,7 +184,7 @@ export default function ThreadPanel({ thread, onClose }: Props) {
       unsubEdit();
       unsubDelete();
     };
-  }, [thread.id, addThreadMessage, updateThreadMessage, removeThreadMessage]);
+  }, [thread.id, addThreadMessage, updateThreadMessage, removeThreadMessage, derivedKey, thread.channel_id]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -201,19 +201,6 @@ export default function ThreadPanel({ thread, onClose }: Props) {
       bottomRef.current.scrollIntoView();
     }
   }, [thread.id]);
-
-  const handleScroll = useCallback(
-    (e: UIEvent<HTMLDivElement>) => {
-      const el = e.currentTarget;
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-      shouldAutoScroll.current = atBottom;
-
-      if (el.scrollTop < 100 && hasMore && !loading) {
-        handleLoadMore();
-      }
-    },
-    [hasMore, loading],
-  );
 
   const handleLoadMore = useCallback(async () => {
     if (!activeTeamId || loading || !hasMore) return;
@@ -241,6 +228,19 @@ export default function ThreadPanel({ thread, onClose }: Props) {
       setLoading(false);
     }
   }, [activeTeamId, thread.id, msgs, loading, hasMore, setThreadMessages]);
+
+  const handleScroll = useCallback(
+    (e: UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+      shouldAutoScroll.current = atBottom;
+
+      if (el.scrollTop < 100 && hasMore && !loading) {
+        handleLoadMore();
+      }
+    },
+    [hasMore, loading, handleLoadMore],
+  );
 
   const handleSend = useCallback(
     async (content: string) => {

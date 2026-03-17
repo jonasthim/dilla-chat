@@ -30,8 +30,8 @@ export default function MemberList() {
   const { setActiveDM } = useDMStore();
   const [popup, setPopup] = useState<ProfilePopup | null>(null);
 
-  const teamMembers = activeTeamId ? (members.get(activeTeamId) ?? []) : [];
-  const teamPresences = activeTeamId ? (presences[activeTeamId] ?? {}) : {};
+  const teamMembers = useMemo(() => activeTeamId ? (members.get(activeTeamId) ?? []) : [], [activeTeamId, members]);
+  const teamPresences = useMemo(() => activeTeamId ? (presences[activeTeamId] ?? {}) : {}, [activeTeamId, presences]);
 
   const currentTeamEntry = activeTeamId ? teams.get(activeTeamId) : null;
   const currentUserId = (currentTeamEntry?.user as { id?: string } | null)?.id ?? '';
