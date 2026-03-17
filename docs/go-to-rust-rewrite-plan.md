@@ -15,7 +15,7 @@ Full rewrite of the ~13.5K LOC Go server into Rust, organized into 7 phases over
 | `net/http` (stdlib) | **axum** 0.8.x | Stable | Tokio-native, best DX, built-in WebSocket, Tower middleware, surpassed actix-web in adoption |
 | `gorilla/websocket` | **axum::extract::ws** + **tokio-tungstenite** | Stable | Integrated with axum, same upgrade pattern |
 | `mattn/go-sqlite3` (CGO) | **rusqlite** with `bundled-sqlcipher` feature | 0.38.x | Eliminates CGO entirely. SQLCipher compiled and statically linked. No cross-compilation pain |
-| `hashicorp/memberlist` | **memberlist** (Rust port) | crates.io | Direct port of HashiCorp's memberlist. Async runtime agnostic, WASM-friendly. Closest API match. Fallback: **foca** (SWIM+Inf.+Susp.) |
+| `hashicorp/memberlist` | **memberlist** (Rust port) | crates.io | Direct port of HashiCorp's memberlist. Async runtime agnostic, WASM-friendly. Closest API match. If insufficient, use **foca** (SWIM+Inf.+Susp.) and build the missing pieces |
 | `pion/webrtc/v4` | **webrtc-rs** v0.17.x (stable branch) | 0.17.x | Use the Tokio-coupled stable branch, NOT the v0.20 alpha. Bug-fix-only but functional |
 | `golang-jwt/jwt/v5` | **jsonwebtoken** | 9.x | Mature, supports HS256/RS256/EdDSA, widely used |
 | `golang.org/x/crypto` | **ed25519-dalek** + **rand** | 2.x | Ed25519 signing/verification. `rand` for challenge nonces |
@@ -379,7 +379,7 @@ Port the Pion WebRTC SFU using **webrtc-rs v0.17.x** (stable branch):
 - Bug-fix-only branch, no new features
 - API is a direct port of Pion, so Go → Rust translation is mostly mechanical
 - Known limitations: some edge cases in ICE gathering, but functional for SFU pattern
-- **Risk mitigation:** If webrtc-rs proves unstable, can shell out to a Pion-based sidecar process and communicate via IPC
+- **Risk mitigation:** If webrtc-rs v0.17.x has gaps, contribute patches upstream or fork. The codebase is a direct Pion port so the fix patterns are well-understood. Pin to a known-good commit if needed
 
 **Deliverable:** Voice calls work. Users can join/leave voice channels, hear each other, share screens.
 
@@ -583,7 +583,7 @@ This eliminates code duplication and ensures both ends use identical crypto.
 
 | Risk | Mitigation |
 |---|---|
-| webrtc-rs v0.17.x has bugs | Keep Go voice SFU as a sidecar process communicating via gRPC/IPC. Migrate voice last |
+| webrtc-rs v0.17.x has bugs | Contribute fixes upstream or maintain a pinned fork. The codebase is a Pion port — fix patterns map 1:1 from Go |
 | Rust memberlist crate is too immature | Switch to foca (SWIM+extensions). More work but proven in production by others |
 | SQLCipher bundled build fails on target | rusqlite's `bundled-sqlcipher` is well-tested on all major platforms. Fallback: link system SQLCipher |
 | Performance regression in async SQLite | Use `tokio::task::spawn_blocking` for all rusqlite calls. Consider r2d2 connection pool |

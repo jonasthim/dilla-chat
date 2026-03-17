@@ -79,13 +79,7 @@ The Dilla server is ~13.5K LOC of Go across 49 files, covering REST API, WebSock
 
 ## Recommendation
 
-**Don't do a full rewrite.** The Go server works, and the two highest-risk subsystems (federation + voice SFU) have poor Rust ecosystem coverage. A rewrite would burn months for marginal gains.
-
-**Consider instead:**
-1. **Extract shared Rust crates** for crypto primitives used by both Tauri client and any future server-side crypto needs.
-2. **Replace `mattn/go-sqlite3`** with a pure-Go SQLite driver like `modernc.org/sqlite` (no CGO) if cross-compilation pain is the main irritant.
-3. **Write new subsystems in Rust** if they're naturally isolated (e.g., a Rust-based media processing sidecar).
-4. **If you still want Rust long-term**, migrate incrementally: start with the database layer and API (lowest risk, best ecosystem), leave federation and voice SFU for last.
+**Decision: Full rewrite to pure Rust.** See `go-to-rust-rewrite-plan.md` for the 7-phase implementation plan. Federation uses the Rust `memberlist` crate (HashiCorp port), voice SFU uses webrtc-rs v0.17.x (Pion port). No Go sidecars — single Rust binary.
 
 ---
 
