@@ -41,55 +41,59 @@ jobs:
           name: client-dist
           path: client/dist/
 
-  # Phase 2: Build server binaries (matrix)
+  # Phase 2: Build Rust server binaries (matrix)
   build-server:
     needs: build-client
     strategy:
       matrix:
         include:
-          - goos: linux
-            goarch: amd64
-            runner: ubuntu-latest
-            cc: gcc
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
             archive: tar.gz
-          - goos: linux
-            goarch: arm64
-            runner: ubuntu-latest
-            cc: aarch64-linux-gnu-gcc
+            name_suffix: linux-amd64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
             archive: tar.gz
-          - goos: darwin
-            goarch: amd64
-            runner: macos-14
-            cc: clang
+            name_suffix: linux-arm64
+            cross: true
+          - target: x86_64-apple-darwin
+            os: macos-14
             archive: tar.gz
-          - goos: darwin
-            goarch: arm64
-            runner: macos-latest
-            cc: clang
+            name_suffix: darwin-amd64
+          - target: aarch64-apple-darwin
+            os: macos-latest
             archive: tar.gz
-          - goos: windows
-            goarch: amd64
-            runner: ubuntu-latest
-            cc: x86_64-w64-mingw32-gcc
-            archive: zip
+            name_suffix: darwin-arm64
       fail-fast: false
 
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          go-version-file: server/go.mod
+          targets: ${{ matrix.target }}
 
-      - name: Install cross-compiler (linux/arm64)
-        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
-        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            server-rs/target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-release-${{ hashFiles('server-rs/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-release-
 
-      - name: Install cross-compiler (windows)
-        if: matrix.goos == 'windows'
-        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
+      - name: Install cross-compilation tools (aarch64-linux)
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
+          echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
 
       - name: Validate client build
         run: |
@@ -101,43 +105,22 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: client-dist
-          path: server/internal/webapp/dist/
-
-      - name: Determine binary name
-        id: binary
-        run: |
-          NAME="dilla-server-${{ matrix.goos }}-${{ matrix.goarch }}"
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            NAME="${NAME}.exe"
-          fi
-          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          path: server-rs/dist/
 
       - name: Build server binary
-        working-directory: server
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: '1'
-          CC: ${{ matrix.cc }}
-          TAG_NAME: ${{ github.ref_name }}
+        working-directory: server-rs
         run: |
-          VERSION="${TAG_NAME#v}"
-          go build -ldflags "-s -w -X main.version=${VERSION}" -o "${{ steps.binary.outputs.name }}" ./cmd/dilla-server/
+          cargo build --release --target ${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/dilla-server dilla-server-${{ matrix.name_suffix }}
 
       - name: Package (tar.gz)
-        if: matrix.archive == 'tar.gz'
-        working-directory: server
-        run: tar czf "dilla-server-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" "${{ steps.binary.outputs.name }}"
-
-      - name: Package (zip)
-        if: matrix.archive == 'zip'
-        working-directory: server
-        run: zip "dilla-server-${{ matrix.goos }}-${{ matrix.goarch }}.zip" "${{ steps.binary.outputs.name }}"
+        working-directory: server-rs
+        run: tar czf "dilla-server-${{ matrix.name_suffix }}.tar.gz" "dilla-server-${{ matrix.name_suffix }}"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dilla-server-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: server/dilla-server-${{ matrix.goos }}-${{ matrix.goarch }}.${{ matrix.archive }}
+          name: dilla-server-${{ matrix.name_suffix }}
+          path: server-rs/dilla-server-${{ matrix.name_suffix }}.tar.gz
 
   # Phase 3: Create GitHub Release
   release:
@@ -306,4 +289,3 @@ jobs:
                 labels: ['release', 'manual-intervention']
               });
             }
-
