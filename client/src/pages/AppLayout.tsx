@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Hashtag, ChatBubble, Group, SoundHigh, Lock, Settings } from 'iconoir-react';
@@ -125,14 +125,14 @@ export default function AppLayout() {
       setViewMode('dms');
       setActiveChannel('');
     }
-  }, [activeDMId]);
+  }, [activeDMId, setActiveChannel, viewMode]);
 
   useEffect(() => {
     if (activeChannelId && viewMode !== 'channels') {
       setViewMode('channels');
       setActiveDM(null);
     }
-  }, [activeChannelId]);
+  }, [activeChannelId, setActiveDM, viewMode]);
 
   // Auto-switch to chat tab on mobile when a channel or DM is selected
   useEffect(() => {
@@ -270,6 +270,7 @@ export default function AppLayout() {
     }
 
     return () => { unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- WS event handlers intentionally capture latest closures; adding applySyncData/loadDataViaREST would cause reconnection loops
   }, [activeTeamId]);
 
   // Connect WebSocket when team becomes active
@@ -326,6 +327,7 @@ export default function AppLayout() {
         console.warn('[AppLayout] Blob upload skipped:', e);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- blob upload runs once per session; teams is read inside the async closure
   }, [activeTeamId, derivedKey, dataLoaded.current.size]);
 
   // Subscribe to presence WebSocket events
@@ -410,7 +412,7 @@ export default function AppLayout() {
   const displayName = currentUser?.display_name;
 
   // Find active channel info
-  const teamChannels = activeTeamId ? (Array.isArray(channels.get(activeTeamId)) ? channels.get(activeTeamId)! : []) : [];
+  const teamChannels = useMemo(() => activeTeamId ? (Array.isArray(channels.get(activeTeamId)) ? channels.get(activeTeamId)! : []) : [], [activeTeamId, channels]);
   const activeChannel = teamChannels.find((c) => c.id === activeChannelId);
 
   // Find active DM info

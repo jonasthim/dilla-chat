@@ -63,7 +63,7 @@ export default function DMList({ currentUserId, onNewDM }: Props) {
     loadDMs();
   }, [activeTeamId, setDMChannels]);
 
-  const channels = activeTeamId ? (dmChannels[activeTeamId] ?? []) : [];
+  const channels = useMemo(() => activeTeamId ? (dmChannels[activeTeamId] ?? []) : [], [activeTeamId, dmChannels]);
 
   const sorted = useMemo(() => {
     return [...channels].sort((a, b) => {

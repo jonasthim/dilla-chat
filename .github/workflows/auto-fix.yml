@@ -9,6 +9,9 @@ permissions:
   issues: write
   pull-requests: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   auto-fix:
     # Only run if the issue has the 'auto-fix' label but skip if Claude is handling it
