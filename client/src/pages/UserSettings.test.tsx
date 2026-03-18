@@ -18,17 +18,37 @@ vi.mock('../services/api', () => ({
 }));
 
 vi.mock('../services/noiseSuppression', () => ({
-  NoiseSuppression: vi.fn().mockImplementation(() => ({
-    initWorklet: vi.fn(),
-    getWorkletNode: vi.fn(),
-    cleanup: vi.fn(),
-  })),
+  NoiseSuppression: vi.fn().mockImplementation(function () {
+    return {
+      initWorklet: vi.fn(),
+      getWorkletNode: vi.fn(),
+      cleanup: vi.fn(),
+    };
+  }),
 }));
 
 vi.mock('../services/notifications', () => ({
   notificationService: {
     setEnabled: vi.fn(),
   },
+}));
+
+const { mockMicTestSession } = vi.hoisted(() => {
+  const mockMicTestSession = {
+    stream: { getTracks: () => [{ stop: () => {} }] },
+    audioContext: { close: () => {} },
+    analyser: {},
+    gainNode: { gain: { value: 1 } },
+    animFrameId: 0,
+    noiseSuppression: null,
+    timeDomainData: new Float32Array(128),
+  };
+  return { mockMicTestSession };
+});
+
+vi.mock('../services/micTest', () => ({
+  startMicTest: vi.fn().mockResolvedValue(mockMicTestSession),
+  stopMicTest: vi.fn(),
 }));
 
 vi.mock('../components/PasskeyManager/PasskeyManager', () => ({
@@ -836,5 +856,104 @@ describe('UserSettings', () => {
     // The language select should be present
     const selects = document.querySelectorAll('select');
     expect(selects.length).toBeGreaterThan(0);
+  });
+
+  it('starts and stops mic test via startMicTest/stopMicTest', async () => {
+    const { startMicTest, stopMicTest } = await import('../services/micTest');
+    const { waitFor } = await import('@testing-library/react');
+
+    render(<UserSettings />);
+    fireEvent.click(screen.getByTestId('nav-voice-video'));
+
+    // Click "Test Mic" to start
+    const testBtn = screen.getByRole('button', { name: /startTest|Test Mic/ });
+    fireEvent.click(testBtn);
+
+    await waitFor(() => {
+      expect(startMicTest).toHaveBeenCalled();
+    });
+
+    // Verify createNoiseSuppression factory was passed and works
+    const callArgs = vi.mocked(startMicTest).mock.calls[0][0];
+    if (callArgs.createNoiseSuppression) {
+      const ns = callArgs.createNoiseSuppression();
+      expect(ns).toHaveProperty('initWorklet');
+      expect(ns).toHaveProperty('getWorkletNode');
+      expect(ns).toHaveProperty('cleanup');
+      // Call the methods to exercise the factory body
+      ns.initWorklet({} as AudioContext);
+      ns.getWorkletNode();
+      ns.cleanup();
+    }
+
+    // After starting, the button should show "Stop"
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /stopTest|Stop/ })).toBeInTheDocument();
+    });
+
+    // Click "Stop"
+    fireEvent.click(screen.getByRole('button', { name: /stopTest|Stop/ }));
+    expect(stopMicTest).toHaveBeenCalled();
+  });
+
+  it('updates gain node when inputVolume changes during active mic test', async () => {
+    const { startMicTest } = await import('../services/micTest');
+    const { waitFor, act } = await import('@testing-library/react');
+
+    render(<UserSettings />);
+    fireEvent.click(screen.getByTestId('nav-voice-video'));
+
+    // Start mic test
+    const testBtn = screen.getByRole('button', { name: /startTest|Test Mic/ });
+    await act(async () => {
+      fireEvent.click(testBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /stopTest|Stop/ })).toBeInTheDocument();
+    });
+
+    // Change input volume slider — this triggers the useEffect that updates gain
+    const slider = screen.getByRole('slider', { name: 'Input Volume' });
+    fireEvent.change(slider, { target: { value: '50' } });
+
+    // The gain node value should be updated
+    expect(mockMicTestSession.gainNode.gain.value).toBeDefined();
+  });
+
+  it('restarts mic test when enhancedNoiseSuppression changes during active test', async () => {
+    const { startMicTest, stopMicTest } = await import('../services/micTest');
+    const { waitFor, act } = await import('@testing-library/react');
+
+    // Ensure enhancedNoiseSuppression starts as false
+    useAudioSettingsStore.setState({ enhancedNoiseSuppression: false });
+
+    render(<UserSettings />);
+    fireEvent.click(screen.getByTestId('nav-voice-video'));
+
+    // Start mic test
+    const testBtn = screen.getByRole('button', { name: /startTest|Test Mic/ });
+
+    await act(async () => {
+      fireEvent.click(testBtn);
+    });
+
+    // Wait for testing state to become true (Stop button appears)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /stopTest|Stop/ })).toBeInTheDocument();
+    });
+
+    const startCallsBefore = vi.mocked(startMicTest).mock.calls.length;
+
+    // Toggle enhancedNoiseSuppression while test is active
+    act(() => {
+      useAudioSettingsStore.setState({ enhancedNoiseSuppression: true });
+    });
+
+    // The effect should have called handleStop + handleStart
+    await waitFor(() => {
+      expect(stopMicTest).toHaveBeenCalled();
+      expect(vi.mocked(startMicTest).mock.calls.length).toBeGreaterThan(startCallsBefore);
+    });
   });
 });

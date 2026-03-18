@@ -63,18 +63,69 @@ vi.mock('../components/MobileTabBar/MobileTabBar', () => ({
   ),
 }));
 vi.mock('../components/TeamSidebar/TeamSidebar', () => ({ default: () => <div data-testid="team-sidebar">TeamSidebar</div> }));
-vi.mock('../components/ChannelList/ChannelList', () => ({ default: () => <div data-testid="channel-list">ChannelList</div> }));
-vi.mock('../components/DMList/DMList', () => ({ default: () => <div data-testid="dm-list">DMList</div> }));
-vi.mock('../components/DMList/NewDMModal', () => ({ default: () => null }));
+vi.mock('../components/ChannelList/ChannelList', () => ({
+  default: ({ onCreateChannel }: { onCreateChannel: (cat?: string) => void }) => (
+    <div data-testid="channel-list">
+      <button data-testid="create-channel-btn" onClick={() => onCreateChannel('general')}>Create Channel</button>
+    </div>
+  ),
+}));
+vi.mock('../components/DMList/DMList', () => ({
+  default: ({ onNewDM }: { onNewDM: () => void }) => (
+    <div data-testid="dm-list">
+      <button data-testid="new-dm-btn" onClick={onNewDM}>New DM</button>
+    </div>
+  ),
+}));
+vi.mock('../components/DMList/NewDMModal', () => ({
+  default: ({ onClose, onDMCreated }: { onClose: () => void; onDMCreated: (dm: unknown) => void }) => (
+    <div data-testid="new-dm-modal">
+      <button data-testid="close-new-dm" onClick={onClose}>Close</button>
+      <button data-testid="dm-created" onClick={() => onDMCreated({ id: 'new-dm-1', members: [], is_group: false, created_at: '', last_message_at: null })}>Create</button>
+    </div>
+  ),
+}));
 vi.mock('../components/DMView/DMView', () => ({ default: () => <div data-testid="dm-view">DMView</div> }));
 vi.mock('../components/VoiceControls/VoiceControls', () => ({ default: () => <div data-testid="voice-controls">VoiceControls</div> }));
 vi.mock('../components/VoiceChannel/VoiceChannel', () => ({ default: () => <div data-testid="voice-channel">VoiceChannel</div> }));
-vi.mock('../components/UserPanel/UserPanel', () => ({ default: () => <div data-testid="user-panel">UserPanel</div> }));
+vi.mock('../components/UserPanel/UserPanel', () => ({
+  default: ({ onSettingsClick }: { onSettingsClick: () => void }) => (
+    <div data-testid="user-panel">
+      <button data-testid="user-settings-btn" onClick={onSettingsClick}>Settings</button>
+    </div>
+  ),
+}));
 vi.mock('../components/MemberList/MemberList', () => ({ default: () => <div data-testid="member-list">MemberList</div> }));
-vi.mock('../components/CreateChannel/CreateChannel', () => ({ default: () => null }));
-vi.mock('../components/ThreadPanel/ThreadPanel', () => ({ default: () => <div data-testid="thread-panel">ThreadPanel</div> }));
-vi.mock('../components/SearchBar/SearchBar', () => ({ default: () => <div data-testid="search-bar">SearchBar</div> }));
-vi.mock('../components/ShortcutsModal/ShortcutsModal', () => ({ default: () => null }));
+vi.mock('../components/CreateChannel/CreateChannel', () => ({
+  default: ({ onClose, defaultCategory }: { onClose: () => void; defaultCategory?: string }) => (
+    <div data-testid="create-channel-modal">
+      <span data-testid="create-channel-category">{defaultCategory}</span>
+      <button data-testid="close-create-channel" onClick={onClose}>Close</button>
+    </div>
+  ),
+}));
+vi.mock('../components/ThreadPanel/ThreadPanel', () => ({
+  default: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="thread-panel">
+      <button data-testid="close-thread" onClick={onClose}>Close Thread</button>
+    </div>
+  ),
+}));
+vi.mock('../components/SearchBar/SearchBar', () => ({
+  default: ({ onJumpToMessage }: { onJumpToMessage: (channelId: string, messageId: string) => void }) => (
+    <div data-testid="search-bar">
+      <button data-testid="jump-to-msg" onClick={() => onJumpToMessage('ch2', 'msg-123')}>Jump</button>
+      <button data-testid="jump-same-channel" onClick={() => onJumpToMessage('ch1', 'msg-456')}>Jump Same</button>
+    </div>
+  ),
+}));
+vi.mock('../components/ShortcutsModal/ShortcutsModal', () => ({
+  default: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="shortcuts-modal">
+      <button data-testid="close-shortcuts" onClick={onClose}>Close Shortcuts</button>
+    </div>
+  ),
+}));
 vi.mock('../components/ResizeHandle/ResizeHandle', () => ({ default: () => <div data-testid="resize-handle">ResizeHandle</div> }));
 vi.mock('../components/TitleBar/TitleBar', () => ({ default: () => <div data-testid="title-bar">TitleBar</div> }));
 vi.mock('./ChannelView', () => ({ default: () => <div data-testid="channel-view">ChannelView</div> }));
@@ -878,6 +929,256 @@ describe('AppLayout behavioral', () => {
       expect(screen.getByTestId('dm-view')).toBeInTheDocument();
     });
   });
+
+  it('opens CreateChannel modal via ChannelList onCreateChannel callback', async () => {
+    render(<AppLayout />);
+    await waitFor(() => {
+      expect(screen.getByTestId('create-channel-btn')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('create-channel-btn'));
+    await waitFor(() => {
+      expect(screen.getByTestId('create-channel-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('create-channel-category')).toHaveTextContent('general');
+    });
+    // Close the modal
+    fireEvent.click(screen.getByTestId('close-create-channel'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('create-channel-modal')).not.toBeInTheDocument();
+    });
+  });
+
+  it('opens NewDMModal via DMList onNewDM callback and closes it', async () => {
+    useTeamStore.setState({ activeChannelId: '' });
+    useDMStore.setState({
+      activeDMId: 'dm-x', setActiveDM: vi.fn(),
+      dmChannels: { team1: [{ id: 'dm-x', members: [{ user_id: 'u1', username: 'tester', display_name: 'Tester' }], is_group: false, created_at: '', last_message_at: null }] },
+    });
+    render(<AppLayout />);
+    await waitFor(() => {
+      expect(screen.getByTestId('dm-list')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('new-dm-btn'));
+    await waitFor(() => {
+      expect(screen.getByTestId('new-dm-modal')).toBeInTheDocument();
+    });
+    // Close the modal
+    fireEvent.click(screen.getByTestId('close-new-dm'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('new-dm-modal')).not.toBeInTheDocument();
+    });
+  });
+
+  it('handles DM created callback from NewDMModal', async () => {
+    const setActiveDM = vi.fn();
+    useTeamStore.setState({ activeChannelId: '' });
+    useDMStore.setState({
+      activeDMId: 'dm-y', setActiveDM,
+      dmChannels: { team1: [{ id: 'dm-y', members: [{ user_id: 'u1', username: 'tester', display_name: 'Tester' }], is_group: false, created_at: '', last_message_at: null }] },
+    });
+    render(<AppLayout />);
+    await waitFor(() => { expect(screen.getByTestId('dm-list')).toBeInTheDocument(); });
+    fireEvent.click(screen.getByTestId('new-dm-btn'));
+    await waitFor(() => { expect(screen.getByTestId('new-dm-modal')).toBeInTheDocument(); });
+    fireEvent.click(screen.getByTestId('dm-created'));
+    // handleDMCreated sets activeDM and viewMode
+    await waitFor(() => {
+      expect(setActiveDM).toHaveBeenCalledWith('new-dm-1');
+    });
+  });
+
+  it('opens ShortcutsModal via Ctrl+/ keyboard shortcut', async () => {
+    render(<AppLayout />);
+    await waitFor(() => { expect(screen.getByTestId('channel-view')).toBeInTheDocument(); });
+    // Trigger Ctrl+/ keyboard shortcut
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', ctrlKey: true, bubbles: true }));
+    await waitFor(() => {
+      expect(screen.getByTestId('shortcuts-modal')).toBeInTheDocument();
+    });
+    // Close via the modal close button
+    fireEvent.click(screen.getByTestId('close-shortcuts'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('shortcuts-modal')).not.toBeInTheDocument();
+    });
+  });
+
+  it('closes ShortcutsModal via Escape key', async () => {
+    render(<AppLayout />);
+    await waitFor(() => { expect(screen.getByTestId('channel-view')).toBeInTheDocument(); });
+    // Open shortcuts modal
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', ctrlKey: true, bubbles: true }));
+    await waitFor(() => { expect(screen.getByTestId('shortcuts-modal')).toBeInTheDocument(); });
+    // Close via Escape
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('shortcuts-modal')).not.toBeInTheDocument();
+    });
+  });
+
+  it('navigates to /app/user-settings from UserPanel settings button on desktop', async () => {
+    render(<AppLayout />);
+    await waitFor(() => {
+      expect(screen.getAllByTestId('user-settings-btn').length).toBeGreaterThan(0);
+    });
+    fireEvent.click(screen.getAllByTestId('user-settings-btn')[0]);
+    expect(mockNavigate).toHaveBeenCalledWith('/app/user-settings');
+  });
+
+  it('navigates channels via Alt+ArrowDown/Up keyboard shortcut', async () => {
+    useTeamStore.setState({
+      activeChannelId: 'ch1',
+      channels: new Map([['team1', [
+        { id: 'ch1', name: 'general', type: 'text', teamId: 'team1', topic: '', position: 0, category: '' },
+        { id: 'ch2', name: 'random', type: 'text', teamId: 'team1', topic: '', position: 1, category: '' },
+      ]]]),
+      setActiveChannel: vi.fn(),
+    });
+    render(<AppLayout />);
+    await waitFor(() => { expect(screen.getByTestId('channel-view')).toBeInTheDocument(); });
+    // Navigate down
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true }));
+    await waitFor(() => {
+      expect(useTeamStore.getState().setActiveChannel).toHaveBeenCalledWith('ch2');
+    });
+  });
+
+  it('navigates channels up via Alt+ArrowUp', async () => {
+    useTeamStore.setState({
+      activeChannelId: 'ch1',
+      channels: new Map([['team1', [
+        { id: 'ch1', name: 'general', type: 'text', teamId: 'team1', topic: '', position: 0, category: '' },
+        { id: 'ch2', name: 'random', type: 'text', teamId: 'team1', topic: '', position: 1, category: '' },
+      ]]]),
+      setActiveChannel: vi.fn(),
+    });
+    render(<AppLayout />);
+    await waitFor(() => { expect(screen.getByTestId('channel-view')).toBeInTheDocument(); });
+    // Navigate up from first channel wraps to last
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
+    await waitFor(() => {
+      expect(useTeamStore.getState().setActiveChannel).toHaveBeenCalledWith('ch2');
+    });
+  });
+
+  it('handles activeThreadId with no matching thread (returns null)', async () => {
+    useThreadStore.setState({
+      threads: {},
+      activeThreadId: 'nonexistent-thread',
+      threadPanelOpen: true,
+      setActiveThread: vi.fn(),
+      setThreadPanelOpen: vi.fn(),
+    });
+    render(<AppLayout />);
+    await waitFor(() => {
+      // Thread panel should NOT render because activeThread is null
+      expect(screen.queryByTestId('thread-panel')).not.toBeInTheDocument();
+    });
+  });
+
+  it('closes thread panel via close button on ThreadPanel', async () => {
+    useThreadStore.setState({
+      threads: { ch1: [{ id: 'th-close', channel_id: 'ch1', parent_message_id: 'msg1', team_id: 'team1', creator_id: 'u1', title: '', message_count: 0, last_message_at: null, created_at: '' }] },
+      activeThreadId: 'th-close', threadPanelOpen: true,
+      setActiveThread: vi.fn(),
+      setThreadPanelOpen: vi.fn(),
+    });
+    render(<AppLayout />);
+    await waitFor(() => { expect(screen.getByTestId('close-thread')).toBeInTheDocument(); });
+    fireEvent.click(screen.getByTestId('close-thread'));
+    expect(useThreadStore.getState().setActiveThread).toHaveBeenCalledWith(null);
+    expect(useThreadStore.getState().setThreadPanelOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('handles jump to message in different channel', async () => {
+    useTeamStore.setState({ setActiveChannel: vi.fn() });
+    render(<AppLayout />);
+    await waitFor(() => { expect(screen.getAllByTestId('jump-to-msg').length).toBeGreaterThan(0); });
+    fireEvent.click(screen.getAllByTestId('jump-to-msg')[0]);
+    expect(useTeamStore.getState().setActiveChannel).toHaveBeenCalledWith('ch2');
+  });
+
+  it('handles jump to message in same channel', async () => {
+    render(<AppLayout />);
+    await waitFor(() => { expect(screen.getAllByTestId('jump-same-channel').length).toBeGreaterThan(0); });
+    fireEvent.click(screen.getAllByTestId('jump-same-channel')[0]);
+    // handleJumpToMessage fires a setTimeout - just verify no crash
+  });
+
+
+  it('triggers search focus via Ctrl+K', async () => {
+    render(<AppLayout />);
+    await waitFor(() => { expect(screen.getByTestId('channel-view')).toBeInTheDocument(); });
+    // Trigger Ctrl+K - will call document.querySelector for search input
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    // No crash expected - search input may not exist in mocked DOM
+  });
+
+  it('closes thread panel via Escape key when thread is open', async () => {
+    useThreadStore.setState({
+      threads: { ch1: [{ id: 'th1', channel_id: 'ch1', parent_message_id: 'msg1', team_id: 'team1', creator_id: 'u1', title: '', message_count: 0, last_message_at: null, created_at: '' }] },
+      activeThreadId: 'th1', threadPanelOpen: true,
+      setActiveThread: vi.fn(),
+      setThreadPanelOpen: vi.fn(),
+    });
+    render(<AppLayout />);
+    await waitFor(() => { expect(screen.getByTestId('thread-panel')).toBeInTheDocument(); });
+    // Press Escape to close thread panel
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await waitFor(() => {
+      expect(useThreadStore.getState().setActiveThread).toHaveBeenCalledWith(null);
+      expect(useThreadStore.getState().setThreadPanelOpen).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it('handles blob upload failure gracefully', async () => {
+    // Mock keyStore to return a blob
+    vi.doMock('../services/keyStore', () => ({
+      unlockWithPrf: vi.fn(),
+      exportIdentityBlob: vi.fn().mockResolvedValue('test-blob-data'),
+    }));
+    // Mock fetch to reject
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('network error'));
+
+    useAuthStore.setState({
+      derivedKey: 'test-derived-key',
+      teams: new Map([
+        ['team1', { baseUrl: 'http://localhost:8080', token: 'tok', user: { id: 'u1', username: 'tester', display_name: 'Tester' }, teamInfo: {} }],
+      ]),
+    });
+    // Make sync:init succeed so dataLoaded is set
+    vi.mocked(ws.isConnected).mockReturnValue(true);
+    vi.mocked(ws.request).mockResolvedValue({ channels: [], team: { id: 'team1', name: 'T' }, members: [], roles: [], presences: {} });
+
+    render(<AppLayout />);
+    await waitFor(() => { expect(ws.request).toHaveBeenCalled(); });
+    // Wait for blob upload attempt
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalled();
+    }, { timeout: 2000 });
+
+    globalThis.fetch = originalFetch;
+  });
+
+  it('toggles showMembers in empty state header (no channel, no DM)', async () => {
+    useTeamStore.setState({ activeChannelId: '' });
+    useDMStore.setState({ activeDMId: null, setActiveDM: vi.fn(), dmChannels: {} });
+    render(<AppLayout />);
+    await waitFor(() => {
+      expect(screen.getByText('Select a channel to start chatting')).toBeInTheDocument();
+    });
+    // In empty state, the member list toggle button should exist but MemberList not shown for DM mode
+    // The toggle buttons are in the empty state header
+    const toggleBtns = screen.getAllByTitle('Toggle Member List');
+    expect(toggleBtns.length).toBeGreaterThanOrEqual(1);
+    // Initially showMembers is true so MemberList should be visible
+    expect(screen.getByTestId('member-list')).toBeInTheDocument();
+    // Click to hide
+    fireEvent.click(toggleBtns[0]);
+    expect(screen.queryByTestId('member-list')).not.toBeInTheDocument();
+    // Click to show again
+    fireEvent.click(toggleBtns[0]);
+    expect(screen.getByTestId('member-list')).toBeInTheDocument();
+  });
 });
 
 describe('AppLayout mobile', () => {
@@ -1005,5 +1306,16 @@ describe('AppLayout mobile', () => {
       const mainDiv = container.querySelector('.app-layout-main');
       expect(mainDiv?.className).toContain('mobile');
     });
+  });
+
+  it('navigates to /app/user-settings from mobile UserPanel settings button', async () => {
+    render(<AppLayout />);
+    await waitFor(() => {
+      expect(screen.getAllByTestId('user-settings-btn').length).toBeGreaterThan(0);
+    });
+    // In mobile mode, the UserPanel is in mobile-bottom-controls
+    const settingsBtns = screen.getAllByTestId('user-settings-btn');
+    fireEvent.click(settingsBtns[settingsBtns.length - 1]);
+    expect(mockNavigate).toHaveBeenCalledWith('/app/user-settings');
   });
 });

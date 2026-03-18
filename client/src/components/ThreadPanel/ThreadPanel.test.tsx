@@ -763,6 +763,212 @@ describe('ThreadPanel', () => {
     });
   });
 
+  it('handleLoadMore loads older messages via WS and deduplicates', async () => {
+    const { ws } = await import('../../services/websocket');
+    vi.mocked(ws.request).mockReset();
+    vi.mocked(ws.isConnected).mockReset();
+
+    const threadId = `thread-loadmore-ws-${Date.now()}`;
+    let callCount = 0;
+
+    // Build 50 messages so hasMore stays true after initial load
+    const fiftyMessages = Array.from({ length: 50 }, (_, i) => ({
+      id: `init-msg-${i}`, channel_id: 'ch-1', author_id: 'user-2', username: 'bob',
+      content: `msg-${i}`, type: 'text', thread_id: threadId,
+      edited_at: null, deleted: false, created_at: `2025-01-01T${String(i).padStart(2, '0')}:00:00Z`,
+      reactions: [],
+    }));
+
+    vi.mocked(ws.isConnected).mockReturnValue(true);
+    vi.mocked(ws.request).mockImplementation(async (_teamId, event, params) => {
+      if (event === 'threads:messages') {
+        callCount++;
+        if (callCount === 1) return fiftyMessages; // initial load
+        // loadMore: return one new message
+        return [{
+          id: 'older-msg-1', channel_id: 'ch-1', author_id: 'user-2', username: 'bob',
+          content: 'Older message', type: 'text', thread_id: threadId,
+          edited_at: null, deleted: false, created_at: '2024-12-31T23:00:00Z',
+          reactions: [],
+        }];
+      }
+      return [];
+    });
+
+    useThreadStore.setState({ threadMessages: {} });
+    const loadMoreThread = { ...thread, id: threadId };
+    const { container } = render(<ThreadPanel thread={loadMoreThread} onClose={vi.fn()} />);
+
+    // Wait for initial load to complete
+    await vi.waitFor(() => {
+      const msgs = useThreadStore.getState().threadMessages[threadId];
+      expect(msgs?.length).toBe(50);
+    });
+
+    // Trigger scroll near top to invoke handleLoadMore
+    const messagesDiv = container.querySelector('.thread-messages');
+    if (messagesDiv) {
+      Object.defineProperty(messagesDiv, 'scrollTop', { value: 30, configurable: true });
+      Object.defineProperty(messagesDiv, 'scrollHeight', { value: 2000, configurable: true });
+      Object.defineProperty(messagesDiv, 'clientHeight', { value: 500, configurable: true });
+      fireEvent.scroll(messagesDiv);
+    }
+
+    // Wait for loadMore to be called
+    await vi.waitFor(() => {
+      expect(callCount).toBeGreaterThanOrEqual(2);
+    });
+
+    // Verify messages were prepended
+    await vi.waitFor(() => {
+      const msgs = useThreadStore.getState().threadMessages[threadId];
+      expect(msgs?.length).toBe(51);
+    });
+  });
+
+  it('handleLoadMore loads older messages via API when WS not connected', async () => {
+    const { ws } = await import('../../services/websocket');
+    const { api } = await import('../../services/api');
+
+    const threadId = `thread-loadmore-api-${Date.now()}`;
+    let apiCallCount = 0;
+
+    const fiftyMessages = Array.from({ length: 50 }, (_, i) => ({
+      id: `api-init-msg-${i}`, channel_id: 'ch-1', author_id: 'user-2', username: 'bob',
+      content: `msg-${i}`, type: 'text', thread_id: threadId,
+      edited_at: null, deleted: false, created_at: `2025-01-01T${String(i).padStart(2, '0')}:00:00Z`,
+      reactions: [],
+    }));
+
+    vi.mocked(ws.isConnected).mockReturnValue(false);
+    vi.mocked(api.getThreadMessages).mockImplementation(async (...args) => {
+      apiCallCount++;
+      if (apiCallCount === 1) return fiftyMessages as never;
+      return [{
+        id: 'api-older-1', channel_id: 'ch-1', author_id: 'user-2', username: 'bob',
+        content: 'API older', type: 'text', thread_id: threadId,
+        edited_at: null, deleted: false, created_at: '2024-12-31T23:00:00Z',
+        reactions: [],
+      }] as never;
+    });
+
+    useThreadStore.setState({ threadMessages: {} });
+    const loadMoreThread = { ...thread, id: threadId };
+    const { container } = render(<ThreadPanel thread={loadMoreThread} onClose={vi.fn()} />);
+
+    await vi.waitFor(() => {
+      const msgs = useThreadStore.getState().threadMessages[threadId];
+      expect(msgs?.length).toBe(50);
+    });
+
+    const messagesDiv = container.querySelector('.thread-messages');
+    if (messagesDiv) {
+      Object.defineProperty(messagesDiv, 'scrollTop', { value: 30, configurable: true });
+      Object.defineProperty(messagesDiv, 'scrollHeight', { value: 2000, configurable: true });
+      Object.defineProperty(messagesDiv, 'clientHeight', { value: 500, configurable: true });
+      fireEvent.scroll(messagesDiv);
+    }
+
+    await vi.waitFor(() => {
+      expect(apiCallCount).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('handleLoadMore handles error gracefully', async () => {
+    const { ws } = await import('../../services/websocket');
+
+    const threadId = `thread-loadmore-err-${Date.now()}`;
+    let callCount = 0;
+
+    const fiftyMessages = Array.from({ length: 50 }, (_, i) => ({
+      id: `err-msg-${i}`, channel_id: 'ch-1', author_id: 'user-2', username: 'bob',
+      content: `msg-${i}`, type: 'text', thread_id: threadId,
+      edited_at: null, deleted: false, created_at: `2025-01-01T${String(i).padStart(2, '0')}:00:00Z`,
+      reactions: [],
+    }));
+
+    vi.mocked(ws.isConnected).mockReturnValue(true);
+    vi.mocked(ws.request).mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) return fiftyMessages;
+      throw new Error('load more failed');
+    });
+
+    useThreadStore.setState({ threadMessages: {} });
+    const loadMoreThread = { ...thread, id: threadId };
+    const { container } = render(<ThreadPanel thread={loadMoreThread} onClose={vi.fn()} />);
+
+    await vi.waitFor(() => {
+      const msgs = useThreadStore.getState().threadMessages[threadId];
+      expect(msgs?.length).toBe(50);
+    });
+
+    const messagesDiv = container.querySelector('.thread-messages');
+    if (messagesDiv) {
+      Object.defineProperty(messagesDiv, 'scrollTop', { value: 30, configurable: true });
+      Object.defineProperty(messagesDiv, 'scrollHeight', { value: 2000, configurable: true });
+      Object.defineProperty(messagesDiv, 'clientHeight', { value: 500, configurable: true });
+      fireEvent.scroll(messagesDiv);
+    }
+
+    await vi.waitFor(() => {
+      expect(callCount).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('decrypts new thread message when derivedKey is set and no cache', async () => {
+    const { ws } = await import('../../services/websocket');
+    const { getCachedMessage } = await import('../../services/messageCache');
+    const { cryptoService } = await import('../../services/crypto');
+    vi.mocked(ws.on).mockClear();
+    vi.mocked(getCachedMessage).mockResolvedValue(null);
+    vi.mocked(cryptoService.decryptMessage).mockClear();
+    vi.mocked(cryptoService.decryptMessage).mockResolvedValue('decrypted-new');
+
+    useAuthStore.setState({
+      teams: new Map([['team-1', { token: 't', user: { id: 'user-1', username: 'alice' }, teamInfo: null, baseUrl: '' }]]),
+      derivedKey: 'test-key',
+    });
+
+    render(<ThreadPanel thread={thread} onClose={vi.fn()} />);
+    const calls = vi.mocked(ws.on).mock.calls;
+    // Get the LAST registered handler for this event (in case effect re-ran)
+    const newHandlers = calls.filter(c => c[0] === 'thread:message:new');
+    const newHandler = newHandlers[newHandlers.length - 1];
+    expect(newHandler).toBeDefined();
+    await (newHandler[1] as Function)({
+      id: 'tmsg-decrypt-new', channel_id: 'ch-1', author_id: 'user-2', username: 'bob',
+      content: 'encrypted-content', type: 'text', thread_id: 'thread-1',
+      edited_at: null, deleted: false, created_at: '2025-01-01T13:00:00Z', reactions: [],
+    });
+    expect(cryptoService.decryptMessage).toHaveBeenCalled();
+  });
+
+  it('decrypts updated thread message when derivedKey is set', async () => {
+    const { ws } = await import('../../services/websocket');
+    const { cryptoService } = await import('../../services/crypto');
+    vi.mocked(ws.on).mockClear();
+    vi.mocked(cryptoService.decryptMessage).mockClear();
+    vi.mocked(cryptoService.decryptMessage).mockResolvedValue('decrypted-edit');
+
+    useAuthStore.setState({
+      teams: new Map([['team-1', { token: 't', user: { id: 'user-1', username: 'alice' }, teamInfo: null, baseUrl: '' }]]),
+      derivedKey: 'test-key',
+    });
+
+    render(<ThreadPanel thread={thread} onClose={vi.fn()} />);
+    const calls = vi.mocked(ws.on).mock.calls;
+    const editHandlers = calls.filter(c => c[0] === 'thread:message:updated');
+    const editHandler = editHandlers[editHandlers.length - 1];
+    expect(editHandler).toBeDefined();
+    await (editHandler[1] as Function)({
+      id: 'tmsg-1', channel_id: 'ch-1', author_id: 'user-1', username: 'alice',
+      content: 'encrypted-edit', type: 'text', thread_id: 'thread-1',
+      edited_at: '2025-01-01T12:30:00Z', deleted: false, created_at: '2025-01-01T11:00:00Z', reactions: [],
+    });
+    expect(cryptoService.decryptMessage).toHaveBeenCalled();
+  });
+
   it('handles thread:message:new with cached content', async () => {
     const { ws } = await import('../../services/websocket');
     const { getCachedMessage } = await import('../../services/messageCache');

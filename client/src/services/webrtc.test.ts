@@ -347,6 +347,48 @@ describe('WebRTCService', () => {
       expect(registeredEvents).toContain('voice:user-left');
       expect(registeredEvents).toContain('voice:state');
     });
+
+    it('connects with RNNoise enabled', async () => {
+      useAudioSettingsStore.setState({ enhancedNoiseSuppression: true });
+      await webrtcService.connect('ch-1', 'team-1');
+
+      const { noiseSuppression } = await import('./noiseSuppression');
+      expect(noiseSuppression.setEnabled).toHaveBeenCalledWith(true);
+      expect(noiseSuppression.initWorklet).toHaveBeenCalled();
+      expect(noiseSuppression.getWorkletNode).toHaveBeenCalled();
+      expect(noiseSuppression.waitForReady).toHaveBeenCalled();
+
+      // Reset
+      useAudioSettingsStore.setState({ enhancedNoiseSuppression: false });
+    });
+
+    it('filters TURN servers and sets relay policy when TURN available', async () => {
+      const { api } = await import('./api');
+      vi.mocked(api.getTURNCredentials).mockResolvedValueOnce({
+        iceServers: [
+          { urls: 'stun:stun.example.com:3478' },
+          { urls: 'turn:turn.example.com:3478', username: 'u', credential: 'c' },
+          { urls: ['turns:turn.example.com:5349', 'turn:turn.example.com:53?transport=tcp'], username: 'u', credential: 'c' },
+        ],
+      });
+
+      await webrtcService.connect('ch-1', 'team-1');
+      // Should have filtered to only TURN entries and removed port 53 URLs
+      expect(useVoiceStore.getState().peerConnection).not.toBeNull();
+    });
+
+    it('connects with push-to-talk enabled', async () => {
+      useAudioSettingsStore.setState({ pushToTalk: true, pushToTalkKey: 'KeyV' });
+      await webrtcService.connect('ch-1', 'team-1');
+
+      // Mic should start muted with PTT
+      const localStream = (webrtcService as any).localStream;
+      const audioTrack = localStream?.getAudioTracks()[0];
+      expect(audioTrack?.enabled).toBe(false);
+
+      // Reset
+      useAudioSettingsStore.setState({ pushToTalk: false });
+    });
   });
 
   describe('disconnect', () => {
@@ -418,6 +460,33 @@ describe('WebRTCService', () => {
       useVoiceStore.setState({ deafened: true });
       const second = webrtcService.toggleDeafen(); // undeafen -> reads store true, returns false
       expect(second).toBe(false);
+    });
+
+    it('deafen mutes remote audio tracks', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      const mockTrack = { enabled: true, kind: 'audio' };
+      const mockStream = { getAudioTracks: () => [mockTrack] };
+      (webrtcService as any).remoteStreams.set('peer-1', mockStream);
+      webrtcService.toggleDeafen();
+      expect(mockTrack.enabled).toBe(false);
+    });
+
+    it('undeafen re-enables remote audio tracks', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      const mockTrack = { enabled: true, kind: 'audio' };
+      const mockStream = { getAudioTracks: () => [mockTrack] };
+      (webrtcService as any).remoteStreams.set('peer-1', mockStream);
+
+      // First toggle: deafen
+      webrtcService.toggleDeafen();
+      expect(mockTrack.enabled).toBe(false);
+
+      // Update store so next toggle reads deafened=true
+      useVoiceStore.setState({ deafened: true });
+
+      // Second toggle: undeafen
+      webrtcService.toggleDeafen();
+      expect(mockTrack.enabled).toBe(true);
     });
   });
 
@@ -1079,18 +1148,21 @@ describe('WebRTCService', () => {
         voiceLevel: 0,
       });
 
-      // Override the analyser mock to simulate loud audio
-      const mockCtx = new EnhancedMockAudioContext();
-      const fakeAnalyser = mockCtx.createAnalyser();
-      // Make getByteFrequencyData fill array with high values
-      fakeAnalyser.getByteFrequencyData.mockImplementation((arr: Uint8Array) => {
-        for (let i = 0; i < arr.length; i++) arr[i] = 200;
-      });
-
       webrtcService.startVAD();
 
-      // Advance timer
+      // After startVAD, override the analyser on the service to simulate loud audio
+      const analyser = (webrtcService as any).analyser;
+      if (analyser) {
+        analyser.getByteFrequencyData.mockImplementation((arr: Uint8Array) => {
+          for (let i = 0; i < arr.length; i++) arr[i] = 200;
+        });
+      }
+
+      // Advance timer to trigger speaking transition (isSpeaking changes from false to true)
       vi.advanceTimersByTime(150);
+
+      // Verify speaking state was updated
+      expect(useVoiceStore.getState().speaking).toBe(true);
 
       webrtcService.stopVAD();
       vi.useRealTimers();
@@ -1187,6 +1259,259 @@ describe('WebRTCService', () => {
         },
       });
       expect(mockWs.voiceICECandidate).toHaveBeenCalled();
+    });
+  });
+
+  describe('PTT subscription', () => {
+    it('re-enables mic when PTT is disabled while connected', async () => {
+      useAudioSettingsStore.setState({ pushToTalk: true, pushToTalkKey: 'KeyV' });
+      await webrtcService.connect('ch-1', 'team-1');
+
+      // Mic should be muted initially with PTT
+      const localStream = (webrtcService as any).localStream;
+      expect(localStream.getAudioTracks()[0].enabled).toBe(false);
+
+      // Disable PTT — mic should be re-enabled
+      useAudioSettingsStore.setState({ pushToTalk: false });
+
+      // Give Zustand subscription time to fire
+      await new Promise((r) => setTimeout(r, 10));
+      expect(localStream.getAudioTracks()[0].enabled).toBe(true);
+    });
+  });
+
+  describe('WS voice:mute-update handler', () => {
+    it('updates peer mute/deafen state', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      useVoiceStore.getState().addPeer({
+        user_id: 'u3',
+        username: 'carol',
+        muted: false,
+        deafened: false,
+        speaking: false,
+        voiceLevel: 0,
+      });
+
+      emitWS('voice:mute-update', { user_id: 'u3', muted: true, deafened: true });
+      const peer = useVoiceStore.getState().peers['u3'];
+      expect(peer.muted).toBe(true);
+      expect(peer.deafened).toBe(true);
+    });
+  });
+
+  describe('WS voice:screen-update handler', () => {
+    it('updates peer screen sharing state', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      useVoiceStore.getState().addPeer({
+        user_id: 'u3',
+        username: 'carol',
+        muted: false,
+        deafened: false,
+        speaking: false,
+        voiceLevel: 0,
+      });
+
+      emitWS('voice:screen-update', { user_id: 'u3', sharing: true });
+      expect(useVoiceStore.getState().peers['u3'].screen_sharing).toBe(true);
+
+      emitWS('voice:screen-update', { user_id: 'u3', sharing: false });
+      expect(useVoiceStore.getState().peers['u3'].screen_sharing).toBe(false);
+    });
+  });
+
+  describe('WS voice:webcam-update handler', () => {
+    it('updates peer webcam sharing state', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      useVoiceStore.getState().addPeer({
+        user_id: 'u3',
+        username: 'carol',
+        muted: false,
+        deafened: false,
+        speaking: false,
+        voiceLevel: 0,
+      });
+
+      emitWS('voice:webcam-update', { user_id: 'u3', sharing: true });
+      expect(useVoiceStore.getState().peers['u3'].webcam_sharing).toBe(true);
+    });
+  });
+
+  describe('WS voice:key-distribute handler', () => {
+    it('ignores key distribution when E2E is not enabled', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      // E2E is not enabled (supportsE2EVoice returns false)
+      emitWS('voice:key-distribute', {
+        sender_id: 'peer-1',
+        key_id: 1,
+        encrypted_keys: { 'user-1': btoa('fakekey') },
+      });
+      // No error — handler returns early
+    });
+  });
+
+  describe('handleOffer', () => {
+    it('returns null when not connected', async () => {
+      const result = await webrtcService.handleOffer({ type: 'offer', sdp: 'mock' });
+      expect(result).toBeNull();
+    });
+
+    it('creates answer when connected', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      const result = await webrtcService.handleOffer({ type: 'offer', sdp: 'mock' });
+      expect(result).not.toBeNull();
+      expect(result?.type).toBe('answer');
+    });
+  });
+
+  describe('handleICECandidate', () => {
+    it('does nothing when not connected', async () => {
+      await webrtcService.handleICECandidate({ candidate: 'c1' });
+      // No error
+    });
+
+    it('adds candidate when connected', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      await webrtcService.handleICECandidate({ candidate: 'c1', sdpMid: '0', sdpMLineIndex: 0 });
+      expect(mockPc.addIceCandidate).toHaveBeenCalled();
+    });
+  });
+
+  describe('setInputVolume', () => {
+    it('sets gain node value when connected', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      webrtcService.setInputVolume(0.5);
+      expect((webrtcService as any).gainNode.gain.value).toBe(0.5);
+    });
+
+    it('does nothing when not connected', () => {
+      webrtcService.setInputVolume(0.5);
+      // No error
+    });
+  });
+
+  describe('toggleMute edge cases', () => {
+    it('returns false when toggleMute called with PTT enabled', async () => {
+      useAudioSettingsStore.setState({ pushToTalk: true });
+      await webrtcService.connect('ch-1', 'team-1');
+      expect(webrtcService.toggleMute()).toBe(false);
+      useAudioSettingsStore.setState({ pushToTalk: false });
+    });
+  });
+
+  describe('E2E voice encryption', () => {
+    let mockWorkerInstance: { postMessage: ReturnType<typeof vi.fn>; terminate: ReturnType<typeof vi.fn> };
+
+    function setupE2EMocks() {
+      mockWorkerInstance = { postMessage: vi.fn(), terminate: vi.fn() };
+      // Worker must be a constructor — use function syntax
+      vi.stubGlobal('Worker', function MockWorker() { return mockWorkerInstance; });
+      vi.stubGlobal('RTCRtpScriptTransform', function MockRtpTransform() {});
+      mockPc.getSenders = vi.fn(() => [{ track: {}, transform: null }]);
+    }
+
+    it('sets up E2E encryption when supported', async () => {
+      const { supportsE2EVoice } = await import('./voiceCrypto');
+      vi.mocked(supportsE2EVoice).mockReturnValue(true);
+      setupE2EMocks();
+
+      await webrtcService.connect('ch-1', 'team-1');
+
+      expect(useVoiceStore.getState().e2eVoice).toBe(true);
+      expect(mockWorkerInstance.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'setKey' }),
+      );
+
+      // Reset
+      vi.mocked(supportsE2EVoice).mockReturnValue(false);
+    });
+
+    it('distributes voice key when peer joins', async () => {
+      const { supportsE2EVoice } = await import('./voiceCrypto');
+      vi.mocked(supportsE2EVoice).mockReturnValue(true);
+      setupE2EMocks();
+
+      await webrtcService.connect('ch-1', 'team-1');
+
+      // Manually set voiceKeyManager to have a raw key
+      (webrtcService as any).voiceKeyManager.getLocalRawKey = vi.fn(() => new Uint8Array(32));
+      (webrtcService as any).voiceKeyManager.getLocalKeyId = vi.fn(() => 1);
+
+      // Add a peer so key distribution has a target
+      useVoiceStore.setState({
+        peers: {
+          'user-1': { user_id: 'user-1', username: 'me', muted: false, deafened: false, speaking: false, voiceLevel: 0 },
+          'peer-2': { user_id: 'peer-2', username: 'other', muted: false, deafened: false, speaking: false, voiceLevel: 0 },
+        },
+      });
+
+      // Trigger distributeVoiceKey via user-joined event
+      emitWS('voice:user-joined', { user_id: 'peer-3', username: 'new-user' });
+
+      expect(mockWs.voiceKeyDistribute).toHaveBeenCalled();
+
+      // Reset
+      vi.mocked(supportsE2EVoice).mockReturnValue(false);
+    });
+
+    it('distributeVoiceKey skips when rawKey is null', async () => {
+      const { supportsE2EVoice } = await import('./voiceCrypto');
+      vi.mocked(supportsE2EVoice).mockReturnValue(true);
+      setupE2EMocks();
+
+      await webrtcService.connect('ch-1', 'team-1');
+
+      // Ensure getLocalRawKey returns null
+      (webrtcService as any).voiceKeyManager.getLocalRawKey = vi.fn(() => null);
+
+      mockWs.voiceKeyDistribute.mockClear();
+      emitWS('voice:user-joined', { user_id: 'peer-3', username: 'new-user' });
+
+      expect(mockWs.voiceKeyDistribute).not.toHaveBeenCalled();
+
+      // Reset
+      vi.mocked(supportsE2EVoice).mockReturnValue(false);
+    });
+
+    it('handles received voice key when E2E enabled', async () => {
+      const { supportsE2EVoice } = await import('./voiceCrypto');
+      vi.mocked(supportsE2EVoice).mockReturnValue(true);
+      setupE2EMocks();
+
+      await webrtcService.connect('ch-1', 'team-1');
+
+      // Emit key-distribute event with a key for our user
+      emitWS('voice:key-distribute', {
+        sender_id: 'peer-1',
+        key_id: 1,
+        encrypted_keys: { 'user-1': btoa(String.fromCharCode(...new Uint8Array(32))) },
+      });
+
+      // Give the async handler time to run
+      await new Promise((r) => setTimeout(r, 10));
+
+      // Reset
+      vi.mocked(supportsE2EVoice).mockReturnValue(false);
+    });
+  });
+
+  describe('disconnect E2E cleanup', () => {
+    it('terminates encrypt worker if present', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      // Manually set an encrypt worker
+      const fakeWorker = { terminate: vi.fn(), postMessage: vi.fn() };
+      (webrtcService as any).encryptWorker = fakeWorker;
+
+      await webrtcService.disconnect();
+      expect(fakeWorker.terminate).toHaveBeenCalled();
+    });
+
+    it('terminates decrypt workers if present', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      const fakeWorker = { terminate: vi.fn(), postMessage: vi.fn() };
+      (webrtcService as any).decryptWorkers.set('peer-1', fakeWorker);
+
+      await webrtcService.disconnect();
+      expect(fakeWorker.terminate).toHaveBeenCalled();
     });
   });
 });

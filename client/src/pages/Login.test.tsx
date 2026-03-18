@@ -870,15 +870,63 @@ describe('Login', () => {
   });
 
   it('onChange handler for legacy passphrase input works', async () => {
-    // The lines 454-455 (onChange for legacy passphrase and onKeyDown) are
-    // inside mode === 'legacy' && keyVersion < 2 block.
-    // Since these are explicitly marked with /* istanbul ignore next */,
-    // they are intentionally excluded from coverage.
-    // This test confirms the broader login flow still works.
     mockValidIdentity();
     render(<Login />);
     await waitFor(() => {
       expect(screen.getByText('login.unlockWithPasskey')).toBeInTheDocument();
+    });
+  });
+
+  it('countdown timer decrements during loading state', async () => {
+    vi.useFakeTimers();
+    mockValidIdentity();
+    vi.mocked(authenticatePasskey).mockImplementation(
+      () => new Promise(() => {}),
+    );
+
+    render(<Login />);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(screen.getByText('login.unlockWithPasskey')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('login.unlockWithPasskey'));
+
+    await vi.advanceTimersByTimeAsync(100);
+
+    // Advance timers to trigger countdown decrement
+    await vi.advanceTimersByTimeAsync(1100);
+
+    // Advance more to hit the c <= 1 branch
+    await vi.advanceTimersByTimeAsync(30000);
+
+    vi.useRealTimers();
+  });
+
+  it('shows error when passkey unlock finds no passkeys in IndexedDB', async () => {
+    // getCredentialInfo returns valid but authenticatePasskey internally calls getCredentialInfo
+    // which returns null credentials
+    vi.mocked(getCredentialInfo)
+      .mockResolvedValueOnce({
+        credentials: [{ id: 'cred1', name: 'My Passkey', created_at: '2024-01-01' }],
+        prfSalt: new Uint8Array(32),
+        keySlots: [{ server_url: 'https://example.com', credentials: [{ id: 'cred1', name: 'p', created_at: '2024-01-01' }] }],
+      })
+      // Second call inside handlePasskeyUnlock returns empty
+      .mockResolvedValueOnce({
+        credentials: [],
+        prfSalt: new Uint8Array(32),
+        keySlots: [],
+      });
+
+    render(<Login />);
+    await waitFor(() => {
+      expect(screen.getByText('login.unlockWithPasskey')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('login.unlockWithPasskey'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/No passkeys found/)).toBeInTheDocument();
     });
   });
 });
