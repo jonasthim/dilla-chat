@@ -1,0 +1,636 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { api } from './api';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function mockFetchResponse(body: unknown, status = 200, ok = true) {
+  return vi.fn().mockResolvedValue({
+    ok,
+    status,
+    json: () => Promise.resolve(body),
+    text: () => Promise.resolve(JSON.stringify(body)),
+  });
+}
+
+function lastFetchCall(): { url: string; init: RequestInit } {
+  const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+  const last = calls[calls.length - 1];
+  return { url: last[0], init: last[1] };
+}
+
+// ─── Tests ────────────────────────────────────────────────────────────────────
+
+describe('ApiService', () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    // Reset internal state by removing all teams
+    // We re-add as needed per test
+    global.fetch = mockFetchResponse({});
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  // ── Connection management ─────────────────────────────────────────────────
+
+  describe('addTeam / removeTeam', () => {
+    it('adds a team connection and allows requests', async () => {
+      api.addTeam('t1', 'https://example.com');
+      api.setToken('t1', 'tok-abc');
+
+      global.fetch = mockFetchResponse({ channels: [] });
+      const result = await api.getChannels('t1');
+
+      expect(result).toEqual([]);
+      expect(lastFetchCall().url).toBe('https://example.com/api/v1/teams/t1/channels');
+    });
+
+    it('removeTeam makes subsequent requests throw', () => {
+      api.addTeam('t-remove', 'https://example.com');
+      api.removeTeam('t-remove');
+
+      expect(() => api.getChannels('t-remove')).rejects.toThrow('Not connected to team t-remove');
+    });
+  });
+
+  // ── setToken ──────────────────────────────────────────────────────────────
+
+  describe('setToken', () => {
+    it('sets Bearer token sent in subsequent requests', async () => {
+      api.addTeam('t-tok', 'https://s.io');
+      api.setToken('t-tok', 'my-jwt');
+
+      global.fetch = mockFetchResponse({ channels: [] });
+      await api.getChannels('t-tok');
+
+      const { init } = lastFetchCall();
+      expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer my-jwt');
+    });
+
+    it('does nothing for unknown team', () => {
+      // Should not throw
+      api.setToken('nonexistent', 'tok');
+    });
+  });
+
+  // ── getConnectionInfo ─────────────────────────────────────────────────────
+
+  describe('getConnectionInfo', () => {
+    it('returns baseUrl and token for known team', () => {
+      api.addTeam('t-info', 'https://info.io');
+      api.setToken('t-info', 'jwt-123');
+
+      const info = api.getConnectionInfo('t-info');
+      expect(info).toEqual({ baseUrl: 'https://info.io', token: 'jwt-123' });
+    });
+
+    it('returns null for unknown team', () => {
+      expect(api.getConnectionInfo('unknown')).toBeNull();
+    });
+  });
+
+  // ── Auth error handler ────────────────────────────────────────────────────
+
+  describe('setAuthErrorHandler', () => {
+    it('calls handler on 401 response', async () => {
+      const handler = vi.fn();
+      api.setAuthErrorHandler(handler);
+      api.addTeam('t-auth', 'https://auth.io');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: () => Promise.resolve('Unauthorized'),
+      });
+
+      await expect(api.getChannels('t-auth')).rejects.toThrow('Unauthorized');
+      expect(handler).toHaveBeenCalledOnce();
+    });
+
+    it('does not call handler on non-401 errors', async () => {
+      const handler = vi.fn();
+      api.setAuthErrorHandler(handler);
+      api.addTeam('t-500', 'https://err.io');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve('Internal Server Error'),
+      });
+
+      await expect(api.getChannels('t-500')).rejects.toThrow();
+      expect(handler).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Request construction ──────────────────────────────────────────────────
+
+  describe('request construction', () => {
+    it('sends Content-Type application/json', async () => {
+      api.addTeam('t-ct', 'https://ct.io');
+      global.fetch = mockFetchResponse({});
+
+      await api.getTeam('t-ct');
+
+      const { init } = lastFetchCall();
+      expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+    });
+
+    it('sends no Authorization header when token is null', async () => {
+      api.addTeam('t-noauth', 'https://no.io');
+      // Don't set token
+      global.fetch = mockFetchResponse({});
+
+      // Use requestChallenge which doesn't use conn.token
+      await api.requestChallenge('t-noauth', 'pub-key');
+
+      const { init } = lastFetchCall();
+      expect((init.headers as Record<string, string>)['Authorization']).toBeUndefined();
+    });
+  });
+
+  // ── Error response handling ───────────────────────────────────────────────
+
+  describe('error response handling', () => {
+    it('extracts error field from JSON error body', async () => {
+      api.addTeam('t-err', 'https://err.io');
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: () => Promise.resolve(JSON.stringify({ error: 'Bad request: missing field' })),
+      });
+
+      await expect(api.getTeam('t-err')).rejects.toThrow('Bad request: missing field');
+    });
+
+    it('uses raw text when body is not JSON', async () => {
+      api.addTeam('t-raw', 'https://raw.io');
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        text: () => Promise.resolve('Bad Gateway'),
+      });
+
+      await expect(api.getTeam('t-raw')).rejects.toThrow('Bad Gateway');
+    });
+
+    it('falls back to status code when body is empty', async () => {
+      api.addTeam('t-empty', 'https://empty.io');
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        text: () => Promise.resolve(''),
+      });
+
+      await expect(api.getTeam('t-empty')).rejects.toThrow('Server returned 503');
+    });
+  });
+
+  // ── Unwrap helpers ────────────────────────────────────────────────────────
+
+  describe('unwrapArray (via getChannels)', () => {
+    it('unwraps {channels: [...]} to array', async () => {
+      api.addTeam('t-ua', 'https://ua.io');
+      global.fetch = mockFetchResponse({ channels: [{ id: 'c1' }, { id: 'c2' }] });
+
+      const result = await api.getChannels('t-ua');
+      expect(result).toEqual([{ id: 'c1' }, { id: 'c2' }]);
+    });
+
+    it('returns array directly if response is already an array', async () => {
+      api.addTeam('t-arr', 'https://arr.io');
+      global.fetch = mockFetchResponse([{ id: 'c1' }]);
+
+      const result = await api.getChannels('t-arr');
+      expect(result).toEqual([{ id: 'c1' }]);
+    });
+
+    it('returns empty array for mismatched key', async () => {
+      api.addTeam('t-mm', 'https://mm.io');
+      global.fetch = mockFetchResponse({ wrong_key: [1, 2, 3] });
+
+      const result = await api.getChannels('t-mm');
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('unwrapObject (via getMe)', () => {
+    it('unwraps {user: {...}} to object', async () => {
+      global.fetch = mockFetchResponse({ user: { id: 'u1', name: 'Alice' } });
+
+      const result = await api.getMe('https://me.io', 'tok');
+      expect(result).toEqual({ id: 'u1', name: 'Alice' });
+    });
+
+    it('returns data as-is when key not present', async () => {
+      global.fetch = mockFetchResponse({ id: 'u1', name: 'Alice' });
+
+      const result = await api.getMe('https://me.io', 'tok');
+      expect(result).toEqual({ id: 'u1', name: 'Alice' });
+    });
+  });
+
+  // ── Auth endpoints ────────────────────────────────────────────────────────
+
+  describe('requestChallenge', () => {
+    it('posts public_key to /api/v1/auth/challenge', async () => {
+      api.addTeam('t-ch', 'https://ch.io');
+      global.fetch = mockFetchResponse({ challenge_id: 'abc', nonce: '123' });
+
+      const result = await api.requestChallenge('t-ch', 'pub-key-hex');
+
+      expect(result).toEqual({ challenge_id: 'abc', nonce: '123' });
+      const { url, init } = lastFetchCall();
+      expect(url).toBe('https://ch.io/api/v1/auth/challenge');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body as string)).toEqual({ public_key: 'pub-key-hex' });
+    });
+  });
+
+  describe('verifyChallenge', () => {
+    it('posts challenge verification data', async () => {
+      api.addTeam('t-vc', 'https://vc.io');
+      global.fetch = mockFetchResponse({ token: 'jwt', user: { id: 'u1' } });
+
+      const result = await api.verifyChallenge('t-vc', 'cid', 'pk', 'sig');
+
+      expect(result.token).toBe('jwt');
+      const body = JSON.parse(lastFetchCall().init.body as string);
+      expect(body).toEqual({ challenge_id: 'cid', public_key: 'pk', signature: 'sig' });
+    });
+  });
+
+  describe('register', () => {
+    it('posts registration data', async () => {
+      api.addTeam('t-reg', 'https://reg.io');
+      global.fetch = mockFetchResponse({ user: {}, token: 'tok' });
+
+      await api.register('t-reg', 'alice', 'Alice', 'pk', 'inv-token');
+
+      const body = JSON.parse(lastFetchCall().init.body as string);
+      expect(body).toEqual({
+        username: 'alice',
+        display_name: 'Alice',
+        public_key: 'pk',
+        invite_token: 'inv-token',
+      });
+    });
+  });
+
+  // ── Channel endpoints ─────────────────────────────────────────────────────
+
+  describe('createChannel', () => {
+    it('sends POST with channel data', async () => {
+      api.addTeam('t-cc', 'https://cc.io');
+      api.setToken('t-cc', 'tok');
+      global.fetch = mockFetchResponse({ id: 'ch1', name: 'general' });
+
+      await api.createChannel('t-cc', { name: 'general', type: 'text', topic: 'hi' });
+
+      const { url, init } = lastFetchCall();
+      expect(url).toBe('https://cc.io/api/v1/teams/t-cc/channels');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body as string)).toEqual({ name: 'general', type: 'text', topic: 'hi' });
+    });
+  });
+
+  describe('deleteChannel', () => {
+    it('sends DELETE request', async () => {
+      api.addTeam('t-dc', 'https://dc.io');
+      api.setToken('t-dc', 'tok');
+      global.fetch = mockFetchResponse({});
+
+      await api.deleteChannel('t-dc', 'ch1');
+
+      const { url, init } = lastFetchCall();
+      expect(url).toBe('https://dc.io/api/v1/teams/t-dc/channels/ch1');
+      expect(init.method).toBe('DELETE');
+    });
+  });
+
+  // ── Messages ──────────────────────────────────────────────────────────────
+
+  describe('getMessages', () => {
+    it('constructs correct URL with query params', async () => {
+      api.addTeam('t-msg', 'https://msg.io');
+      api.setToken('t-msg', 'tok');
+      global.fetch = mockFetchResponse({ messages: [{ id: 'm1' }] });
+
+      const result = await api.getMessages('t-msg', 'ch1', 50, 'before-id');
+
+      expect(result).toEqual([{ id: 'm1' }]);
+      const { url } = lastFetchCall();
+      expect(url).toContain('/api/v1/teams/t-msg/channels/ch1/messages?');
+      expect(url).toContain('limit=50');
+      expect(url).toContain('before=before-id');
+    });
+
+    it('omits query params when not provided', async () => {
+      api.addTeam('t-msg2', 'https://msg2.io');
+      api.setToken('t-msg2', 'tok');
+      global.fetch = mockFetchResponse({ messages: [] });
+
+      await api.getMessages('t-msg2', 'ch1');
+
+      const { url } = lastFetchCall();
+      expect(url).toBe('https://msg2.io/api/v1/teams/t-msg2/channels/ch1/messages');
+    });
+  });
+
+  // ── Members ───────────────────────────────────────────────────────────────
+
+  describe('getMembers', () => {
+    it('unwraps members array', async () => {
+      api.addTeam('t-mem', 'https://mem.io');
+      api.setToken('t-mem', 'tok');
+      global.fetch = mockFetchResponse({ members: [{ id: 'u1' }] });
+
+      const result = await api.getMembers('t-mem');
+      expect(result).toEqual([{ id: 'u1' }]);
+    });
+  });
+
+  describe('kickMember', () => {
+    it('sends DELETE to member endpoint', async () => {
+      api.addTeam('t-kick', 'https://kick.io');
+      api.setToken('t-kick', 'tok');
+      global.fetch = mockFetchResponse({});
+
+      await api.kickMember('t-kick', 'u1');
+
+      const { url, init } = lastFetchCall();
+      expect(url).toBe('https://kick.io/api/v1/teams/t-kick/members/u1');
+      expect(init.method).toBe('DELETE');
+    });
+  });
+
+  describe('banMember / unbanMember', () => {
+    it('banMember sends POST to ban endpoint', async () => {
+      api.addTeam('t-ban', 'https://ban.io');
+      api.setToken('t-ban', 'tok');
+      global.fetch = mockFetchResponse({});
+
+      await api.banMember('t-ban', 'u1');
+
+      const { url, init } = lastFetchCall();
+      expect(url).toBe('https://ban.io/api/v1/teams/t-ban/members/u1/ban');
+      expect(init.method).toBe('POST');
+    });
+
+    it('unbanMember sends DELETE to ban endpoint', async () => {
+      api.addTeam('t-unban', 'https://unban.io');
+      api.setToken('t-unban', 'tok');
+      global.fetch = mockFetchResponse({});
+
+      await api.unbanMember('t-unban', 'u1');
+
+      expect(lastFetchCall().init.method).toBe('DELETE');
+    });
+  });
+
+  // ── Roles ─────────────────────────────────────────────────────────────────
+
+  describe('getRoles / createRole', () => {
+    it('getRoles unwraps roles array', async () => {
+      api.addTeam('t-role', 'https://role.io');
+      api.setToken('t-role', 'tok');
+      global.fetch = mockFetchResponse({ roles: [{ id: 'r1', name: 'Admin' }] });
+
+      const roles = await api.getRoles('t-role');
+      expect(roles).toEqual([{ id: 'r1', name: 'Admin' }]);
+    });
+
+    it('createRole sends POST with role data', async () => {
+      api.addTeam('t-cr', 'https://cr.io');
+      api.setToken('t-cr', 'tok');
+      global.fetch = mockFetchResponse({ id: 'r1' });
+
+      await api.createRole('t-cr', { name: 'Mod', color: '#ff0', permissions: 7 });
+
+      const body = JSON.parse(lastFetchCall().init.body as string);
+      expect(body).toEqual({ name: 'Mod', color: '#ff0', permissions: 7 });
+    });
+  });
+
+  // ── DMs ───────────────────────────────────────────────────────────────────
+
+  describe('createDM', () => {
+    it('posts member_ids to DM endpoint', async () => {
+      api.addTeam('t-dm', 'https://dm.io');
+      api.setToken('t-dm', 'tok');
+      global.fetch = mockFetchResponse({ id: 'dm1' });
+
+      await api.createDM('t-dm', ['u1', 'u2']);
+
+      const body = JSON.parse(lastFetchCall().init.body as string);
+      expect(body).toEqual({ member_ids: ['u1', 'u2'] });
+    });
+  });
+
+  describe('getDMMessages', () => {
+    it('constructs URL with pagination params', async () => {
+      api.addTeam('t-dmm', 'https://dmm.io');
+      api.setToken('t-dmm', 'tok');
+      global.fetch = mockFetchResponse({ messages: [] });
+
+      await api.getDMMessages('t-dmm', 'dm1', 'before-id', 25);
+
+      const { url } = lastFetchCall();
+      expect(url).toContain('before=before-id');
+      expect(url).toContain('limit=25');
+    });
+  });
+
+  // ── Threads ───────────────────────────────────────────────────────────────
+
+  describe('createThread', () => {
+    it('posts thread creation data', async () => {
+      api.addTeam('t-th', 'https://th.io');
+      api.setToken('t-th', 'tok');
+      global.fetch = mockFetchResponse({ id: 'th1' });
+
+      await api.createThread('t-th', 'ch1', 'msg1', 'Discussion');
+
+      const body = JSON.parse(lastFetchCall().init.body as string);
+      expect(body).toEqual({ parent_message_id: 'msg1', title: 'Discussion' });
+    });
+  });
+
+  // ── Reactions ─────────────────────────────────────────────────────────────
+
+  describe('addReaction / removeReaction', () => {
+    it('addReaction sends PUT with encoded emoji', async () => {
+      api.addTeam('t-react', 'https://react.io');
+      api.setToken('t-react', 'tok');
+      global.fetch = mockFetchResponse({});
+
+      await api.addReaction('t-react', 'ch1', 'msg1', '👍');
+
+      const { url, init } = lastFetchCall();
+      expect(url).toContain(encodeURIComponent('👍'));
+      expect(init.method).toBe('PUT');
+    });
+
+    it('removeReaction sends DELETE', async () => {
+      api.addTeam('t-rr', 'https://rr.io');
+      api.setToken('t-rr', 'tok');
+      global.fetch = mockFetchResponse({});
+
+      await api.removeReaction('t-rr', 'ch1', 'msg1', '🎉');
+      expect(lastFetchCall().init.method).toBe('DELETE');
+    });
+  });
+
+  // ── File uploads ──────────────────────────────────────────────────────────
+
+  describe('uploadFile', () => {
+    it('sends FormData with auth header', async () => {
+      api.addTeam('t-up', 'https://up.io');
+      api.setToken('t-up', 'my-token');
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ id: 'att1', filename: 'test.png' }),
+      });
+
+      const file = new File(['data'], 'test.png', { type: 'image/png' });
+      const result = await api.uploadFile('t-up', file);
+
+      expect(result.id).toBe('att1');
+      const { url, init } = lastFetchCall();
+      expect(url).toBe('https://up.io/api/v1/teams/t-up/upload');
+      expect(init.method).toBe('POST');
+      expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer my-token');
+      expect(init.body).toBeInstanceOf(FormData);
+    });
+  });
+
+  describe('getAttachmentUrl', () => {
+    it('returns correct URL', () => {
+      api.addTeam('t-att', 'https://att.io');
+      const url = api.getAttachmentUrl('t-att', 'att123');
+      expect(url).toBe('https://att.io/api/v1/teams/t-att/attachments/att123');
+    });
+  });
+
+  // ── Presence ──────────────────────────────────────────────────────────────
+
+  describe('getPresences', () => {
+    it('transforms presences array to record', async () => {
+      api.addTeam('t-pres', 'https://pres.io');
+      api.setToken('t-pres', 'tok');
+      global.fetch = mockFetchResponse({
+        presences: [
+          { user_id: 'u1', status_type: 'online', custom_status: 'Working', last_active: '2024-01-01' },
+          { user_id: 'u2', status_type: 'idle' },
+        ],
+      });
+
+      const result = await api.getPresences('t-pres');
+      expect(result['u1']).toEqual({
+        user_id: 'u1',
+        status: 'online',
+        custom_status: 'Working',
+        last_active: '2024-01-01',
+      });
+      expect(result['u2'].status).toBe('idle');
+    });
+  });
+
+  // ── Health ────────────────────────────────────────────────────────────────
+
+  describe('checkHealth', () => {
+    it('returns true on success', async () => {
+      global.fetch = mockFetchResponse({ status: 'ok' });
+      const ok = await api.checkHealth('https://h.io');
+      expect(ok).toBe(true);
+    });
+
+    it('returns false on error', async () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+      const ok = await api.checkHealth('https://h.io');
+      expect(ok).toBe(false);
+    });
+  });
+
+  describe('checkHealthWithLatency', () => {
+    it('returns ok, latency, and uptime', async () => {
+      global.fetch = mockFetchResponse({ uptime: '2h30m' });
+      const result = await api.checkHealthWithLatency('https://h.io');
+      expect(result.ok).toBe(true);
+      expect(result.latency).toBeGreaterThanOrEqual(0);
+      expect(result.uptime).toBe('2h30m');
+    });
+
+    it('returns ok=false on failure', async () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error('down'));
+      const result = await api.checkHealthWithLatency('https://h.io');
+      expect(result.ok).toBe(false);
+      expect(result.latency).toBe(0);
+    });
+  });
+
+  // ── Invites ───────────────────────────────────────────────────────────────
+
+  describe('invites', () => {
+    it('createInvite posts to team invites endpoint', async () => {
+      api.addTeam('t-inv', 'https://inv.io');
+      api.setToken('t-inv', 'tok');
+      global.fetch = mockFetchResponse({ code: 'abc123' });
+
+      await api.createInvite('t-inv', 5, 24);
+
+      const { url, init } = lastFetchCall();
+      expect(url).toBe('https://inv.io/api/v1/teams/t-inv/invites');
+      expect(init.method).toBe('POST');
+      const body = JSON.parse(init.body as string);
+      expect(body).toEqual({ max_uses: 5, expires_in_hours: 24 });
+    });
+
+    it('listInvites unwraps invites array', async () => {
+      api.addTeam('t-li', 'https://li.io');
+      api.setToken('t-li', 'tok');
+      global.fetch = mockFetchResponse({ invites: [{ id: 'i1' }] });
+
+      const result = await api.listInvites('t-li');
+      expect(result).toEqual([{ id: 'i1' }]);
+    });
+
+    it('revokeInvite sends DELETE', async () => {
+      api.addTeam('t-ri', 'https://ri.io');
+      api.setToken('t-ri', 'tok');
+      global.fetch = mockFetchResponse({});
+
+      await api.revokeInvite('t-ri', 'inv1');
+
+      const { url, init } = lastFetchCall();
+      expect(url).toBe('https://ri.io/api/v1/teams/t-ri/invites/inv1');
+      expect(init.method).toBe('DELETE');
+    });
+  });
+
+  // ── Federation ────────────────────────────────────────────────────────────
+
+  describe('federation', () => {
+    it('getFederationStatus returns status object', async () => {
+      api.addTeam('t-fed', 'https://fed.io');
+      api.setToken('t-fed', 'tok');
+      global.fetch = mockFetchResponse({ node_name: 'node1', peers: [], lamport_ts: 42 });
+
+      const result = await api.getFederationStatus('t-fed');
+      expect(result.node_name).toBe('node1');
+      expect(result.lamport_ts).toBe(42);
+    });
+  });
+
+  // ── Unknown team throws ───────────────────────────────────────────────────
+
+  describe('unknown team', () => {
+    it('throws when accessing unregistered team', () => {
+      expect(() => api.getChannels('no-such-team')).rejects.toThrow('Not connected to team no-such-team');
+    });
+  });
+});

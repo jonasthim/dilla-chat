@@ -1,0 +1,155 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import UserPanel from './UserPanel';
+import { usePresenceStore } from '../../stores/presenceStore';
+import { useTeamStore } from '../../stores/teamStore';
+import { useAuthStore } from '../../stores/authStore';
+import { useVoiceStore } from '../../stores/voiceStore';
+
+vi.mock('iconoir-react', () => ({
+  Settings: () => <span data-testid="icon-settings" />,
+  Microphone: () => <span data-testid="icon-mic" />,
+  MicrophoneMute: () => <span data-testid="icon-mic-mute" />,
+  Headset: () => <span data-testid="icon-headset" />,
+  HeadsetWarning: () => <span data-testid="icon-headset-warning" />,
+}));
+
+vi.mock('../../services/websocket', () => ({
+  ws: {
+    updatePresence: vi.fn(),
+  },
+}));
+
+vi.mock('../../services/webrtc', () => ({
+  webrtcService: {
+    toggleMute: vi.fn(),
+    toggleDeafen: vi.fn(),
+  },
+}));
+
+vi.mock('../../utils/sounds', () => ({
+  playMuteSound: vi.fn(),
+  playUnmuteSound: vi.fn(),
+}));
+
+vi.mock('../PresenceIndicator/PresenceIndicator', () => ({
+  default: ({ status }: { status: string }) => (
+    <span data-testid="presence-indicator" data-status={status} />
+  ),
+}));
+
+vi.mock('../StatusPicker/StatusPicker', () => ({
+  default: () => <div data-testid="status-picker" />,
+}));
+
+describe('UserPanel', () => {
+  beforeEach(() => {
+    useTeamStore.setState({ activeTeamId: 'team-1' });
+    useAuthStore.setState({
+      teams: new Map([['team-1', { user: { id: 'user-1' } }]]),
+    } as never);
+    usePresenceStore.setState({
+      myStatus: 'online',
+      myCustomStatus: '',
+    });
+    useVoiceStore.setState({
+      muted: false,
+      deafened: false,
+    } as never);
+  });
+
+  it('renders username', () => {
+    render(<UserPanel username="alice" />);
+    expect(screen.getByText('alice')).toBeInTheDocument();
+  });
+
+  it('renders display name when provided', () => {
+    render(<UserPanel username="alice" displayName="Alice Johnson" />);
+    expect(screen.getByText('Alice Johnson')).toBeInTheDocument();
+  });
+
+  it('renders initials from display name', () => {
+    render(<UserPanel username="alice" displayName="Alice Johnson" />);
+    // Initials: AJ
+    const avatar = document.querySelector('.user-panel-avatar');
+    expect(avatar?.textContent).toContain('AJ');
+  });
+
+  it('renders initials from username when no display name', () => {
+    render(<UserPanel username="alice" />);
+    const avatar = document.querySelector('.user-panel-avatar');
+    // 'alice' is one word, so initials = 'A'
+    expect(avatar?.textContent).toContain('A');
+  });
+
+  it('renders presence indicator', () => {
+    render(<UserPanel username="alice" />);
+    expect(screen.getByTestId('presence-indicator')).toBeInTheDocument();
+    expect(screen.getByTestId('presence-indicator')).toHaveAttribute('data-status', 'online');
+  });
+
+  it('shows presence status text', () => {
+    render(<UserPanel username="alice" />);
+    expect(screen.getByText('presence.online')).toBeInTheDocument();
+  });
+
+  it('shows custom status text when set', () => {
+    usePresenceStore.setState({ myCustomStatus: 'Working hard' });
+    render(<UserPanel username="alice" />);
+    expect(screen.getByText('Working hard')).toBeInTheDocument();
+  });
+
+  it('renders mute button', () => {
+    render(<UserPanel username="alice" />);
+    expect(screen.getByTitle('Mute')).toBeInTheDocument();
+  });
+
+  it('renders deafen button', () => {
+    render(<UserPanel username="alice" />);
+    expect(screen.getByTitle('Deafen')).toBeInTheDocument();
+  });
+
+  it('shows muted mic icon when muted', () => {
+    useVoiceStore.setState({ muted: true } as never);
+    render(<UserPanel username="alice" />);
+    expect(screen.getByTestId('icon-mic-mute')).toBeInTheDocument();
+  });
+
+  it('shows unmuted mic icon when not muted', () => {
+    render(<UserPanel username="alice" />);
+    expect(screen.getByTestId('icon-mic')).toBeInTheDocument();
+  });
+
+  it('shows headset warning icon when deafened', () => {
+    useVoiceStore.setState({ deafened: true } as never);
+    render(<UserPanel username="alice" />);
+    expect(screen.getByTestId('icon-headset-warning')).toBeInTheDocument();
+  });
+
+  it('disables mute button when deafened', () => {
+    useVoiceStore.setState({ deafened: true } as never);
+    render(<UserPanel username="alice" />);
+    const muteBtn = screen.getByTitle('Deafened');
+    expect(muteBtn).toBeDisabled();
+  });
+
+  it('calls onSettingsClick when settings button clicked', () => {
+    const onSettings = vi.fn();
+    render(<UserPanel username="alice" onSettingsClick={onSettings} />);
+    fireEvent.click(screen.getByTitle('settings.general'));
+    expect(onSettings).toHaveBeenCalled();
+  });
+
+  it('renders settings button', () => {
+    render(<UserPanel username="alice" />);
+    expect(screen.getByTitle('settings.general')).toBeInTheDocument();
+  });
+
+  it('toggles status picker on avatar click', () => {
+    render(<UserPanel username="alice" />);
+    expect(screen.queryByTestId('status-picker')).not.toBeInTheDocument();
+    const avatar = document.querySelector('.user-panel-avatar')!;
+    fireEvent.click(avatar);
+    expect(screen.getByTestId('status-picker')).toBeInTheDocument();
+  });
+});
