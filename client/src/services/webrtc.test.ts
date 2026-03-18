@@ -1097,6 +1097,54 @@ describe('WebRTCService', () => {
     });
   });
 
+  describe('remote VAD', () => {
+    it('updates peer speaking state when remote audio exceeds threshold', async () => {
+      vi.useFakeTimers();
+      await webrtcService.connect('ch-1', 'team-1');
+
+      // Set up a peer in the voice store
+      useVoiceStore.setState({
+        peers: { 'remote-user': { odisplayName: 'Remote', muted: false, deafened: false, speaking: false, voiceLevel: 0, screenSharing: false, webcamSharing: false } },
+      });
+
+      // Access the private remoteAnalysers map and add an entry
+      const analysers = (webrtcService as unknown as { remoteAnalysers: Map<string, { userId: string; analyser: { getByteFrequencyData: (arr: Uint8Array) => void }; data: Uint8Array }> }).remoteAnalysers;
+      const fakeData = new Uint8Array(128);
+      analysers.set('remote-user', {
+        userId: 'remote-user',
+        analyser: {
+          getByteFrequencyData: (arr: Uint8Array) => { arr.fill(180); },
+        },
+        data: fakeData,
+      });
+
+      // Start the remote VAD
+      (webrtcService as unknown as { startRemoteVAD: () => void }).startRemoteVAD();
+
+      // Advance the timer to trigger the interval
+      vi.advanceTimersByTime(150);
+
+      const peer = useVoiceStore.getState().peers['remote-user'];
+      expect(peer.speaking).toBe(true);
+      expect(peer.voiceLevel).toBeGreaterThan(0);
+
+      // Stop and cleanup
+      (webrtcService as unknown as { stopRemoteVAD: () => void }).stopRemoteVAD();
+      vi.useRealTimers();
+    });
+
+    it('does not start twice if already running', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      const startFn = (webrtcService as unknown as { startRemoteVAD: () => void }).startRemoteVAD.bind(webrtcService);
+      startFn();
+      const timer1 = (webrtcService as unknown as { remoteVadTimer: unknown }).remoteVadTimer;
+      startFn(); // second call should be no-op
+      const timer2 = (webrtcService as unknown as { remoteVadTimer: unknown }).remoteVadTimer;
+      expect(timer1).toBe(timer2);
+      (webrtcService as unknown as { stopRemoteVAD: () => void }).stopRemoteVAD();
+    });
+  });
+
   describe('screen sharing edge cases', () => {
     it('startScreenShare throws when getDisplayMedia is not supported', async () => {
       await webrtcService.connect('ch-1', 'team-1');

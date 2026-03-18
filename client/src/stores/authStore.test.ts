@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAuthStore } from './authStore';
 
 function getState() {
@@ -226,6 +226,25 @@ describe('session storage persistence', () => {
     sessionStorage.setItem('dilla_teams', 'invalid json');
     // Just verify the current state is still valid
     expect(getState().teams).toBeDefined();
+  });
+});
+
+describe('loadPersistedTeams restores data on fresh import', () => {
+  it('loads teams from sessionStorage when module is freshly imported', async () => {
+    vi.resetModules();
+    sessionStorage.setItem(
+      'dilla_teams',
+      JSON.stringify({ 't-restored': { token: 'jwt', user: {}, teamInfo: {}, baseUrl: 'https://restored.com' } }),
+    );
+    sessionStorage.setItem(
+      'dilla_servers',
+      JSON.stringify({ 'restored.com': { baseUrl: 'https://restored.com', token: 'jwt', username: 'alice', teamIds: ['t-restored'] } }),
+    );
+    const { useAuthStore: freshStore } = await import('./authStore');
+    expect(freshStore.getState().teams.has('t-restored')).toBe(true);
+    expect(freshStore.getState().teams.get('t-restored')?.token).toBe('jwt');
+    expect(freshStore.getState().servers.has('restored.com')).toBe(true);
+    sessionStorage.clear();
   });
 });
 
