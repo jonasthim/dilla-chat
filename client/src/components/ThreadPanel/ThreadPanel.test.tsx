@@ -662,7 +662,7 @@ describe('ThreadPanel', () => {
     useThreadStore.setState({ threadMessages: {} });
 
     const apiThread = { ...thread, id: threadId };
-    const { container } = render(<ThreadPanel thread={apiThread} onClose={vi.fn()} />);
+    render(<ThreadPanel thread={apiThread} onClose={vi.fn()} />);
 
     // Wait for initial load
     await vi.waitFor(() => {

@@ -324,7 +324,6 @@ describe('DMView', () => {
   });
 
   it('triggers handleLoadMore via load more button', async () => {
-    const { ws } = await import('../../services/websocket');
     useMessageStore.setState({
       messages: new Map([['dm-1', [{ id: 'old-msg', channelId: 'dm-1', authorId: 'user-2', username: 'bob', content: 'old', encryptedContent: '', type: 'text', threadId: null, editedAt: null, deleted: false, createdAt: '2025-01-01T00:00:00Z', reactions: [] }]]]),
       typing: new Map(),
@@ -348,7 +347,6 @@ describe('DMView', () => {
 
   it('encrypts DM messages when derivedKey is set', async () => {
     useAuthStore.setState({ derivedKey: 'test-key' } as never);
-    const { ws } = await import('../../services/websocket');
     const { cryptoService } = await import('../../services/crypto');
     vi.mocked(cryptoService.encryptDM).mockResolvedValueOnce('encrypted-text');
     render(<DMView dm={makeDM()} currentUserId="user-1" />);

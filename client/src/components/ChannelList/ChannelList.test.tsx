@@ -141,7 +141,7 @@ describe('ChannelList', () => {
   });
 
   it('opens edit channel dialog from context menu', () => {
-    const { container } = render(<ChannelList />);
+    render(<ChannelList />);
     const channelItem = screen.getByText('general').closest('.channel-item')!;
     fireEvent.contextMenu(channelItem);
     fireEvent.click(screen.getByText('Edit Channel'));
