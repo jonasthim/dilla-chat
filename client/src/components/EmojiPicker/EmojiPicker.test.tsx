@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
 import EmojiPicker from './EmojiPicker';
 
 // Mock the emoji-picker-react library
 vi.mock('emoji-picker-react', () => {
-  const React = require('react');
   const MockPicker = ({ onEmojiClick }: { onEmojiClick: (data: { emoji: string }) => void }) => (
     <div data-testid="emoji-picker-inner">
       <button data-testid="emoji-smile" onClick={() => onEmojiClick({ emoji: '😊' })}>

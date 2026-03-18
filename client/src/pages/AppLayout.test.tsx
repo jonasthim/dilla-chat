@@ -700,8 +700,6 @@ describe('AppLayout behavioral', () => {
 
   it('re-initializes crypto from persisted derivedKey', async () => {
     const { fromBase64 } = await import('../services/cryptoCore');
-    const { unlockWithPrf } = await import('../services/keyStore');
-    const { initCrypto } = await import('../services/crypto');
 
     useAuthStore.setState({
       derivedKey: 'test-derived-key',

@@ -581,8 +581,6 @@ describe('CreateIdentity', () => {
   });
 
   it('does not submit passphrase if too short', async () => {
-    const { createIdentityWithPassphrase } = await import('../services/keyStore');
-
     vi.mocked(registerPasskey).mockResolvedValueOnce({
       credentialId: 'cred1',
       credentialName: 'My Passkey',

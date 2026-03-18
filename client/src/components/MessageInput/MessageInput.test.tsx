@@ -104,7 +104,6 @@ describe('MessageInput', () => {
 
   it('calls onCancelEdit and clears value when pressing Escape in edit mode', async () => {
     const onCancelEdit = vi.fn();
-    const user = userEvent.setup();
     render(
       <MessageInput
         {...defaultProps}
