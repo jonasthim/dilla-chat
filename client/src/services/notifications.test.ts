@@ -78,7 +78,6 @@ describe('NotificationService', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(false);
     Object.defineProperty(Notification, 'permission', { value: 'default', configurable: true });
     vi.spyOn(Notification, 'requestPermission').mockResolvedValue('denied');
-    const constructSpy = vi.fn();
     // Clear the mock constructor to track calls specifically
     (Notification as unknown as ReturnType<typeof vi.fn>).mockClear();
     await notificationService.notify('Title', 'Body');
