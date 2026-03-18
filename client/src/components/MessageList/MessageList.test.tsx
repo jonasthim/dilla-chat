@@ -1,0 +1,330 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import MessageList from './MessageList';
+import { useMessageStore, type Message } from '../../stores/messageStore';
+
+// Mock dependencies
+vi.mock('iconoir-react', () => ({
+  Emoji: () => <span data-testid="icon-emoji" />,
+  Plus: () => <span data-testid="icon-plus" />,
+  Reply: () => <span data-testid="icon-reply" />,
+  Threads: () => <span data-testid="icon-threads" />,
+  EditPencil: () => <span data-testid="icon-edit" />,
+  Trash: () => <span data-testid="icon-trash" />,
+  ChatBubble: () => <span data-testid="icon-chat-bubble" />,
+}));
+
+vi.mock('react-markdown', () => ({
+  default: ({ children }: { children: string }) => <span>{children}</span>,
+}));
+
+vi.mock('remark-gfm', () => ({
+  default: {},
+}));
+
+vi.mock('../Reactions/Reactions', () => ({
+  default: () => <div data-testid="reactions" />,
+}));
+
+vi.mock('../FilePreview/FilePreview', () => ({
+  default: () => <div data-testid="file-preview" />,
+}));
+
+vi.mock('../EmojiPicker/EmojiPicker', () => ({
+  default: () => <div data-testid="emoji-picker" />,
+}));
+
+vi.mock('../../utils/colors', () => ({
+  usernameColor: () => '#aabbcc',
+}));
+
+// jsdom does not implement scrollIntoView
+Element.prototype.scrollIntoView = vi.fn();
+
+function makeMessage(overrides?: Partial<Message>): Message {
+  return {
+    id: 'msg-1',
+    channelId: 'ch-1',
+    authorId: 'user-1',
+    username: 'alice',
+    content: 'Hello world',
+    encryptedContent: 'encrypted',
+    type: 'text',
+    threadId: null,
+    editedAt: null,
+    deleted: false,
+    createdAt: new Date().toISOString(),
+    reactions: [],
+    ...overrides,
+  };
+}
+
+describe('MessageList', () => {
+  beforeEach(() => {
+    useMessageStore.setState({
+      messages: new Map(),
+      typing: new Map(),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+  });
+
+  it('renders messages', () => {
+    const msgs = [makeMessage()];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
+    );
+    expect(screen.getByText('Hello world')).toBeInTheDocument();
+  });
+
+  it('renders username for message groups', () => {
+    const msgs = [makeMessage()];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList channelId="ch-1" currentUserId="user-2" onLoadMore={vi.fn()} />,
+    );
+    expect(screen.getByText('alice')).toBeInTheDocument();
+  });
+
+  it('groups messages from same author within 7 minutes', () => {
+    const now = new Date();
+    const msgs = [
+      makeMessage({ id: 'msg-1', content: 'First', createdAt: now.toISOString() }),
+      makeMessage({
+        id: 'msg-2',
+        content: 'Second',
+        createdAt: new Date(now.getTime() + 60000).toISOString(),
+      }),
+    ];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList channelId="ch-1" currentUserId="user-2" onLoadMore={vi.fn()} />,
+    );
+    // Should have only one username header (one group)
+    const usernames = screen.getAllByText('alice');
+    expect(usernames).toHaveLength(1);
+    expect(screen.getByText('First')).toBeInTheDocument();
+    expect(screen.getByText('Second')).toBeInTheDocument();
+  });
+
+  it('shows system messages with system styling', () => {
+    const msgs = [
+      makeMessage({ id: 'sys-1', type: 'system', content: 'User joined', username: 'system' }),
+    ];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    const { container } = render(
+      <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
+    );
+    expect(screen.getByText('User joined')).toBeInTheDocument();
+    expect(container.querySelector('.message-system')).toBeInTheDocument();
+  });
+
+  it('shows welcome message when at the beginning', () => {
+    const msgs = [makeMessage()];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map([['ch-1', false]]),
+    });
+    render(
+      <MessageList
+        channelId="ch-1"
+        channelName="general"
+        currentUserId="user-1"
+        onLoadMore={vi.fn()}
+      />,
+    );
+    // The i18n mock returns the default string without interpolation
+    expect(screen.getByText('Welcome to ~{{name}}')).toBeInTheDocument();
+  });
+
+  it('does not show welcome message when there is more history', () => {
+    const msgs = [makeMessage()];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map([['ch-1', true]]),
+    });
+    render(
+      <MessageList
+        channelId="ch-1"
+        channelName="general"
+        currentUserId="user-1"
+        onLoadMore={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText('Welcome to ~{{name}}')).not.toBeInTheDocument();
+  });
+
+  it('shows loading indicator when loading history', () => {
+    useMessageStore.setState({
+      messages: new Map(),
+      loadingHistory: new Map([['ch-1', true]]),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
+    );
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('does not show loading indicator when not loading', () => {
+    useMessageStore.setState({
+      messages: new Map(),
+      loadingHistory: new Map([['ch-1', false]]),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
+    );
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+  });
+
+  it('shows deleted message placeholder', () => {
+    const msgs = [makeMessage({ deleted: true })];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
+    );
+    expect(screen.getByText('[message deleted]')).toBeInTheDocument();
+  });
+
+  it('shows edited indicator for edited messages', () => {
+    const msgs = [makeMessage({ editedAt: '2024-01-01T12:00:00Z' })];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
+    );
+    expect(screen.getByText('(edited)')).toBeInTheDocument();
+  });
+
+  it('shows edit and delete buttons only for own messages', () => {
+    const msgs = [
+      makeMessage({ id: 'own', authorId: 'user-1', content: 'My message' }),
+      makeMessage({
+        id: 'other',
+        authorId: 'user-2',
+        username: 'bob',
+        content: 'Their message',
+        createdAt: new Date(Date.now() + 600000).toISOString(),
+      }),
+    ];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList
+        channelId="ch-1"
+        currentUserId="user-1"
+        onLoadMore={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    // Edit and Delete titles should appear once each (only for own message)
+    expect(screen.getAllByTitle('Edit Message')).toHaveLength(1);
+    expect(screen.getAllByTitle('Delete Message')).toHaveLength(1);
+  });
+
+  it('calls onEdit when edit button clicked', () => {
+    const onEdit = vi.fn();
+    const msgs = [makeMessage()];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList
+        channelId="ch-1"
+        currentUserId="user-1"
+        onLoadMore={vi.fn()}
+        onEdit={onEdit}
+      />,
+    );
+    fireEvent.click(screen.getByTitle('Edit Message'));
+    expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'msg-1' }));
+  });
+
+  it('calls onDelete when delete button clicked', () => {
+    const onDelete = vi.fn();
+    const msgs = [makeMessage()];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList
+        channelId="ch-1"
+        currentUserId="user-1"
+        onLoadMore={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+    fireEvent.click(screen.getByTitle('Delete Message'));
+    expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'msg-1' }));
+  });
+
+  it('renders reactions for messages with reactions', () => {
+    const msgs = [
+      makeMessage({
+        reactions: [{ emoji: '👍', users: ['user-2'], count: 1 }],
+      }),
+    ];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
+    );
+    expect(screen.getByTestId('reactions')).toBeInTheDocument();
+  });
+
+  it('shows thread indicator when threadInfo provided', () => {
+    const msgs = [makeMessage()];
+    useMessageStore.setState({
+      messages: new Map([['ch-1', msgs]]),
+      loadingHistory: new Map(),
+      hasMore: new Map(),
+    });
+    render(
+      <MessageList
+        channelId="ch-1"
+        currentUserId="user-1"
+        onLoadMore={vi.fn()}
+        threadInfo={{ 'msg-1': { count: 3, lastReplyAt: null } }}
+      />,
+    );
+    expect(screen.getByText('{{count}} replies')).toBeInTheDocument();
+  });
+});
