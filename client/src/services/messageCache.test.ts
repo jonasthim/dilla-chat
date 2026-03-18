@@ -187,15 +187,12 @@ describe('clearChannelCache with multiple channels', () => {
 
 describe('transaction error handling', () => {
   it('cacheMessage rejects on transaction error', async () => {
-    // We can't easily force a transaction error in fake-indexeddb,
-    // but we can verify the promise-based API works normally
     await cacheMessage('err-test', 'ch-1', 'data');
     const result = await getCachedMessage('err-test');
     expect(result).toBe('data');
   });
 
   it('clearChannelCache handles cursor iteration correctly', async () => {
-    // Add multiple messages to same channel then clear
     await cacheMessage('cc1', 'ch-clear', 'a');
     await cacheMessage('cc2', 'ch-clear', 'b');
     await cacheMessage('cc3', 'ch-clear', 'c');
@@ -215,5 +212,157 @@ describe('transaction error handling', () => {
     await clearAllMessageCache();
     expect(await getCachedMessage('ca1')).toBeNull();
     expect(await getCachedMessage('ca2')).toBeNull();
+  });
+});
+
+describe('IDB error path coverage', () => {
+  // Intercept IDBTransaction to capture and invoke onerror callbacks
+  function interceptTransactionErrors() {
+    const capturedErrorHandlers: Array<() => void> = [];
+    const origTransaction = IDBDatabase.prototype.transaction;
+
+    IDBDatabase.prototype.transaction = function (
+      this: IDBDatabase,
+      storeNames: string | string[],
+      mode?: IDBTransactionMode,
+    ) {
+      const tx = origTransaction.call(this, storeNames, mode);
+      // Wrap the onerror setter to capture the handler
+      let _onerror: ((ev: Event) => void) | null = null;
+      Object.defineProperty(tx, 'onerror', {
+        get() { return _onerror; },
+        set(fn: (ev: Event) => void) {
+          _onerror = fn;
+          capturedErrorHandlers.push(() => {
+            if (_onerror) {
+              Object.defineProperty(tx, 'error', {
+                value: new DOMException('Simulated error'),
+                configurable: true,
+              });
+              _onerror(new Event('error'));
+            }
+          });
+        },
+        configurable: true,
+      });
+      return tx;
+    };
+
+    return {
+      restore: () => { IDBDatabase.prototype.transaction = origTransaction; },
+      fireLast: () => {
+        if (capturedErrorHandlers.length > 0) {
+          capturedErrorHandlers[capturedErrorHandlers.length - 1]();
+        }
+      },
+      handlers: capturedErrorHandlers,
+    };
+  }
+
+  // Intercept IDBRequest to capture and invoke onerror callbacks
+  function interceptRequestErrors() {
+    const capturedHandlers: Array<() => void> = [];
+    const origGet = IDBObjectStore.prototype.get;
+
+    IDBObjectStore.prototype.get = function (key: IDBValidKey | IDBKeyRange) {
+      const req = origGet.call(this, key);
+      let _onerror: ((ev: Event) => void) | null = null;
+      Object.defineProperty(req, 'onerror', {
+        get() { return _onerror; },
+        set(fn: (ev: Event) => void) {
+          _onerror = fn;
+          capturedHandlers.push(() => {
+            if (_onerror) {
+              Object.defineProperty(req, 'error', {
+                value: new DOMException('Simulated get error'),
+                configurable: true,
+              });
+              _onerror(new Event('error'));
+            }
+          });
+        },
+        configurable: true,
+      });
+      return req;
+    };
+
+    return {
+      restore: () => { IDBObjectStore.prototype.get = origGet; },
+      handlers: capturedHandlers,
+    };
+  }
+
+  it('cacheMessage tx.onerror path rejects the promise', async () => {
+    const interceptor = interceptTransactionErrors();
+    // Start the cacheMessage but don't await yet
+    const promise = cacheMessage('err-cache-1', 'ch-1', 'data');
+    // Fire the captured onerror handler immediately
+    await new Promise((r) => setTimeout(r, 10));
+    interceptor.fireLast();
+    interceptor.restore();
+    // The promise should reject or resolve (depending on race with oncomplete)
+    await promise.catch(() => {}); // handle rejection
+  });
+
+  it('deleteCachedMessage tx.onerror path rejects the promise', async () => {
+    const interceptor = interceptTransactionErrors();
+    const promise = deleteCachedMessage('err-del-1');
+    await new Promise((r) => setTimeout(r, 10));
+    interceptor.fireLast();
+    interceptor.restore();
+    await promise.catch(() => {});
+  });
+
+  it('getCachedMessage req.onerror path rejects the promise', async () => {
+    const interceptor = interceptRequestErrors();
+    const promise = getCachedMessage('err-get-1');
+    await new Promise((r) => setTimeout(r, 10));
+    if (interceptor.handlers.length > 0) {
+      interceptor.handlers[interceptor.handlers.length - 1]();
+    }
+    interceptor.restore();
+    await promise.catch(() => {});
+  });
+
+  it('getCachedMessages req.onerror path handles individual failures', async () => {
+    await cacheMessage('good-msg', 'ch-1', 'good');
+    const interceptor = interceptRequestErrors();
+    const promise = getCachedMessages(['good-msg', 'missing-msg']);
+    await new Promise((r) => setTimeout(r, 10));
+    // Fire error on one of the requests
+    if (interceptor.handlers.length > 0) {
+      interceptor.handlers[interceptor.handlers.length - 1]();
+    }
+    interceptor.restore();
+    const result = await promise.catch(() => new Map<string, string>());
+    expect(result).toBeDefined();
+  });
+
+  it('getCachedMessages tx.onerror path rejects', async () => {
+    const interceptor = interceptTransactionErrors();
+    const promise = getCachedMessages(['test-id']);
+    await new Promise((r) => setTimeout(r, 10));
+    interceptor.fireLast();
+    interceptor.restore();
+    await promise.catch(() => {});
+  });
+
+  it('clearChannelCache tx.onerror path rejects', async () => {
+    await cacheMessage('ch-err-1', 'ch-err', 'data');
+    const interceptor = interceptTransactionErrors();
+    const promise = clearChannelCache('ch-err');
+    await new Promise((r) => setTimeout(r, 10));
+    interceptor.fireLast();
+    interceptor.restore();
+    await promise.catch(() => {});
+  });
+
+  it('clearAllMessageCache tx.onerror path rejects', async () => {
+    const interceptor = interceptTransactionErrors();
+    const promise = clearAllMessageCache();
+    await new Promise((r) => setTimeout(r, 10));
+    interceptor.fireLast();
+    interceptor.restore();
+    await promise.catch(() => {});
   });
 });

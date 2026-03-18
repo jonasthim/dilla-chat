@@ -221,4 +221,115 @@ describe('MemberList', () => {
     fireEvent.click(document);
     expect(screen.queryByTestId('user-profile')).not.toBeInTheDocument();
   });
+
+  it('sorts members using username fallback when displayName is empty', () => {
+    const members = new Map([
+      ['team-1', [
+        { id: 'member-1', userId: 'user-1', username: 'zebra', displayName: '', nickname: '', roles: [], statusType: 'online' },
+        { id: 'member-2', userId: 'user-2', username: 'apple', displayName: '', nickname: '', roles: [], statusType: 'online' },
+        { id: 'member-3', userId: 'user-3', username: 'banana', displayName: '', nickname: '', roles: [], statusType: 'offline' },
+        { id: 'member-4', userId: 'user-4', username: 'mango', displayName: '', nickname: '', roles: [], statusType: 'offline' },
+      ]],
+    ]);
+    useTeamStore.setState({ activeTeamId: 'team-1', members });
+    usePresenceStore.setState({
+      presences: {
+        'team-1': {
+          'user-1': { user_id: 'user-1', status: 'online', custom_status: '', last_active: '' },
+          'user-2': { user_id: 'user-2', status: 'online', custom_status: '', last_active: '' },
+          'user-3': { user_id: 'user-3', status: 'offline', custom_status: '', last_active: '' },
+          'user-4': { user_id: 'user-4', status: 'offline', custom_status: '', last_active: '' },
+        },
+      },
+    });
+
+    const { container } = render(<MemberList />);
+    const onlineNames = Array.from(container.querySelectorAll('.member-item:not(.offline) .member-display-name')).map(el => el.textContent);
+    // apple < zebra
+    expect(onlineNames[0]).toBe('apple');
+    expect(onlineNames[1]).toBe('zebra');
+
+    const offlineNames = Array.from(container.querySelectorAll('.member-item.offline .member-display-name')).map(el => el.textContent);
+    // banana < mango
+    expect(offlineNames[0]).toBe('banana');
+    expect(offlineNames[1]).toBe('mango');
+  });
+
+  it('renders multi-word initials from displayName', () => {
+    const members = new Map([
+      ['team-1', [
+        { id: 'member-1', userId: 'user-1', username: 'jd', displayName: 'John Doe', nickname: '', roles: [], statusType: 'online' },
+      ]],
+    ]);
+    useTeamStore.setState({ activeTeamId: 'team-1', members });
+    usePresenceStore.setState({
+      presences: {
+        'team-1': {
+          'user-1': { user_id: 'user-1', status: 'online', custom_status: '', last_active: '' },
+        },
+      },
+    });
+
+    const { container } = render(<MemberList />);
+    const avatarText = container.querySelector('.member-avatar')?.textContent?.trim();
+    expect(avatarText).toBe('JD');
+  });
+
+  it('renders username as display name when displayName and nickname are empty', () => {
+    const members = new Map([
+      ['team-1', [
+        { id: 'member-1', userId: 'user-1', username: 'fallback_user', displayName: '', nickname: '', roles: [], statusType: 'online' },
+      ]],
+    ]);
+    useTeamStore.setState({ activeTeamId: 'team-1', members });
+    usePresenceStore.setState({
+      presences: {
+        'team-1': {
+          'user-1': { user_id: 'user-1', status: 'online', custom_status: '', last_active: '' },
+        },
+      },
+    });
+
+    render(<MemberList />);
+    expect(screen.getByText('fallback_user')).toBeInTheDocument();
+  });
+
+  it('falls back to dnd status priority', () => {
+    const members = new Map([
+      ['team-1', [
+        makeMember('1', 'alice', 'Alice'),
+        makeMember('2', 'bob', 'Bob'),
+      ]],
+    ]);
+    useTeamStore.setState({ activeTeamId: 'team-1', members });
+    usePresenceStore.setState({
+      presences: {
+        'team-1': {
+          'user-1': { user_id: 'user-1', status: 'dnd', custom_status: '', last_active: '' },
+          'user-2': { user_id: 'user-2', status: 'online', custom_status: '', last_active: '' },
+        },
+      },
+    });
+
+    const { container } = render(<MemberList />);
+    const names = Array.from(container.querySelectorAll('.member-item:not(.offline) .member-display-name')).map(el => el.textContent);
+    // Bob (online=0) before Alice (dnd=2)
+    expect(names[0]).toBe('Bob');
+    expect(names[1]).toBe('Alice');
+  });
+
+  it('handles createDM failure gracefully', async () => {
+    const { api } = await import('../../services/api');
+    vi.mocked(api.createDM).mockRejectedValueOnce(new Error('Network error'));
+
+    render(<MemberList />);
+    fireEvent.click(screen.getByText('Bob'));
+    expect(screen.getByText('Send')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Send'));
+
+    // Should not throw
+    await vi.waitFor(() => {
+      expect(api.createDM).toHaveBeenCalled();
+    });
+  });
 });
