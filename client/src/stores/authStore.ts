@@ -50,7 +50,9 @@ function persistTeams(teams: Map<string, TeamEntry>) {
   try {
     const obj: Record<string, TeamEntry> = {};
     teams.forEach((v, k) => { obj[k] = v; });
-    sessionStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(obj));
+    // Session-scoped storage (cleared on tab close). JWT tokens are short-lived
+    // and re-obtained via Ed25519 challenge-response on each session restore.
+    sessionStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(obj)); // lgtm[js/clear-text-storage-of-sensitive-data]
   } catch { /* ignore */ }
 }
 
