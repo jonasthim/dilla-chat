@@ -60,7 +60,7 @@ export async function startMicTest(options: MicTestOptions): Promise<MicTestSess
 
   const timeDomainData = new Float32Array(analyser.fftSize);
 
-  let animFrameId: number;
+  let animFrameId = 0;
   const update = () => {
     analyser.getFloatTimeDomainData(timeDomainData);
     let sum = 0;
@@ -72,7 +72,7 @@ export async function startMicTest(options: MicTestOptions): Promise<MicTestSess
     options.onLevelUpdate(scaled);
     animFrameId = requestAnimationFrame(update);
   };
-  update();
+  animFrameId = requestAnimationFrame(update);
 
   return { stream, audioContext, analyser, gainNode, animFrameId, noiseSuppression, timeDomainData };
 }
