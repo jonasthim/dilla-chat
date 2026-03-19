@@ -26,10 +26,10 @@ use axum::{
     routing::{delete, get, patch, post, put},
     Json, Router,
 };
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tower_http::cors::{Any, CorsLayer};
 
-pub static mut VERSION: &str = "dev";
+pub static VERSION: OnceLock<String> = OnceLock::new();
 
 #[derive(Clone)]
 pub struct AppState {
@@ -253,7 +253,7 @@ async fn health() -> Json<serde_json::Value> {
 
 async fn version() -> Json<serde_json::Value> {
     Json(serde_json::json!({
-        "version": unsafe { VERSION },
+        "version": VERSION.get().map(|s| s.as_str()).unwrap_or("dev"),
         "runtime": "rust",
     }))
 }

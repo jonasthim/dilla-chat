@@ -1,6 +1,7 @@
 use std::env;
+use std::fmt;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 #[allow(dead_code)]
 pub struct Config {
     pub port: u16,
@@ -162,6 +163,32 @@ impl Config {
                 "SECURITY: CORS allows all origins — set DILLA_ALLOWED_ORIGINS for production"
             );
         }
+    }
+}
+
+impl fmt::Debug for Config {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Config")
+            .field("port", &self.port)
+            .field("data_dir", &self.data_dir)
+            .field("db_passphrase", &if self.db_passphrase.is_empty() { "<empty>" } else { "<redacted>" })
+            .field("tls_cert", &self.tls_cert)
+            .field("tls_key", &if self.tls_key.is_empty() { "<empty>" } else { "<redacted>" })
+            .field("peers", &self.peers)
+            .field("team_name", &self.team_name)
+            .field("federation_port", &self.federation_port)
+            .field("node_name", &self.node_name)
+            .field("join_secret", &if self.join_secret.is_empty() { "<empty>" } else { "<redacted>" })
+            .field("domain", &self.domain)
+            .field("cf_turn_key_id", &self.cf_turn_key_id)
+            .field("cf_turn_api_token", &if self.cf_turn_api_token.is_empty() { "<empty>" } else { "<redacted>" })
+            .field("turn_mode", &self.turn_mode)
+            .field("turn_shared_secret", &if self.turn_shared_secret.is_empty() { "<empty>" } else { "<redacted>" })
+            .field("allowed_origins", &self.allowed_origins)
+            .field("insecure", &self.insecure)
+            .field("otel_enabled", &self.otel_enabled)
+            .field("otel_api_key", &if self.otel_api_key.is_empty() { "<empty>" } else { "<redacted>" })
+            .finish_non_exhaustive()
     }
 }
 
