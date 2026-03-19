@@ -876,12 +876,15 @@ impl CryptoManager {
     }
 }
 
-/// Derive encryption key from passphrase using Argon2id with a random salt
+/// Derive encryption key from passphrase using Argon2id with caller-provided salt.
+/// The salt MUST be randomly generated per encryption (see save_sessions).
 fn passphrase_to_key(passphrase: &str, salt: &[u8]) -> Result<[u8; 32], String> {
     use argon2::{Argon2, Algorithm, Version, Params};
     let params = Params::new(19456, 2, 1, Some(32))
         .map_err(|e| format!("Argon2 params error: {e}"))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    // Output buffer — immediately overwritten by hash_password_into.
+    // lgtm[rust/hard-coded-cryptographic-value]
     let mut key = [0u8; 32];
     argon2
         .hash_password_into(passphrase.as_bytes(), salt, &mut key)
