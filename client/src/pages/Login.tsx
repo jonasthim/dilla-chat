@@ -78,7 +78,7 @@ export default function Login() {
         const earliest = allCreds
           .map(c => c.created_at)
           .filter(Boolean)
-          .sort()[0] || null;
+          .sort((a, b) => a.localeCompare(b))[0] || null;
 
         setIdentityInfo({
           username: localStorage.getItem('dilla_username') ?? '',
@@ -108,6 +108,44 @@ export default function Login() {
 
   const [cancelRef] = useState<{ cancelled: boolean }>({ cancelled: false });
 
+  /** Discover credentials and authenticate via passkey + PRF. */
+  async function discoverAndAuthenticatePasskey() {
+    const info = await getCredentialInfo();
+    if (!info || info.credentials.length === 0) {
+      throw new Error('No passkeys found. Please create an identity first.');
+    }
+
+    let serverUrl = localStorage.getItem('dilla_auth_server') || '';
+    if (!serverUrl) {
+      for (const [, entry] of teams) {
+        const url = entry.baseUrl;
+        if (url) { serverUrl = url; break; }
+      }
+    }
+
+    const credentialIds = info.credentials.map(c => c.id);
+    return authenticatePasskey(credentialIds, info.prfSalt, serverUrl || undefined);
+  }
+
+  /** Unlock identity from PRF output, init crypto, and navigate. */
+  async function unlockAndNavigate(derivedKeyB64: string) {
+    const prfKey = fromBase64(derivedKeyB64);
+    const identity = await unlockWithPrf(prfKey);
+    await initCrypto(identity, derivedKeyB64);
+
+    const pubKeyB64 = btoa(String.fromCharCode(...identity.publicKeyBytes));
+    console.log('[Login] Identity unlocked, refreshing server tokens...');
+
+    setDerivedKey(derivedKeyB64);
+    setPublicKey(pubKeyB64);
+    await refreshServerTokens(pubKeyB64);
+    if (cancelRef.cancelled) return;
+    const hasTeams = useAuthStore.getState().teams.size > 0
+      || await tryReconnectToCurrentServer(pubKeyB64);
+    if (cancelRef.cancelled) return;
+    navigate(hasTeams ? '/app' : '/join');
+  }
+
   const handlePasskeyUnlock = async () => {
     setError('');
     setLoading(true);
@@ -115,56 +153,18 @@ export default function Login() {
     try {
       console.log('[Login] Starting passkey login...');
 
-      // Get credential info from IndexedDB
-      const info = await getCredentialInfo();
-      if (!info || info.credentials.length === 0) {
-        throw new Error('No passkeys found. Please create an identity first.');
-      }
-
-      // Determine server URL for rpId config
-      let serverUrl = localStorage.getItem('dilla_auth_server') || '';
-      if (!serverUrl) {
-        for (const [, entry] of teams) {
-          const url = entry.baseUrl;
-          if (url) { serverUrl = url; break; }
-        }
-      }
-
-      // Authenticate with passkey + PRF
-      const credentialIds = info.credentials.map(c => c.id);
-      const result = await authenticatePasskey(credentialIds, info.prfSalt, serverUrl || undefined);
-
+      const result = await discoverAndAuthenticatePasskey();
       if (cancelRef.cancelled) return;
 
       if (result.prfOutput === null) {
-        // PRF not available — need passphrase to decrypt
         setNeedsLoginPassphrase(true);
         setLoading(false);
         return;
       }
 
       const derivedKeyB64 = prfOutputToBase64(result.prfOutput);
-
       console.log('[Login] Passkey succeeded, unlocking identity...');
-
-      // Unlock identity from IndexedDB
-      const prfKey = fromBase64(derivedKeyB64);
-      const identity = await unlockWithPrf(prfKey);
-
-      // Initialize crypto service
-      await initCrypto(identity, derivedKeyB64);
-
-      const pubKeyB64 = btoa(String.fromCharCode(...identity.publicKeyBytes));
-      console.log('[Login] Identity unlocked, refreshing server tokens...');
-
-      setDerivedKey(derivedKeyB64);
-      setPublicKey(pubKeyB64);
-      await refreshServerTokens(pubKeyB64);
-      if (cancelRef.cancelled) return;
-      const hasTeams = useAuthStore.getState().teams.size > 0
-        || await tryReconnectToCurrentServer(pubKeyB64);
-      if (cancelRef.cancelled) return;
-      navigate(hasTeams ? '/app' : '/join');
+      await unlockAndNavigate(derivedKeyB64);
     } catch (e) {
       if (cancelRef.cancelled) return;
       console.error('[Login] Passkey unlock failed:', e);

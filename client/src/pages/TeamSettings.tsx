@@ -281,15 +281,16 @@ function RolesTab({ teamId }: { teamId: string }) {
 
       <div className="roles-list">
         {[...teamRoles].sort((a, b) => b.position - a.position).map((role) => (
-          <div
+          <button
             key={role.id}
             className={`role-item ${selectedRoleId === role.id ? 'active' : ''}`}
             onClick={() => selectRole(role)}
+            type="button"
           >
             <span className="role-color-circle" style={{ background: role.color || '#8fa3b8' }} />
             <span className="role-name">{role.name}</span>
             {role.isDefault && <span className="role-default-badge">{t('roles.default', 'Default')}</span>}
-          </div>
+          </button>
         ))}
       </div>
 
@@ -431,10 +432,11 @@ function MembersTab({ teamId }: { teamId: string }) {
 
       <div className="settings-member-list">
         {filtered.map((member) => (
-          <div
+          <button
             key={member.id}
             className={`settings-member-item ${selectedMemberId === member.id ? 'active' : ''}`}
             onClick={() => setSelectedMemberId(member.id === selectedMemberId ? null : member.id)}
+            type="button"
           >
             <div className="settings-member-avatar">{getInitials(member)}</div>
             <div className="settings-member-info">
@@ -450,7 +452,7 @@ function MembersTab({ teamId }: { teamId: string }) {
                 </span>
               ))}
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -589,13 +591,14 @@ function InvitesTab({ teamId }: { teamId: string }) {
                 <tr key={inv.id}>
                   <td>
                     <div className="invite-link-cell">
-                      <span
+                      <button
                         className="invite-link-text"
                         onClick={() => copyLink(inv.id, inv.token)}
                         title={link}
+                        type="button"
                       >
                         {link.length > 48 ? `${link.slice(0, 48)}…` : link}
-                      </span>
+                      </button>
                       <button
                         className={`invite-copy-btn${isCopied ? ' copied' : ''}`}
                         onClick={() => copyLink(inv.id, inv.token)}

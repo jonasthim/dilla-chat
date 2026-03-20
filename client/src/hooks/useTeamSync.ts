@@ -7,6 +7,103 @@ import { useVoiceStore } from '../stores/voiceStore';
 import { api, type VoicePeer } from '../services/api';
 import { ws } from '../services/websocket';
 
+/** Normalize members from server snake_case to client camelCase */
+function normalizeMembers(data: Record<string, unknown>[]) {
+  return data.map((m) => ({
+    id: m.id as string,
+    userId: (m.userId ?? m.user_id) as string,
+    username: m.username as string,
+    displayName: (m.displayName ?? m.display_name ?? '') as string,
+    nickname: (m.nickname ?? '') as string,
+    roles: (m.roles ?? []) as Role[],
+    statusType: (m.statusType ?? m.status_type ?? '') as string,
+  }));
+}
+
+interface SyncStoreSetters {
+  setTeam: (team: Team) => void;
+  setChannels: (teamId: string, channels: Channel[]) => void;
+  setMembers: (teamId: string, members: ReturnType<typeof normalizeMembers>) => void;
+  setRoles: (teamId: string, roles: Role[]) => void;
+  setPresences: (teamId: string, presences: Record<string, UserPresence>) => void;
+  setMyStatus: (status: UserPresence['status']) => void;
+  setMyCustomStatus: (status: string) => void;
+  getMyUserId: (teamId: string) => string | undefined;
+}
+
+/** Apply sync:init data to stores */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applySyncData(teamId: string, data: any, setters: SyncStoreSetters) {
+  if (data.channels) {
+    const channels = (data.channels as Record<string, unknown>[]).map((ch) => ({
+      ...ch,
+      teamId: ch.teamId ?? ch.team_id ?? teamId,
+    })) as Channel[];
+    setters.setChannels(teamId, channels);
+  }
+  if (data.team) setters.setTeam(data.team as Team);
+  if (data.members) setters.setMembers(teamId, normalizeMembers(data.members as Record<string, unknown>[]));
+  if (data.roles) setters.setRoles(teamId, data.roles as Role[]);
+  if (data.presences) {
+    const presMap: Record<string, UserPresence> = {};
+    const raw = data.presences;
+    if (raw && typeof raw === 'object') {
+      for (const [userId, p] of Object.entries(raw as Record<string, Record<string, unknown>>)) {
+        presMap[userId] = {
+          user_id: userId,
+          status: (p.status ?? p.status_type ?? 'offline') as UserPresence['status'],
+          custom_status: (p.custom_status ?? '') as string,
+          last_active: (p.last_active ?? '') as string,
+        };
+      }
+    }
+    setters.setPresences(teamId, presMap);
+    const myUserId = setters.getMyUserId(teamId);
+    if (myUserId && presMap[myUserId]) {
+      setters.setMyStatus(presMap[myUserId].status);
+      setters.setMyCustomStatus(presMap[myUserId].custom_status || '');
+    }
+  }
+  if (data.voice_states && typeof data.voice_states === 'object') {
+    useVoiceStore.getState().setVoiceOccupants(data.voice_states as Record<string, VoicePeer[]>);
+  }
+  console.log(`[AppLayout] sync:init applied for team ${teamId}`);
+}
+
+/** Fallback: load data via REST if WS sync fails */
+function loadDataViaREST(teamId: string, setters: SyncStoreSetters) {
+  console.log(`[AppLayout] Falling back to REST data load for ${teamId}`);
+  api.getChannels(teamId).then((data) => {
+    const channels = (data as Record<string, unknown>[]).map((ch) => ({
+      ...ch,
+      teamId: ch.teamId ?? ch.team_id ?? teamId,
+    })) as Channel[];
+    setters.setChannels(teamId, channels);
+  }).catch((err) => console.error('Failed to fetch channels:', err));
+
+  api.getTeam(teamId).then((data) => {
+    const team = data as Team;
+    if (team && team.id) setters.setTeam(team);
+  }).catch((err) => console.error('Failed to fetch team:', err));
+
+  api.getMembers(teamId).then((data) => {
+    setters.setMembers(teamId, normalizeMembers(data as Record<string, unknown>[]));
+  }).catch((err) => console.error('Failed to fetch members:', err));
+
+  api.getRoles(teamId).then((data) => {
+    setters.setRoles(teamId, data as Role[]);
+  }).catch((err) => console.error('Failed to fetch roles:', err));
+
+  api.getPresences(teamId).then((data) => {
+    setters.setPresences(teamId, data);
+    const myUserId = setters.getMyUserId(teamId);
+    if (myUserId && data[myUserId]) {
+      setters.setMyStatus(data[myUserId].status);
+      setters.setMyCustomStatus(data[myUserId].custom_status || '');
+    }
+  }).catch((err) => console.error('Failed to fetch presences:', err));
+}
+
 /**
  * Handles API connection restoration, auth-error redirects, WS setup,
  * sync:init on connect, and REST-fallback data loading.
@@ -16,6 +113,17 @@ export function useTeamSync(activeTeamId: string | null): { authChecked: boolean
   const { teams } = useAuthStore();
   const { setTeam, setChannels, setMembers, setRoles } = useTeamStore();
   const { setPresences, setMyStatus, setMyCustomStatus } = usePresenceStore();
+
+  const setters: SyncStoreSetters = {
+    setTeam,
+    setChannels,
+    setMembers,
+    setRoles,
+    setPresences,
+    setMyStatus,
+    setMyCustomStatus,
+    getMyUserId: (teamId: string) => teams.get(teamId)?.user?.id,
+  };
 
   const [authChecked, setAuthChecked] = useState(false);
   const apiRestored = useRef(false);
@@ -67,93 +175,6 @@ export function useTeamSync(activeTeamId: string | null): { authChecked: boolean
     }
   }, [activeTeamId, teams, setActiveTeam]);
 
-  // Helper: normalize members from server snake_case to client camelCase
-  const normalizeMembers = (data: Record<string, unknown>[]) =>
-    data.map((m) => ({
-      id: m.id as string,
-      userId: (m.userId ?? m.user_id) as string,
-      username: m.username as string,
-      displayName: (m.displayName ?? m.display_name ?? '') as string,
-      nickname: (m.nickname ?? '') as string,
-      roles: (m.roles ?? []) as Role[],
-      statusType: (m.statusType ?? m.status_type ?? '') as string,
-    }));
-
-  // Helper: apply sync data to stores
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const applySyncData = (teamId: string, data: any) => {
-    if (data.channels) {
-      const channels = (data.channels as Record<string, unknown>[]).map((ch) => ({
-        ...ch,
-        teamId: ch.teamId ?? ch.team_id ?? teamId,
-      })) as Channel[];
-      setChannels(teamId, channels);
-    }
-    if (data.team) setTeam(data.team as Team);
-    if (data.members) setMembers(teamId, normalizeMembers(data.members as Record<string, unknown>[]));
-    if (data.roles) setRoles(teamId, data.roles as Role[]);
-    if (data.presences) {
-      // Presences from sync:init come as a map of userId -> presence objects
-      const presMap: Record<string, UserPresence> = {};
-      const raw = data.presences;
-      if (raw && typeof raw === 'object') {
-        for (const [userId, p] of Object.entries(raw as Record<string, Record<string, unknown>>)) {
-          presMap[userId] = {
-            user_id: userId,
-            status: (p.status ?? p.status_type ?? 'offline') as UserPresence['status'],
-            custom_status: (p.custom_status ?? '') as string,
-            last_active: (p.last_active ?? '') as string,
-          };
-        }
-      }
-      setPresences(teamId, presMap);
-      // Sync own status
-      const myUserId = teams.get(teamId)?.user?.id;
-      if (myUserId && presMap[myUserId]) {
-        setMyStatus(presMap[myUserId].status);
-        setMyCustomStatus(presMap[myUserId].custom_status || '');
-      }
-    }
-    if (data.voice_states && typeof data.voice_states === 'object') {
-      useVoiceStore.getState().setVoiceOccupants(data.voice_states as Record<string, VoicePeer[]>);
-    }
-    console.log(`[AppLayout] sync:init applied for team ${teamId}`);
-  };
-
-  // Fallback: load data via REST if WS sync fails
-  const loadDataViaREST = (teamId: string) => {
-    console.log(`[AppLayout] Falling back to REST data load for ${teamId}`);
-    api.getChannels(teamId).then((data) => {
-      const channels = (data as Record<string, unknown>[]).map((ch) => ({
-        ...ch,
-        teamId: ch.teamId ?? ch.team_id ?? teamId,
-      })) as Channel[];
-      setChannels(teamId, channels);
-    }).catch((err) => console.error('Failed to fetch channels:', err));
-
-    api.getTeam(teamId).then((data) => {
-      const team = data as Team;
-      if (team && team.id) setTeam(team);
-    }).catch((err) => console.error('Failed to fetch team:', err));
-
-    api.getMembers(teamId).then((data) => {
-      setMembers(teamId, normalizeMembers(data as Record<string, unknown>[]));
-    }).catch((err) => console.error('Failed to fetch members:', err));
-
-    api.getRoles(teamId).then((data) => {
-      setRoles(teamId, data as Role[]);
-    }).catch((err) => console.error('Failed to fetch roles:', err));
-
-    api.getPresences(teamId).then((data) => {
-      setPresences(teamId, data);
-      const myUserId = teams.get(teamId)?.user?.id;
-      if (myUserId && data[myUserId]) {
-        setMyStatus(data[myUserId].status);
-        setMyCustomStatus(data[myUserId].custom_status || '');
-      }
-    }).catch((err) => console.error('Failed to fetch presences:', err));
-  };
-
   // Handle ws:connected — request sync:init to load all team data
   useEffect(() => {
     if (!activeTeamId) return;
@@ -163,12 +184,12 @@ export function useTeamSync(activeTeamId: string | null): { authChecked: boolean
       console.log(`[AppLayout] WS connected for team ${teamId}, requesting sync:init`);
       ws.request(teamId, 'sync:init').then((data: unknown) => {
         dataLoaded.current.add(teamId);
-        applySyncData(teamId, data as Record<string, unknown>);
+        applySyncData(teamId, data as Record<string, unknown>, setters);
       }).catch((err: Error) => {
         console.warn('[AppLayout] sync:init failed, falling back to REST:', err.message);
         if (!dataLoaded.current.has(teamId)) {
           dataLoaded.current.add(teamId);
-          loadDataViaREST(teamId);
+          loadDataViaREST(teamId, setters);
         }
       });
     };

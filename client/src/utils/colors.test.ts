@@ -18,7 +18,7 @@ describe('usernameColor', () => {
   });
 
   it('produces different colors for different usernames', () => {
-    const colors = new Set(['alice', 'bob', 'charlie', 'diana', 'eve'].map(usernameColor));
+    const colors = new Set(['alice', 'bob', 'charlie', 'diana', 'eve'].map((name) => usernameColor(name)));
     expect(colors.size).toBeGreaterThan(1);
   });
 });

@@ -36,6 +36,13 @@
 }
 
 .member-item {
+  background: none;
+  border: none;
+  width: calc(100% - 16px);
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
   display: flex;
   align-items: center;
   padding: 1px 8px;

@@ -111,26 +111,28 @@ export default function UserPanel({
 
   return (
     <div className="user-panel">
-      <div
+      <button
         className="user-panel-avatar"
         onClick={(e) => {
           e.stopPropagation();
           setShowStatusPicker(!showStatusPicker);
         }}
+        type="button"
       >
         {initials}
         <PresenceIndicator status={myStatus} size="medium" className="border-tertiary" />
-      </div>
-      <div
+      </button>
+      <button
         className="user-panel-info"
         onClick={(e) => {
           e.stopPropagation();
           setShowStatusPicker(!showStatusPicker);
         }}
+        type="button"
       >
         <div className="user-panel-name">{displayName ?? username}</div>
         <div className="user-panel-status-text">{statusLabel}</div>
-      </div>
+      </button>
       <div className="user-panel-actions">
         <button
           className={`user-panel-btn ${muted ? 'user-panel-btn-active' : ''}`}

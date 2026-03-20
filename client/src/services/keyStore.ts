@@ -250,7 +250,7 @@ function openDB(): Promise<IDBDatabase> {
       }
     };
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(new Error(request.error?.message ?? 'Failed to open key database'));
   });
 }
 
@@ -261,7 +261,7 @@ async function idbGet<T>(key: string): Promise<T | undefined> {
     const store = tx.objectStore(STORE_NAME);
     const req = store.get(key);
     req.onsuccess = () => resolve(req.result as T | undefined);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(new Error(req.error?.message ?? 'Failed to read from key store'));
     tx.oncomplete = () => db.close();
   });
 }
@@ -273,7 +273,7 @@ async function idbPut(key: string, value: unknown): Promise<void> {
     const store = tx.objectStore(STORE_NAME);
     store.put(value, key);
     tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.onerror = () => { db.close(); reject(new Error(tx.error?.message ?? 'Failed to write to key store')); };
   });
 }
 
@@ -284,7 +284,7 @@ async function idbDelete(key: string): Promise<void> {
     const store = tx.objectStore(STORE_NAME);
     store.delete(key);
     tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.onerror = () => { db.close(); reject(new Error(tx.error?.message ?? 'Failed to delete from key store')); };
   });
 }
 
@@ -640,7 +640,7 @@ export function encodeRecoveryKey(key: Uint8Array): string {
   let encoded = '';
   for (let i = 0; i < bits.length; i += 5) {
     const chunk = bits.slice(i, i + 5).padEnd(5, '0');
-    encoded += CROCKFORD_ALPHABET[parseInt(chunk, 2)];
+    encoded += CROCKFORD_ALPHABET[Number.parseInt(chunk, 2)];
   }
   // Group into 4-char blocks with dashes
   return encoded.match(/.{1,4}/g)?.join('-') ?? encoded;
@@ -658,7 +658,7 @@ export function decodeRecoveryKey(encoded: string): Uint8Array {
   }
   const bytes = new Uint8Array(Math.floor(bits.length / 8));
   for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(bits.slice(i * 8, i * 8 + 8), 2);
+    bytes[i] = Number.parseInt(bits.slice(i * 8, i * 8 + 8), 2);
   }
   return bytes;
 }

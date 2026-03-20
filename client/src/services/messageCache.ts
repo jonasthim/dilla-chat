@@ -28,7 +28,7 @@ function openDB(): Promise<IDBDatabase> {
       }
     };
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(new Error(request.error?.message ?? 'Failed to open database'));
   });
 }
 
@@ -49,7 +49,7 @@ export async function cacheMessage(
     };
     tx.onerror = () => {
       db.close();
-      reject(tx.error);
+      reject(new Error(tx.error?.message ?? 'Failed to cache message'));
     };
   });
 }
@@ -64,7 +64,7 @@ export async function getCachedMessage(id: string): Promise<string | null> {
       const result = req.result as CachedMessage | undefined;
       resolve(result?.plaintext ?? null);
     };
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(new Error(req.error?.message ?? 'Failed to get cached message'));
     tx.oncomplete = () => db.close();
   });
 }
@@ -97,7 +97,7 @@ export async function getCachedMessages(ids: string[]): Promise<Map<string, stri
     tx.oncomplete = () => db.close();
     tx.onerror = () => {
       db.close();
-      reject(tx.error);
+      reject(new Error(tx.error?.message ?? 'Failed to get cached messages'));
     };
   });
 }
@@ -114,7 +114,7 @@ export async function deleteCachedMessage(id: string): Promise<void> {
     };
     tx.onerror = () => {
       db.close();
-      reject(tx.error);
+      reject(new Error(tx.error?.message ?? 'Failed to delete cached message'));
     };
   });
 }
@@ -140,7 +140,7 @@ export async function clearChannelCache(channelId: string): Promise<void> {
     /* v8 ignore next 4 */
     tx.onerror = () => {
       db.close();
-      reject(tx.error);
+      reject(new Error(tx.error?.message ?? 'Failed to clear channel cache'));
     };
   });
 }
@@ -158,7 +158,7 @@ export async function clearAllMessageCache(): Promise<void> {
     /* v8 ignore next 4 */
     tx.onerror = () => {
       db.close();
-      reject(tx.error);
+      reject(new Error(tx.error?.message ?? 'Failed to clear message cache'));
     };
   });
 }

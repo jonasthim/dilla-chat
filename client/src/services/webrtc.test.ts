@@ -122,6 +122,8 @@ class MockRTCIceCandidate {
 
 // ─── Mock media helpers ────────────────────────────────────────────────────
 
+let mockStreamCounter = 0;
+
 function createMockAudioTrack(enabled = true) {
   return { kind: 'audio', enabled, stop: vi.fn(), onended: null };
 }
@@ -136,7 +138,7 @@ function createMockMediaStream(
   const audioTracks = tracks.filter((t) => t.kind === 'audio');
   const videoTracks = tracks.filter((t) => t.kind === 'video');
   return {
-    id: 'mock-stream-' + Math.random().toString(36).slice(2),
+    id: 'mock-stream-' + (++mockStreamCounter).toString(),
     active: true,
     getTracks: vi.fn(() => tracks),
     getAudioTracks: vi.fn(() => audioTracks),

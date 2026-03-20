@@ -10,9 +10,11 @@ export function renderWithProviders(ui: ReactElement) {
   });
 }
 
+let _testCounter = 0;
+
 export function createMockMessage(overrides: Partial<Message> = {}): Message {
   return {
-    id: `msg-${Math.random().toString(36).slice(2)}`,
+    id: `msg-${++_testCounter}`,
     channelId: 'ch-1',
     authorId: 'user-1',
     username: 'alice',
@@ -30,7 +32,7 @@ export function createMockMessage(overrides: Partial<Message> = {}): Message {
 
 export function createMockChannel(overrides: Partial<Channel> = {}): Channel {
   return {
-    id: `ch-${Math.random().toString(36).slice(2)}`,
+    id: `ch-${++_testCounter}`,
     teamId: 'team-1',
     name: 'general',
     topic: '',

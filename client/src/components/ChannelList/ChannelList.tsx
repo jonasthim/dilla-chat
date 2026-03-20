@@ -80,10 +80,10 @@ export default function ChannelList({ onCreateChannel }: Props) {
     return (
       <div key={cat} className="channel-category">
         <div className="channel-category-header">
-          <span className="channel-category-name" onClick={() => toggleCategory(cat)}>
+          <button className="channel-category-name" onClick={() => toggleCategory(cat)} type="button">
             <span className={`category-arrow ${isCollapsed ? 'collapsed' : ''}`}>▼</span>
             {cat}
-          </span>
+          </button>
           {onCreateChannel && (
             <button
               className="channel-category-add"
@@ -144,8 +144,8 @@ export default function ChannelList({ onCreateChannel }: Props) {
     );
   };
 
-  const textCategories = Object.keys(textGrouped).sort();
-  const voiceCategories = Object.keys(voiceGrouped).sort();
+  const textCategories = Object.keys(textGrouped).sort((a, b) => a.localeCompare(b));
+  const voiceCategories = Object.keys(voiceGrouped).sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="channel-list">
@@ -157,16 +157,17 @@ export default function ChannelList({ onCreateChannel }: Props) {
           className="channel-context-menu"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
-          <div
+          <button
             className="channel-context-item"
             onClick={() => {
               setEditingChannel(contextMenu.channel);
               setContextMenu(null);
             }}
+            type="button"
           >
             {t('channels.edit', 'Edit Channel')}
-          </div>
-          <div
+          </button>
+          <button
             className="channel-context-item danger"
             onClick={async () => {
               if (!activeTeamId) return;
@@ -179,9 +180,10 @@ export default function ChannelList({ onCreateChannel }: Props) {
                 console.error('[ChannelList] Delete failed:', err);
               }
             }}
+            type="button"
           >
             {t('channels.delete', 'Delete Channel')}
-          </div>
+          </button>
         </div>
       )}
 

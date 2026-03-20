@@ -7,6 +7,8 @@
 }
 
 .user-panel-avatar {
+  border: none;
+  padding: 0;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -17,6 +19,7 @@
   justify-content: center;
   font-size: 14px;
   font-weight: 500;
+  font-family: inherit;
   flex-shrink: 0;
   position: relative;
   cursor: pointer;
@@ -39,6 +42,12 @@
 }
 
 .user-panel-info {
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
   flex: 1;
   min-width: 0;
   cursor: pointer;

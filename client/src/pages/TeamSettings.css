@@ -129,6 +129,13 @@
 }
 
 .role-item {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
   display: flex;
   align-items: center;
   padding: 8px 12px;
@@ -216,6 +223,13 @@
 }
 
 .settings-member-item {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
   display: flex;
   align-items: center;
   padding: 8px 12px;
@@ -374,6 +388,9 @@
 }
 
 .invite-link-text {
+  border: none;
+  text-align: left;
+  color: inherit;
   font-family: monospace;
   font-size: 12px;
   background: var(--input-bg);

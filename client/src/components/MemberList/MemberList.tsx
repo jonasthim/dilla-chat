@@ -110,10 +110,11 @@ export default function MemberList() {
     const customStatus = teamPresences[member.userId]?.custom_status;
 
     return (
-      <div
+      <button
         key={member.id}
         className={`member-item ${isOffline ? 'offline' : ''}`}
         onClick={(e) => handleMemberClick(e, member)}
+        type="button"
       >
         <div className="member-avatar">
           {getInitials(member)}
@@ -127,7 +128,7 @@ export default function MemberList() {
             <div className="member-custom-status">{customStatus}</div>
           )}
         </div>
-      </div>
+      </button>
     );
   };
 

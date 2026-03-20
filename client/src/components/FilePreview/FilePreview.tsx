@@ -34,16 +34,16 @@ function ImagePreview({ attachment }: { attachment: Attachment }) {
   return (
     <>
       <div className="file-preview-image-container">
-        <img
-          src={attachment.url}
-          alt={attachment.filename}
-          className="file-preview-image"
-          onClick={() => setExpanded(true)}
-          title={t('upload.preview', 'Preview')}
-        />
+        <button className="file-preview-image-btn" onClick={() => setExpanded(true)} type="button" title={t('upload.preview', 'Preview')}>
+          <img
+            src={attachment.url}
+            alt={attachment.filename}
+            className="file-preview-image"
+          />
+        </button>
       </div>
       {expanded && (
-        <div className="file-preview-lightbox" onClick={() => setExpanded(false)}>
+        <div className="file-preview-lightbox" role="presentation" onClick={() => setExpanded(false)}>
           <img
             src={attachment.url}
             alt={attachment.filename}

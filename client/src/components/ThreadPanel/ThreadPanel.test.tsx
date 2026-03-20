@@ -658,7 +658,7 @@ describe('ThreadPanel', () => {
     vi.mocked(api.getThreadMessages).mockClear();
     vi.mocked(api.getThreadMessages).mockResolvedValue([]);
 
-    const threadId = `thread-api-more-${Math.random()}`;
+    const threadId = `thread-api-more-661`;
     useThreadStore.setState({ threadMessages: {} });
 
     const apiThread = { ...thread, id: threadId };
@@ -740,7 +740,7 @@ describe('ThreadPanel', () => {
     vi.mocked(cryptoService.decryptMessage).mockClear();
     vi.mocked(cryptoService.decryptMessage).mockResolvedValue('decrypted-plain');
 
-    const threadId = `thread-decrypt-${Math.random()}`;
+    const threadId = `thread-decrypt-743`;
     vi.mocked(ws.request).mockResolvedValueOnce([
       {
         id: 'tmsg-dec-1', channel_id: 'ch-1', author_id: 'user-1', username: 'alice',

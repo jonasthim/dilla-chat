@@ -30,6 +30,7 @@ export default function UserProfile({ member, presence, x, y, onSendMessage }: P
     <div
       className="user-profile-popover"
       style={{ left: Math.max(0, x), top: y }}
+      role="dialog"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="user-profile-banner" />

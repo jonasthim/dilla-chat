@@ -72,7 +72,7 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Prop
   }, [onClose]);
 
   return (
-    <div className="new-dm-overlay" onClick={onClose}>
+    <div className="new-dm-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
       <div className="new-dm-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="new-dm-title">
         <div className="new-dm-header">
           <h3 id="new-dm-title">{t('dm.newDM', 'New Message')}</h3>
@@ -105,10 +105,11 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Prop
           {filtered.map((member) => {
             const isSelected = selected.some((m) => m.userId === member.userId);
             return (
-              <div
+              <button
                 key={member.userId}
                 className={`new-dm-member ${isSelected ? 'selected' : ''}`}
                 onClick={() => toggleMember(member)}
+                type="button"
               >
                 <div className="new-dm-member-info">
                   <span className="new-dm-member-name">
@@ -119,7 +120,7 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Prop
                 <div className={`new-dm-checkbox ${isSelected ? 'checked' : ''}`}>
                   {isSelected && <Check width={16} height={16} strokeWidth={2} />}
                 </div>
-              </div>
+              </button>
             );
           })}
           {filtered.length === 0 && (
