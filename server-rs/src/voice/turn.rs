@@ -39,7 +39,7 @@ impl CFTurnClient {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(10))
             .build()
-            .unwrap_or_default();
+            .expect("reqwest Client::builder should not fail with default TLS");
 
         CFTurnClient {
             config,

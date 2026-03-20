@@ -84,16 +84,23 @@ async function tryEncrypt(
   }
 }
 
+/** Resolve display name from a member record (handles snake_case fields from server). */
+function resolveUsername(member: Member | undefined): string {
+  if (!member) return 'Unknown';
+  const raw = member as unknown as Record<string, string>;
+  return member.username || member.displayName || raw.display_name || 'Unknown';
+}
+
 function serverToMessage(msg: ServerMessage, decryptedContent: string, teamMembers?: Member[]): Message {
   let username: string;
   if (msg.username) {
     username = msg.username;
   } else if (teamMembers) {
-    const member = teamMembers.find((m) =>
-      (m.userId || (m as unknown as Record<string, string>).user_id) === msg.author_id ||
-      m.id === msg.author_id
+    const raw = teamMembers as unknown as Array<Record<string, string>>;
+    const member = teamMembers.find((m, i) =>
+      (m.userId || raw[i].user_id) === msg.author_id || m.id === msg.author_id
     );
-    username = member?.username ?? member?.displayName ?? (member as unknown as Record<string, string>)?.display_name ?? 'Unknown';
+    username = resolveUsername(member);
   } else {
     username = 'Unknown';
   }
@@ -230,7 +237,7 @@ export default function ChannelView({ channel }: Props) {
         setThreads(channel.id, raw);
         threadsLoadDone.current.add(channel.id);
       } catch {
-        // ignore
+        // Thread loading is non-critical; silently degrade.
       }
     };
     loadThreads();
@@ -329,7 +336,7 @@ export default function ChannelView({ channel }: Props) {
       prependMessages(channel.id, decrypted);
       setHasMore(channel.id, decrypted.length >= MESSAGE_PAGE_SIZE);
     } catch {
-      // ignore
+      // History fetch failed; UI already shows current messages.
     } finally {
       setLoadingHistory(channel.id, false);
     }
@@ -376,7 +383,7 @@ export default function ChannelView({ channel }: Props) {
         setActiveThread(thread.id);
         setThreadPanelOpen(true);
       } catch {
-        // ignore
+        // Thread creation is best-effort; user can retry.
       }
     },
     [activeTeamId, channel.id, addThread, setActiveThread, setThreadPanelOpen],

@@ -85,7 +85,10 @@ pub async fn upload(
         .await
         .map_err(|e| AppError::Internal(format!("write file: {}", e)))?;
 
-    let storage_path = file_path.to_str().unwrap_or_default().to_string();
+    let storage_path = file_path
+        .to_str()
+        .ok_or_else(|| AppError::Internal("upload path contains invalid UTF-8".into()))?
+        .to_string();
 
     // Create attachment record.
     let db = state.db.clone();

@@ -18,9 +18,11 @@ async function getRpConfig(): Promise<{ rpId: string; rpName: string }> {
     const resp = await fetch(`${origin}/api/v1/config`, { signal: AbortSignal.timeout(3000) });
     if (resp.ok) {
       const config = await resp.json();
-      cachedRpId = config.rp_id || 'localhost';
-      cachedRpName = config.rp_name || 'Dilla';
-      return { rpId: cachedRpId!, rpName: cachedRpName };
+      const rpId = config.rp_id || 'localhost';
+      const rpName = config.rp_name || 'Dilla';
+      cachedRpId = rpId;
+      cachedRpName = rpName;
+      return { rpId, rpName };
     }
   } catch {
     // Not served from Go server (e.g. Tauri dev, Vite dev)
@@ -224,29 +226,8 @@ export function prfOutputToBase64(prfOutput: ArrayBuffer): string {
   return btoa(binary);
 }
 
-/**
- * Decode a base32 recovery key string back to bytes.
- */
-export function decodeRecoveryKey(encoded: string): Uint8Array {
-  const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-  const clean = encoded.replace(/-/g, '').toUpperCase();
-  let bits = 0;
-  let value = 0;
-  const result: number[] = [];
-
-  for (let i = 0; i < clean.length; i++) {
-    const idx = ALPHABET.indexOf(clean[i]);
-    if (idx === -1) throw new Error(`Invalid recovery key character: ${clean[i]}`);
-    value = (value << 5) | idx;
-    bits += 5;
-    if (bits >= 8) {
-      result.push((value >>> (bits - 8)) & 255);
-      bits -= 8;
-    }
-  }
-
-  return new Uint8Array(result);
-}
+// Re-export the canonical implementation from keyStore (handles Crockford confusables).
+export { decodeRecoveryKey } from './keyStore';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

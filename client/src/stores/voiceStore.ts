@@ -125,8 +125,6 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       // Immediately add self as a peer so the user sees themselves right away.
       const authEntry = useAuthStore.getState().teams.get(teamId);
       const user = authEntry?.user ?? null;
-      console.log('[Voice] joinChannel: authEntry user =', JSON.stringify(user), 'teamId =', teamId);
-      console.log('[Voice] joinChannel: current peers =', JSON.stringify(get().peers));
       if (user?.id) {
         const selfPeer: VoicePeer = {
           user_id: user.id,
@@ -139,9 +137,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
         set((s) => ({
           connected: true,
           connecting: false,
-          peers: { [user.id!]: selfPeer, ...s.peers },
+          peers: { [user.id]: selfPeer, ...s.peers },
         }));
-        console.log('[Voice] joinChannel: peers after set =', JSON.stringify(get().peers));
       } else {
         console.warn('[Voice] joinChannel: NO user.id, falling back');
         set({ connected: true, connecting: false });
@@ -155,7 +152,7 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   leaveChannel: () => {
     const state = get();
     if (!state.connected && !state.connecting) return;
-    console.log('[Voice] leaveChannel() called');
+    // Leave voice channel and clean up WebRTC resources.
 
     import('../services/sounds').then(({ playLeaveSound }) => playLeaveSound());
 
@@ -216,7 +213,6 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   }),
 
   setPeers: (peers: VoicePeer[]) => {
-    console.log('[Voice] setPeers called with', peers?.length ?? 0, 'peers');
     const map: Record<string, VoicePeer> = {};
     for (const p of peers) {
       map[p.user_id] = { ...p, voiceLevel: p.voiceLevel ?? 0 };
