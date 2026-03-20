@@ -73,12 +73,16 @@ export class MockWebSocketService {
   // ─── Simulation timers (demo-only, not security-sensitive) ──────────────
 
   private randomDelay(minSec: number, maxSec: number): number {
-    return (minSec + Math.random() * (maxSec - minSec)) * 1000; // lgtm[js/insecure-randomness]
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return (minSec + (arr[0] / 0xffffffff) * (maxSec - minSec)) * 1000;
   }
 
   private pickOtherUser() {
     const others = MOCK_USERS.filter(u => u.id !== DEMO_CURRENT_USER_ID);
-    return others[Math.floor(Math.random() * others.length)]; // lgtm[js/insecure-randomness]
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return others[arr[0] % others.length];
   }
 
   private scheduleTyping(): void {
@@ -111,7 +115,9 @@ export class MockWebSocketService {
     const run = () => {
       if (!this.running) return;
       const user = this.pickOtherUser();
-      const content = RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
+      const msgArr = new Uint32Array(1);
+      crypto.getRandomValues(msgArr);
+      const content = RANDOM_MESSAGES[msgArr[0] % RANDOM_MESSAGES.length];
       this.emit('message:created', {
         id: `sim-msg-${++msgCounter}`,
         channel_id: 'ch-2',
@@ -139,7 +145,9 @@ export class MockWebSocketService {
     const run = () => {
       if (!this.running) return;
       const user = this.pickOtherUser();
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const statusArr = new Uint32Array(1);
+      crypto.getRandomValues(statusArr);
+      const status = statuses[statusArr[0] % statuses.length];
       this.emit('presence:changed', {
         user_id: user.id,
         status,
