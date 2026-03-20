@@ -56,7 +56,7 @@ fn derive_jwt_secret(db_passphrase: &str) -> Vec<u8> {
     let hk = Hkdf::<Sha256>::new(None, db_passphrase.as_bytes());
     let mut secret = vec![0u8; 32];
     hk.expand(b"dilla-jwt-signing-key-v1", &mut secret)
-        .unwrap();
+        .expect("HKDF-SHA256 expand for 32 bytes should never fail");
     secret
 }
 

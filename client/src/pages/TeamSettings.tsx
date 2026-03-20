@@ -502,7 +502,9 @@ function InvitesTab({ teamId }: { teamId: string }) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listInvites(teamId).then((data) => setInvites(data as Invite[])).catch(() => {});
+    api.listInvites(teamId).then((data) => setInvites(data as Invite[])).catch(() => {
+      // Invite listing is non-critical; section stays empty on failure.
+    });
   }, [teamId]);
 
   const handleCreate = async () => {
@@ -513,7 +515,7 @@ function InvitesTab({ teamId }: { teamId: string }) {
       const result = (await api.createInvite(teamId, maxUsesNum, expiryHours)) as { invite: Invite };
       setInvites((prev) => [result.invite, ...prev]);
     } catch {
-      // Error
+      // Invite creation may fail due to permissions; UI stays functional.
     } finally {
       setCreating(false);
     }
@@ -524,14 +526,16 @@ function InvitesTab({ teamId }: { teamId: string }) {
       await api.revokeInvite(teamId, inviteId);
       setInvites((prev) => prev.filter((i) => i.id !== inviteId));
     } catch {
-      // Error
+      // Revocation is best-effort; invite remains in list on failure.
     }
   };
 
   const getInviteLink = (token: string) => `${window.location.origin}/join/${token}`;
 
   const copyLink = (inviteId: string, token: string) => {
-    navigator.clipboard.writeText(getInviteLink(token)).catch(() => {});
+    navigator.clipboard.writeText(getInviteLink(token)).catch(() => {
+      // Clipboard API may be unavailable in insecure contexts.
+    });
     setCopiedId(inviteId);
     setTimeout(() => setCopiedId((prev) => (prev === inviteId ? null : prev)), 2000);
   };

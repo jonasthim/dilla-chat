@@ -46,7 +46,8 @@ export async function startMicTest(options: MicTestOptions): Promise<MicTestSess
     const ns = options.createNoiseSuppression();
     noiseSuppression = ns;
     await ns.initWorklet(audioContext);
-    const worklet = ns.getWorkletNode()!;
+    const worklet = ns.getWorkletNode();
+    if (!worklet) throw new Error('RNNoise worklet failed to initialize');
     source.connect(worklet);
     worklet.connect(gainNode);
   } else {

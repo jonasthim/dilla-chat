@@ -253,10 +253,13 @@ async fn main() {
     };
 
     // Graceful shutdown.
-    axum::serve(listener, app)
+    if let Err(e) = axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
-        .unwrap();
+    {
+        tracing::error!("server error: {}", e);
+        std::process::exit(1);
+    }
 
     tracing::info!("server stopped");
 }

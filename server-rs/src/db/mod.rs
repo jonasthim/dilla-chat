@@ -45,7 +45,8 @@ pub struct Database {
 fn open_connection(db_path: &Path, passphrase: &str) -> Result<Connection, rusqlite::Error> {
     let conn = Connection::open(db_path)?;
     if !passphrase.is_empty() {
-        conn.execute_batch(&format!("PRAGMA key = '{}';", passphrase.replace('\'', "''")))?;
+        // Use pragma_update for safe parameter binding instead of string formatting.
+        conn.pragma_update(None, "key", passphrase)?;
     }
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;
     conn.execute_batch("PRAGMA busy_timeout = 5000;")?;

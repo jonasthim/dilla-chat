@@ -75,7 +75,8 @@ class WebRTCService {
       if (useRNNoise) {
         noiseSuppression.setEnabled(true);
         await noiseSuppression.initWorklet(ctx);
-        const workletNode = noiseSuppression.getWorkletNode()!;
+        const workletNode = noiseSuppression.getWorkletNode();
+        if (!workletNode) throw new Error('RNNoise worklet failed to initialize');
         source.connect(workletNode);
         workletNode.connect(gainNode);
         await noiseSuppression.waitForReady();
@@ -150,8 +151,6 @@ class WebRTCService {
       // Some Pion scenarios deliver tracks without streams — create one as fallback
       const stream = event.streams[0] ?? new MediaStream([track]);
       const streamId = event.streams[0]?.id ?? track.id;
-
-      console.log('[WebRTC] ontrack:', track.kind, 'stream:', streamId, 'track:', track.id);
 
       // Apply E2E decrypt transform to incoming track
       this.applyDecryptTransform(event.receiver, streamId);
@@ -566,7 +565,6 @@ class WebRTCService {
   }
 
   async disconnect(): Promise<void> {
-    console.log('[Voice] disconnect() called');
     this.stopVAD();
     this.stopRemoteVAD();
 
