@@ -5,13 +5,10 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-  issues: write
-
 jobs:
   # Phase 1: Build the web client
   build-client:
+    permissions: { contents: read }
     runs-on: ubuntu-latest
     outputs:
       build_failed: ${{ steps.build.outcome == 'failure' }}
@@ -43,6 +40,7 @@ jobs:
 
   # Phase 2: Build Rust server binaries (matrix)
   build-server:
+    permissions: { contents: read }
     needs: build-client
     strategy:
       matrix:
@@ -124,6 +122,7 @@ jobs:
 
   # Phase 2b: Build Tauri desktop apps (matrix)
   build-desktop:
+    permissions: { contents: read }
     needs: build-client
     strategy:
       matrix:
@@ -202,6 +201,7 @@ jobs:
 
   # Phase 3: Create GitHub Release
   release:
+    permissions: { contents: write }
     needs: [build-server, build-desktop]
     runs-on: ubuntu-latest
     steps:
@@ -234,6 +234,7 @@ jobs:
 
   # Phase 4: Create issues for failures
   create-issues:
+    permissions: { contents: read, issues: write }
     needs: [build-client, build-server, build-desktop, release]
     if: always() && (needs.build-client.outputs.build_failed == 'true' || needs.build-server.result == 'failure' || needs.build-desktop.result == 'failure' || needs.release.result == 'failure')
     runs-on: ubuntu-latest

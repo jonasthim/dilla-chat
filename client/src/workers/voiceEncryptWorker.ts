@@ -69,42 +69,46 @@ async function encryptFrame(
   controller.enqueue(frame);
 }
 
+/** Extract the encrypted payload, IV, and keyId from a frame with a DILLA_MAGIC trailer. */
+function extractEncryptedPayload(data: Uint8Array): { encrypted: Uint8Array; iv: Uint8Array; keyId: number } | null {
+  if (data.length < IV_LENGTH + 1 + E2E_MAGIC.length) return null;
+
+  const magicStart = data.length - E2E_MAGIC.length;
+  for (let i = 0; i < E2E_MAGIC.length; i++) {
+    if (data[magicStart + i] !== E2E_MAGIC[i]) return null;
+  }
+
+  const keyId = data[magicStart - 1];
+  const ivStart = magicStart - 1 - IV_LENGTH;
+  const iv = new Uint8Array(data.slice(ivStart, ivStart + IV_LENGTH));
+  const encrypted = new Uint8Array(data.slice(0, ivStart));
+  return { encrypted, iv, keyId };
+}
+
 async function decryptFrame(
   frame: RTCEncodedAudioFrame | RTCEncodedVideoFrame,
   controller: TransformStreamDefaultController,
 ): Promise<void> {
   const data = new Uint8Array(frame.data);
+  const payload = extractEncryptedPayload(data);
 
-  // Check for E2E magic trailer
-  if (data.length >= IV_LENGTH + 1 + E2E_MAGIC.length) {
-    const magicStart = data.length - E2E_MAGIC.length;
-    let hasMagic = true;
-    for (let i = 0; i < E2E_MAGIC.length; i++) {
-      if (data[magicStart + i] !== E2E_MAGIC[i]) {
-        hasMagic = false;
-        break;
-      }
-    }
-
-    if (hasMagic) {
-      const keyId = data[magicStart - 1];
-      const ivStart = magicStart - 1 - IV_LENGTH;
-      const iv = data.slice(ivStart, ivStart + IV_LENGTH);
-      const encrypted = data.slice(0, ivStart);
-
-      const key = decryptKeys.get(keyId);
-      if (key) {
-        try {
-          const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encrypted);
-          frame.data = decrypted;
-        } catch {
-          // Decryption failed — drop frame (key mismatch during rotation)
-          return;
-        }
-      } else {
-        // No key for this keyId — drop frame
+  if (payload) {
+    const key = decryptKeys.get(payload.keyId);
+    if (key) {
+      try {
+        const decrypted = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: payload.iv.buffer as ArrayBuffer },
+          key,
+          payload.encrypted.buffer as ArrayBuffer,
+        );
+        frame.data = decrypted;
+      } catch {
+        // Decryption failed — drop frame (key mismatch during rotation)
         return;
       }
+    } else {
+      // No key for this keyId — drop frame
+      return;
     }
   }
 

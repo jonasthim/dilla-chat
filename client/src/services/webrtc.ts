@@ -495,7 +495,7 @@ class WebRTCService {
 
     // For now, distribute the raw key base64-encoded.
     // In a full implementation, this would be encrypted per-recipient via Signal Protocol.
-    const keyBase64 = btoa(String.fromCharCode(...rawKey));
+    const keyBase64 = btoa(String.fromCodePoint(...rawKey));
 
     // Get all peers in the channel
     const peers = useVoiceStore.getState().peers;
@@ -521,7 +521,7 @@ class WebRTCService {
     const rawKey = new Uint8Array(
       atob(encryptedKey)
         .split('')
-        .map((c) => c.charCodeAt(0)),
+        .map((c) => c.codePointAt(0)!),
     );
 
     await this.voiceKeyManager.setRemoteKey(senderId, rawKey);

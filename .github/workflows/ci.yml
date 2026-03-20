@@ -6,12 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
-
 jobs:
   # ── Client: test, lint, build ──────────────────────────────────────────────
   client-checks:
+    permissions: { contents: read }
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,6 +41,7 @@ jobs:
 
   # ── Server: test, build, upload artifact ───────────────────────────────────
   server-checks:
+    permissions: { contents: read }
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,6 +79,7 @@ jobs:
 
   # ── Desktop: build Tauri app artifacts ─────────────────────────────────────
   desktop-build:
+    permissions: { contents: read }
     needs: client-checks
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     strategy:

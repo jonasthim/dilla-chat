@@ -29,7 +29,7 @@ const shortcuts = [
 function keyCodeToLabel(code: string): string {
   if (code.startsWith('Key')) return code.slice(3);
   if (code.startsWith('Digit')) return code.slice(5);
-  return code.replace(/([a-z])([A-Z])/g, '$1 $2');
+  return code.replaceAll(/([a-z])([A-Z])/g, '$1 $2');
 }
 
 export default function UserSettings() {
@@ -644,7 +644,7 @@ function ProfileOption({ value, selected, onChange, name, desc }: {
 }) {
   const isSelected = selected === value;
   return (
-    <label className={`voice-profile-option ${isSelected ? 'selected' : ''}`}>
+    <label className={`voice-profile-option ${isSelected ? 'selected' : ''}`} aria-label={name}>
       <input
         type="radio"
         name="input-profile"
