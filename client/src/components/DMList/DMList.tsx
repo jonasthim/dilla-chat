@@ -115,10 +115,11 @@ export default function DMList({ currentUserId, onNewDM }: Props) {
             : (dm.members.find((m) => m.user_id !== currentUserId)?.username || 'U');
 
           return (
-            <div
+            <button
               key={dm.id}
               className={`dm-item ${activeDMId === dm.id ? 'active' : ''}`}
               onClick={() => setActiveDM(dm.id)}
+              type="button"
             >
               <div className="dm-item-avatar" style={{ backgroundColor: usernameColor(avatarName) }}>
                 {dm.is_group ? (
@@ -143,7 +144,7 @@ export default function DMList({ currentUserId, onNewDM }: Props) {
                   </span>
                 )}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

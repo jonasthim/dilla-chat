@@ -11,7 +11,15 @@
   max-height: 300px;
   border-radius: 8px;
   overflow: hidden;
+}
+
+.file-preview-image-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: 0;
   cursor: pointer;
+  display: block;
 }
 
 .file-preview-image {

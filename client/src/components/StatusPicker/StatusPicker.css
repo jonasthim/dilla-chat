@@ -29,6 +29,10 @@
 }
 
 .status-picker-option {
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
   display: flex;
   align-items: center;
   gap: 10px;

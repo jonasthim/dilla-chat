@@ -50,19 +50,20 @@ export default function StatusPicker({
   };
 
   return (
-    <div className="status-picker" onClick={(e) => e.stopPropagation()}>
+    <div className="status-picker" role="dialog" onClick={(e) => e.stopPropagation()}>
       <div className="status-picker-header">{t('presence.setStatus')}</div>
 
       <div className="status-picker-options">
         {STATUS_OPTIONS.map((opt) => (
-          <div
+          <button
             key={opt.value}
             className={`status-picker-option ${currentStatus === opt.value ? 'active' : ''}`}
             onClick={() => handleStatusSelect(opt.value)}
+            type="button"
           >
             <span className="status-picker-dot" style={{ backgroundColor: opt.color }} />
             <span className="status-picker-label">{t(opt.labelKey)}</span>
-          </div>
+          </button>
         ))}
       </div>
 

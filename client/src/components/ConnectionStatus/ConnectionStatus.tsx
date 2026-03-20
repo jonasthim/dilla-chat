@@ -101,6 +101,8 @@ export default function ConnectionStatus() {
   return (
     <div
       className={`connection-status connection-status--${state.quality}`}
+      role="status"
+      aria-label={`Connection quality: ${label}`}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >

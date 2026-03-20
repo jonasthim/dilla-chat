@@ -78,7 +78,7 @@ export default function Login() {
         const earliest = allCreds
           .map(c => c.created_at)
           .filter(Boolean)
-          .sort()[0] || null;
+          .sort((a, b) => a.localeCompare(b))[0] || null;
 
         setIdentityInfo({
           username: localStorage.getItem('dilla_username') ?? '',

@@ -99,6 +99,13 @@
 }
 
 .search-bar-result {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
   padding: 10px 12px;
   border-radius: 4px;
   cursor: pointer;

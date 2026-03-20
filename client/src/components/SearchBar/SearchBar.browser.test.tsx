@@ -74,7 +74,7 @@ describe('SearchBar dropdown', () => {
     });
     // max-height: 60vh is computed to px — verify it's roughly 60% of viewport height
     const el = document.querySelector('[data-testid="dropdown"]');
-    const maxH = parseFloat(getComputedStyle(el!).maxHeight);
+    const maxH = Number.parseFloat(getComputedStyle(el!).maxHeight);
     const expected = window.innerHeight * 0.6;
     expect(Math.abs(maxH - expected)).toBeLessThan(2);
   });

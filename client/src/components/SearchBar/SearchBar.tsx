@@ -133,10 +133,11 @@ export default function SearchBar({ onJumpToMessage }: Props) {
                 {t('search.results', '{{count}} results', { count: results.length })}
               </div>
               {results.map((result) => (
-                <div
+                <button
                   key={result.message.id}
                   className="search-bar-result"
                   onClick={() => handleResultClick(result)}
+                  type="button"
                 >
                   <div className="search-result-header">
                     <span className="search-result-author">
@@ -156,7 +157,7 @@ export default function SearchBar({ onJumpToMessage }: Props) {
                     </mark>
                     {result.message.content.substring(result.matchEnd)}
                   </div>
-                </div>
+                </button>
               ))}
             </>
           )}

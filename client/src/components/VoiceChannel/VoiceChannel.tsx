@@ -89,7 +89,7 @@ export default function VoiceChannel({ channel }: Props) {
 
           {/* Focused webcam overlay or screen share */}
           {focusedWebcam ? (
-            <div className="fullscreen-focused-webcam" onClick={() => setFocusedWebcam(null)}>
+            <button className="fullscreen-focused-webcam" onClick={() => setFocusedWebcam(null)} type="button">
               {getWebcamStream(focusedWebcam) && (
                 <VideoPreview stream={getWebcamStream(focusedWebcam)!} className="fullscreen-focused-video" />
               )}
@@ -97,7 +97,7 @@ export default function VoiceChannel({ channel }: Props) {
                 {peers[focusedWebcam]?.username ?? 'Unknown'}
                 <span className="fullscreen-focused-hint">{t('voice.clickToGoBack', 'Click to go back')}</span>
               </div>
-            </div>
+            </button>
           ) : activeScreenStream ? (
             <VideoPreview stream={activeScreenStream} className="screen-share-video" />
           ) : null}
@@ -109,11 +109,12 @@ export default function VoiceChannel({ channel }: Props) {
                 const webcamStream = getWebcamStream(peer.user_id);
                 const hasWebcam = !!(peer.webcam_sharing && webcamStream);
                 return (
-                  <div
+                  <button
                     key={peer.user_id}
                     className={`fullscreen-thumbnail ${peer.speaking ? 'speaking' : ''} ${focusedWebcam === peer.user_id ? 'focused' : ''}`}
                     onClick={hasWebcam ? () => setFocusedWebcam(peer.user_id) : undefined}
                     style={hasWebcam ? { cursor: 'pointer' } : undefined}
+                    type="button"
                   >
                     {hasWebcam ? (
                       <VideoPreview stream={webcamStream!} className="fullscreen-thumbnail-video" />
@@ -124,7 +125,7 @@ export default function VoiceChannel({ channel }: Props) {
                     )}
                     <span className="fullscreen-thumbnail-name">{peer.username}</span>
                     {peer.muted && <MicrophoneMute width={12} height={12} strokeWidth={2} className="fullscreen-thumbnail-icon" />}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -142,13 +143,13 @@ export default function VoiceChannel({ channel }: Props) {
           <>
             {/* Screen share as a separate large element at the top */}
             {hasScreenShare && activeScreenStream && (
-              <div className="voice-screen-share-banner" onClick={() => setFullscreen(true)}>
+              <button className="voice-screen-share-banner" onClick={() => setFullscreen(true)} type="button">
                 <VideoPreview stream={activeScreenStream} className="voice-screen-share-video" onClick={() => setFullscreen(true)} />
                 <div className="voice-screen-share-label">
                   <AppWindow width={14} height={14} strokeWidth={2} />
                   <span>{screenSharing ? 'You' : sharerName} — Screen Share</span>
                 </div>
-              </div>
+              </button>
             )}
 
             {/* User tiles grid — webcam replaces avatar */}

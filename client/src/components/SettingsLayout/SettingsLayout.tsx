@@ -37,13 +37,14 @@ export default function SettingsLayout({ sections, activeId, onSelect, onClose, 
                 <div className="settings-nav-header">{section.label}</div>
               )}
               {section.items.map((item) => (
-                <div
+                <button
                   key={item.id}
                   className={`settings-nav-item${activeId === item.id ? ' active' : ''}${item.danger ? ' danger' : ''}`}
                   onClick={() => onSelect(item.id)}
+                  type="button"
                 >
                   {item.label}
-                </div>
+                </button>
               ))}
             </div>
           ))}
