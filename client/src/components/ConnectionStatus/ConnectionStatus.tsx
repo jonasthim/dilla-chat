@@ -99,9 +99,8 @@ export default function ConnectionStatus() {
   const label = qualityLabel(state.quality);
 
   return (
-    <div
+    <output
       className={`connection-status connection-status--${state.quality}`}
-      role="status"
       aria-label={`Connection quality: ${label}`}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
@@ -134,6 +133,6 @@ export default function ConnectionStatus() {
           </div>
         </div>
       )}
-    </div>
+    </output>
   );
 }

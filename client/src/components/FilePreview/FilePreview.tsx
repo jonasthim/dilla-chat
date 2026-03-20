@@ -43,7 +43,7 @@ function ImagePreview({ attachment }: { attachment: Attachment }) {
         </button>
       </div>
       {expanded && (
-        <div className="file-preview-lightbox" role="presentation" onClick={() => setExpanded(false)}>
+        <div className="file-preview-lightbox" onClick={() => setExpanded(false)}>
           <img
             src={attachment.url}
             alt={attachment.filename}

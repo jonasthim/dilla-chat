@@ -46,14 +46,7 @@ export default function ResizeHandle({ onResize, onResizeEnd }: ResizeHandleProp
   return (
     <div
       className={`resize-handle ${dragging ? 'dragging' : ''}`}
-      role="separator"
-      aria-orientation="vertical"
-      tabIndex={0}
       onMouseDown={handleMouseDown}
-      onKeyDown={(e) => {
-        if (e.key === 'ArrowLeft') onResize(-10);
-        else if (e.key === 'ArrowRight') onResize(10);
-      }}
     />
   );
 }

@@ -72,7 +72,7 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Prop
   }, [onClose]);
 
   return (
-    <div className="new-dm-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+    <div className="new-dm-overlay" onClick={onClose}>
       <div className="new-dm-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="new-dm-title">
         <div className="new-dm-header">
           <h3 id="new-dm-title">{t('dm.newDM', 'New Message')}</h3>

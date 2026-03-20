@@ -27,10 +27,10 @@ export default function UserProfile({ member, presence, x, y, onSendMessage }: P
   const statusLabel = t(`presence.${status === 'offline' ? 'offline' : status}`);
 
   return (
-    <div
+    <dialog
       className="user-profile-popover"
       style={{ left: Math.max(0, x), top: y }}
-      role="dialog"
+      open
       onClick={(e) => e.stopPropagation()}
     >
       <div className="user-profile-banner" />
@@ -72,6 +72,6 @@ export default function UserProfile({ member, presence, x, y, onSendMessage }: P
           </button>
         )}
       </div>
-    </div>
+    </dialog>
   );
 }

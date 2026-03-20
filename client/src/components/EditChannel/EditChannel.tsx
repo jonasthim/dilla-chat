@@ -55,7 +55,7 @@ export default function EditChannel({ channel, onClose }: Props) {
   };
 
   return (
-    <div className="edit-channel-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+    <div className="edit-channel-overlay" onClick={onClose}>
       <div className="edit-channel-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="edit-channel-title">
         <h2 id="edit-channel-title">{t('channels.editChannel', 'Edit Channel')}</h2>
 

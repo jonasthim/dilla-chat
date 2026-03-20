@@ -31,6 +31,22 @@ interface SyncStoreSetters {
   getMyUserId: (teamId: string) => string | undefined;
 }
 
+/** Parse raw presences object into a typed map */
+function parsePresences(raw: unknown): Record<string, UserPresence> {
+  const presMap: Record<string, UserPresence> = {};
+  if (raw && typeof raw === 'object') {
+    for (const [userId, p] of Object.entries(raw as Record<string, Record<string, unknown>>)) {
+      presMap[userId] = {
+        user_id: userId,
+        status: (p.status ?? p.status_type ?? 'offline') as UserPresence['status'],
+        custom_status: (p.custom_status ?? '') as string,
+        last_active: (p.last_active ?? '') as string,
+      };
+    }
+  }
+  return presMap;
+}
+
 /** Apply sync:init data to stores */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applySyncData(teamId: string, data: any, setters: SyncStoreSetters) {
@@ -45,18 +61,7 @@ function applySyncData(teamId: string, data: any, setters: SyncStoreSetters) {
   if (data.members) setters.setMembers(teamId, normalizeMembers(data.members as Record<string, unknown>[]));
   if (data.roles) setters.setRoles(teamId, data.roles as Role[]);
   if (data.presences) {
-    const presMap: Record<string, UserPresence> = {};
-    const raw = data.presences;
-    if (raw && typeof raw === 'object') {
-      for (const [userId, p] of Object.entries(raw as Record<string, Record<string, unknown>>)) {
-        presMap[userId] = {
-          user_id: userId,
-          status: (p.status ?? p.status_type ?? 'offline') as UserPresence['status'],
-          custom_status: (p.custom_status ?? '') as string,
-          last_active: (p.last_active ?? '') as string,
-        };
-      }
-    }
+    const presMap = parsePresences(data.presences);
     setters.setPresences(teamId, presMap);
     const myUserId = setters.getMyUserId(teamId);
     if (myUserId && presMap[myUserId]) {
@@ -83,7 +88,7 @@ function loadDataViaREST(teamId: string, setters: SyncStoreSetters) {
 
   api.getTeam(teamId).then((data) => {
     const team = data as Team;
-    if (team && team.id) setters.setTeam(team);
+    if (team?.id) setters.setTeam(team);
   }).catch((err) => console.error('Failed to fetch team:', err));
 
   api.getMembers(teamId).then((data) => {
