@@ -31,13 +31,12 @@ vi.mock('../components/FederationStatus/FederationStatus', () => ({
   default: () => <div data-testid="federation-status">FederationStatus</div>,
 }));
 
-function MockSettingsLayout({ children, sections, onSelect, onClose }: {
+function MockSettingsLayout({ children, sections, onSelect, onClose }: Readonly<{
   children: React.ReactNode;
   sections: Array<{ label?: string; items: Array<{ id: string; label: string }> }>;
-  activeId: string;
   onSelect: (id: string) => void;
   onClose: () => void;
-}) {
+}>) {
   const allItems = sections.flatMap((s) => s.items);
   return (
     <div data-testid="settings-layout">

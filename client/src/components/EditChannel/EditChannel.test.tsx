@@ -55,8 +55,8 @@ describe('EditChannel', () => {
   it('calls onClose when overlay is clicked', () => {
     const onClose = vi.fn();
     const { container } = render(<EditChannel channel={channel} onClose={onClose} />);
-    const overlay = container.querySelector('.edit-channel-overlay')!;
-    fireEvent.click(overlay);
+    const backdrop = container.querySelector('.dialog-backdrop')!;
+    fireEvent.click(backdrop);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

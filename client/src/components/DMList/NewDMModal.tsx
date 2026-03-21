@@ -72,8 +72,9 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Prop
   }, [onClose]);
 
   return (
-    <dialog className="new-dm-overlay" open onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} aria-labelledby="new-dm-title">
-      <div className="new-dm-modal" onClick={(e) => e.stopPropagation()}>
+    <dialog className="new-dm-overlay" open aria-labelledby="new-dm-title">
+      <button type="button" className="dialog-backdrop" onClick={onClose} aria-label="Close" />
+      <div className="new-dm-modal">
         <div className="new-dm-header">
           <h3 id="new-dm-title">{t('dm.newDM', 'New Message')}</h3>
           <button className="new-dm-close" onClick={onClose}><Xmark width={20} height={20} strokeWidth={2} /></button>

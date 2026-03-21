@@ -55,13 +55,12 @@ vi.mock('../components/PasskeyManager/PasskeyManager', () => ({
   default: () => <div data-testid="passkey-manager">PasskeyManager</div>,
 }));
 
-function MockSettingsLayout({ children, sections, onSelect, onClose }: {
+function MockSettingsLayout({ children, sections, onSelect, onClose }: Readonly<{
   children: React.ReactNode;
   sections: Array<{ label?: string; items: Array<{ id: string; label: string; danger?: boolean }> }>;
-  activeId: string;
   onSelect: (id: string) => void;
   onClose: () => void;
-}) {
+}>) {
   const allItems = sections.flatMap((s) => s.items);
   return (
     <div data-testid="settings-layout">

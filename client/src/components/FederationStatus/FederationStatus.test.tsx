@@ -231,8 +231,8 @@ describe('FederationStatus', () => {
       .mockResolvedValueOnce(undefined);
     Object.assign(navigator, { clipboard: { writeText: writeTextMock } });
     // Also stub execCommand so the legacy fallback path does not throw
-    const origExecCommand = document.execCommand;
-    Object.defineProperty(document, 'execCommand', { value: vi.fn().mockReturnValue(true), configurable: true });
+    const execCommandMock = vi.fn().mockReturnValue(true);
+    Object.defineProperty(document, 'execCommand', { value: execCommandMock, configurable: true });
 
     render(<FederationStatus teamId="team-1" />);
     fireEvent.click(screen.getByText('federation.generateJoinToken'));
@@ -245,10 +245,8 @@ describe('FederationStatus', () => {
     fireEvent.click(copyBtns[0]);
 
     await waitFor(() => {
-      expect(document.execCommand).toHaveBeenCalledWith('copy');
+      expect(execCommandMock).toHaveBeenCalledWith('copy');
     });
-
-    Object.defineProperty(document, 'execCommand', { value: origExecCommand, configurable: true });
   });
 
   it('copies curl one-liner to clipboard', async () => {

@@ -229,14 +229,14 @@ export function prfOutputToBase64(prfOutput: ArrayBuffer): string {
  */
 export function decodeRecoveryKey(encoded: string): Uint8Array {
   const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-  const clean = encoded.replace(/-/g, '').toUpperCase();
+  const clean = encoded.replaceAll('-', '').toUpperCase();
   let bits = 0;
   let value = 0;
   const result: number[] = [];
 
-  for (let i = 0; i < clean.length; i++) {
-    const idx = ALPHABET.indexOf(clean[i]);
-    if (idx === -1) throw new Error(`Invalid recovery key character: ${clean[i]}`);
+  for (const ch of clean) {
+    const idx = ALPHABET.indexOf(ch);
+    if (idx === -1) throw new Error(`Invalid recovery key character: ${ch}`);
     value = (value << 5) | idx;
     bits += 5;
     if (bits >= 8) {

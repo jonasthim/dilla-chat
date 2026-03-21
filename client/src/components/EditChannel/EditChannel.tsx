@@ -55,8 +55,9 @@ export default function EditChannel({ channel, onClose }: Props) {
   };
 
   return (
-    <dialog className="edit-channel-overlay" open onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} aria-labelledby="edit-channel-title">
-      <div className="edit-channel-modal" onClick={(e) => e.stopPropagation()}>
+    <dialog className="edit-channel-overlay" open aria-labelledby="edit-channel-title">
+      <button type="button" className="dialog-backdrop" onClick={onClose} aria-label="Close" />
+      <div className="edit-channel-modal">
         <h2 id="edit-channel-title">{t('channels.editChannel', 'Edit Channel')}</h2>
 
         <div className="edit-channel-field">
