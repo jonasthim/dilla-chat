@@ -64,13 +64,8 @@ export async function startMicTest(options: MicTestOptions): Promise<MicTestSess
   let animFrameId: number;
   const update = () => {
     analyser.getFloatTimeDomainData(timeDomainData);
-    let sum = 0;
-    for (let i = 0; i < timeDomainData.length; i++) {
-      sum += timeDomainData[i] * timeDomainData[i];
-    }
-    const rms = Math.sqrt(sum / timeDomainData.length);
-    const scaled = Math.min(rms * 4, 1);
-    options.onLevelUpdate(scaled);
+    const rms = computeRmsLevel(timeDomainData);
+    options.onLevelUpdate(rms);
     animFrameId = requestAnimationFrame(update);
   };
   animFrameId = requestAnimationFrame(update);
@@ -101,8 +96,8 @@ export function stopMicTest(session: MicTestSession | null): void {
  */
 export function computeRmsLevel(timeDomainData: Float32Array): number {
   let sum = 0;
-  for (let i = 0; i < timeDomainData.length; i++) {
-    sum += timeDomainData[i] * timeDomainData[i];
+  for (const sample of timeDomainData) {
+    sum += sample * sample;
   }
   const rms = Math.sqrt(sum / timeDomainData.length);
   return Math.min(rms * 4, 1);

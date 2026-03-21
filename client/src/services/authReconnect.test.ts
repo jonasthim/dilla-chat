@@ -91,7 +91,7 @@ describe('refreshServerTokens', () => {
     const { exportIdentityBlob } = await import('./keyStore');
 
     vi.mocked(exportIdentityBlob).mockResolvedValueOnce('base64blob');
-    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
 
     const teams = new Map([
       ['t1', { token: 'old', user: {}, teamInfo: {}, baseUrl: 'https://server.com' }],
@@ -99,7 +99,7 @@ describe('refreshServerTokens', () => {
 
     await refreshServerTokens(teams, 'pubkey123');
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://server.com/api/v1/identity/blob',
       expect.objectContaining({ method: 'PUT' }),
     );
@@ -110,7 +110,7 @@ describe('refreshServerTokens', () => {
     const { exportIdentityBlob } = await import('./keyStore');
 
     vi.mocked(exportIdentityBlob).mockResolvedValueOnce('base64blob');
-    global.fetch = vi.fn().mockRejectedValue(new Error('network'));
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('network'));
 
     const teams = new Map([
       ['t1', { token: 'old', user: {}, teamInfo: {}, baseUrl: 'https://server.com' }],

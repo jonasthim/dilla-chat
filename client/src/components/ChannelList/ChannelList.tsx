@@ -17,7 +17,7 @@ interface Props {
   onCreateChannel?: (category?: string) => void;
 }
 
-export default function ChannelList({ onCreateChannel }: Props) {
+export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
   const { t } = useTranslation();
   const { channels, activeTeamId, activeChannelId, setActiveChannel, removeChannel } = useTeamStore();
   const { currentChannelId: voiceChannelId, connected: voiceConnected, peers: voicePeers, voiceOccupants, joinChannel: voiceJoin } = useVoiceStore();
@@ -99,9 +99,11 @@ export default function ChannelList({ onCreateChannel }: Props) {
             const isVoice = ch.type === 'voice';
             const isVoiceConnected = isVoice && voiceConnected && voiceChannelId === ch.id;
             // Show rich peer data if connected, otherwise show occupants from server
-            const voicePeerList = isVoiceConnected
-              ? Object.values(voicePeers)
-              : (isVoice ? (voiceOccupants[ch.id] ?? []) : []);
+            const voicePeerValues = Object.values(voicePeers);
+            let voicePeerList: typeof voicePeerValues;
+            if (isVoiceConnected) voicePeerList = voicePeerValues;
+            else if (isVoice) voicePeerList = voiceOccupants[ch.id] ?? [];
+            else voicePeerList = [];
 
             return (
               <div key={ch.id}>

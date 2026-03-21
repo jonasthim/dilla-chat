@@ -4,7 +4,7 @@
 
 /** Returns true when running inside a Tauri desktop shell */
 export function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+  return globalThis.window !== undefined && '__TAURI_INTERNALS__' in globalThis;
 }
 
 /**
@@ -30,5 +30,5 @@ export async function getDataDir(): Promise<string> {
  */
 export function getOriginServerUrl(): string | null {
   if (isTauri()) return null;
-  return window.location.origin;
+  return globalThis.location.origin;
 }

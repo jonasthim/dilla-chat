@@ -12,13 +12,13 @@ describe('themeStore', () => {
   it('applies CSS variables to document.documentElement', () => {
     // Theme store applies on creation — check that data-theme is set
     const root = document.documentElement;
-    expect(root.getAttribute('data-theme')).toBe('dark');
+    expect(root.dataset.theme).toBe('dark');
   });
 
   it('syncs when userSettingsStore theme changes', () => {
     useUserSettingsStore.getState().setTheme('light');
     // Allow subscription to fire
     expect(useThemeStore.getState().theme).toBe('light');
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(document.documentElement.dataset.theme).toBe('light');
   });
 });

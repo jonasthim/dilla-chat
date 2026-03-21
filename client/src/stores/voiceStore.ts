@@ -249,8 +249,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     set({
       connected,
       connecting: false,
-      ...(channelId !== undefined ? { currentChannelId: channelId } : {}),
-      ...(teamId !== undefined ? { currentTeamId: teamId } : {}),
+      ...(channelId === undefined ? {} : { currentChannelId: channelId }),
+      ...(teamId === undefined ? {} : { currentTeamId: teamId }),
     }),
 
   setPeerConnection: (pc: RTCPeerConnection | null) => set({ peerConnection: pc }),

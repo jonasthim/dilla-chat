@@ -254,7 +254,7 @@
     el.classList.add('active');
     // Re-trigger animation
     el.classList.remove('fade-in');
-    void el.offsetWidth;
+    el.getAnimations(); // Force reflow to re-trigger animation
     el.classList.add('fade-in');
   }
 
@@ -267,7 +267,7 @@
 
   function bytesToB64(bytes) {
     let s = '';
-    for (let i = 0; i < bytes.length; i++) s += String.fromCodePoint(bytes[i]);
+    for (const b of bytes) s += String.fromCodePoint(b);
     return btoa(s);
   }
 

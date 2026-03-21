@@ -1,11 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CloudCheck, CloudXmark, CloudSync } from 'iconoir-react';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../services/api';
-import { cryptoService } from '../services/crypto';
 import { getPublicKey as getStoredPublicKey } from '../services/keyStore';
+import ServerAddressInput from '../components/ServerAddressInput/ServerAddressInput';
+import {
+  normalizeServerUrl,
+  useServerHealthCheck,
+  uploadPrekeyBundle,
+  activateTeamAndNavigate,
+} from '../utils/serverConnection';
 import PublicShell from './PublicShell';
 
 export default function SetupAdmin() {
@@ -14,9 +19,9 @@ export default function SetupAdmin() {
   const [searchParams] = useSearchParams();
   const { publicKey, derivedKey, addTeam, setPublicKey } = useAuthStore();
 
-  const isBrowser = !(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  const isBrowser = !(globalThis as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
   const [serverAddress, setServerAddress] = useState(
-    isBrowser ? window.location.origin : '',
+    isBrowser ? globalThis.location.origin : '',
   );
   const [bootstrapToken, setBootstrapToken] = useState(
     searchParams.get('token') ?? '',
@@ -26,34 +31,7 @@ export default function SetupAdmin() {
   const [teamName, setTeamName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [serverStatus, setServerStatus] = useState<'unknown' | 'checking' | 'online' | 'offline'>(isBrowser ? 'online' : 'unknown');
-
-  const checkServer = useCallback(async (address: string) => {
-    if (!address.trim()) {
-      setServerStatus('unknown');
-      return;
-    }
-    setServerStatus('checking');
-    try {
-      const url = address.startsWith('http')
-        ? address.replace(/\/$/, '')
-        : `https://${address}`;
-      const res = await fetch(`${url}/api/v1/health`, { signal: AbortSignal.timeout(5000) });
-      if (res.ok) {
-        setServerStatus('online');
-      } else {
-        setServerStatus('offline');
-      }
-    } catch {
-      setServerStatus('offline');
-    }
-  }, []);
-
-  // Check server health when address changes (debounced)
-  useEffect(() => {
-    const timer = setTimeout(() => checkServer(serverAddress), 500);
-    return () => clearTimeout(timer);
-  }, [serverAddress, checkServer]);
+  const [serverStatus] = useServerHealthCheck(serverAddress, isBrowser ? 'online' : 'unknown');
 
   const handleSetup = async () => {
     setError('');
@@ -75,10 +53,7 @@ export default function SetupAdmin() {
 
     setLoading(true);
     try {
-      // Normalize server address to full URL
-      const normalizedUrl = serverAddress.startsWith('http')
-        ? serverAddress.replace(/\/$/, '')
-        : `https://${serverAddress}`;
+      const normalizedUrl = normalizeServerUrl(serverAddress);
       const tempId = normalizedUrl;
       api.addTeam(tempId, normalizedUrl);
 
@@ -95,37 +70,22 @@ export default function SetupAdmin() {
       const realTeamId = (result.team?.id as string) || tempId;
 
       // Re-register with real team ID if different
-      if (realTeamId !== tempId) {
+      if (realTeamId === tempId) {
+        api.setToken(tempId, result.token);
+      } else {
         api.removeTeam(tempId);
         api.addTeam(realTeamId, normalizedUrl);
         api.setToken(realTeamId, result.token);
-      } else {
-        api.setToken(tempId, result.token);
       }
 
       addTeam(realTeamId, result.token, result.user, result.team, normalizedUrl);
 
       // Upload prekey bundle for E2E encryption
       if (derivedKey) {
-        try {
-          const bundle = await cryptoService.generatePrekeyBundle(derivedKey);
-          const toB64 = (arr: number[]) => btoa(String.fromCodePoint(...arr));
-          await api.uploadPrekeyBundle(realTeamId, {
-            identity_key: toB64(bundle.identity_key),
-            signed_prekey: toB64(bundle.signed_prekey),
-            signed_prekey_signature: toB64(bundle.signed_prekey_signature),
-            one_time_prekeys: bundle.one_time_prekeys.map(toB64),
-          });
-        } catch (e) {
-          console.warn('Prekey upload failed:', e);
-        }
+        await uploadPrekeyBundle(derivedKey, realTeamId);
       }
 
-      // Set active team so AppLayout loads data
-      const { useTeamStore } = await import('../stores/teamStore');
-      useTeamStore.getState().setActiveTeam(realTeamId);
-
-      navigate('/app');
+      await activateTeamAndNavigate(realTeamId, navigate);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -142,24 +102,12 @@ export default function SetupAdmin() {
       {error && <p className="error">{error}</p>}
       <div className="form">
         {!isBrowser && (
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              placeholder={t('setup.serverAddress')}
-              value={serverAddress}
-              onChange={(e) => setServerAddress(e.target.value)}
-              style={{ paddingRight: '2.5rem' }}
-            />
-            {serverStatus === 'online' && (
-              <CloudCheck style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-positive)', width: 18, height: 18 }} />
-            )}
-            {serverStatus === 'offline' && (
-              <CloudXmark style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-danger)', width: 18, height: 18 }} />
-            )}
-            {serverStatus === 'checking' && (
-              <CloudSync style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-warning)', width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
-            )}
-          </div>
+          <ServerAddressInput
+            placeholder={t('setup.serverAddress')}
+            value={serverAddress}
+            onChange={setServerAddress}
+            serverStatus={serverStatus}
+          />
         )}
         <input
           type="text"

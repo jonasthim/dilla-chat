@@ -275,22 +275,22 @@ describe('X3DH', () => {
 
 // ─── Double Ratchet ───────────────────────────────────────────────────────────
 
+async function setupRatchetPair(): Promise<[RatchetSession, RatchetSession]> {
+  // Simulate X3DH to get shared secret
+  const bobSigning = await generateEd25519KeyPair();
+  const bobDh = await generateX25519KeyPair();
+  const { bundle, secrets } = await generatePrekeyBundle(bobSigning.privateKey, bobDh, 1);
+
+  const aliceDh = await generateX25519KeyPair();
+  const x3dhResult = await x3dhInitiate(aliceDh.privateKey, bundle);
+
+  const alice = await RatchetSession.initAlice(x3dhResult.sharedSecret, new Uint8Array(bundle.signed_prekey));
+  const bob = await RatchetSession.initBob(x3dhResult.sharedSecret, secrets.signed_prekey_private);
+
+  return [alice, bob];
+}
+
 describe('Double Ratchet', () => {
-  async function setupRatchetPair(): Promise<[RatchetSession, RatchetSession]> {
-    // Simulate X3DH to get shared secret
-    const bobSigning = await generateEd25519KeyPair();
-    const bobDh = await generateX25519KeyPair();
-    const { bundle, secrets } = await generatePrekeyBundle(bobSigning.privateKey, bobDh, 1);
-
-    const aliceDh = await generateX25519KeyPair();
-    const x3dhResult = await x3dhInitiate(aliceDh.privateKey, bundle);
-
-    const alice = await RatchetSession.initAlice(x3dhResult.sharedSecret, new Uint8Array(bundle.signed_prekey));
-    const bob = await RatchetSession.initBob(x3dhResult.sharedSecret, secrets.signed_prekey_private);
-
-    return [alice, bob];
-  }
-
   it('encrypts and decrypts a single message (Alice to Bob)', async () => {
     const [alice, bob] = await setupRatchetPair();
 
@@ -519,16 +519,16 @@ describe('Safety Numbers', () => {
 
 // ─── CryptoManager ────────────────────────────────────────────────────────────
 
-describe('CryptoManager', () => {
-  async function createManager(): Promise<CryptoManager> {
-    const ed = await generateEd25519KeyPair();
-    const dh = await generateX25519KeyPair();
-    return new CryptoManager(ed.privateKey, ed.publicKeyBytes, {
-      privateKey: dh.privateKey,
-      publicKeyBytes: dh.publicKeyBytes,
-    });
-  }
+async function createManager(): Promise<CryptoManager> {
+  const ed = await generateEd25519KeyPair();
+  const dh = await generateX25519KeyPair();
+  return new CryptoManager(ed.privateKey, ed.publicKeyBytes, {
+    privateKey: dh.privateKey,
+    publicKeyBytes: dh.publicKeyBytes,
+  });
+}
 
+describe('CryptoManager', () => {
   it('generates a prekey bundle', async () => {
     const mgr = await createManager();
     const bundle = await mgr.generatePrekeyBundle(5);
@@ -759,15 +759,6 @@ describe('AES-GCM wrong key decryption', () => {
 // ─── CryptoManager DM decryption roundtrip ─────────────────────────────────
 
 describe('CryptoManager DM full roundtrip', () => {
-  async function createManager(): Promise<CryptoManager> {
-    const ed = await generateEd25519KeyPair();
-    const dh = await generateX25519KeyPair();
-    return new CryptoManager(ed.privateKey, ed.publicKeyBytes, {
-      privateKey: dh.privateKey,
-      publicKeyBytes: dh.publicKeyBytes,
-    });
-  }
-
   it('Alice encrypts and Bob decrypts a DM (full X3DH + ratchet)', async () => {
     const alice = await createManager();
     const bob = await createManager();

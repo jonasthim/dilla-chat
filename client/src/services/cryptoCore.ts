@@ -581,7 +581,7 @@ export class RatchetSession {
 
   /** Deserialize from storage */
   static fromJSON(obj: Record<string, unknown>): RatchetSession {
-    const s = obj as Record<string, unknown>;
+    const s = obj;
     return new RatchetSession({
       dhSending: s.dhSending ? {
         privatePkcs8: new Uint8Array((s.dhSending as Record<string, number[]>).privatePkcs8),
@@ -810,12 +810,12 @@ export async function generateSafetyNumber(
 // ─── Crypto Manager ───────────────────────────────────────────────────────────
 
 export class CryptoManager {
-  private identitySigningKey: CryptoKey;
-  private identityPublicKeyBytes: Uint8Array;
-  private identityDhKeyPair: { privateKey: CryptoKey; publicKeyBytes: Uint8Array };
+  private readonly identitySigningKey: CryptoKey;
+  private readonly identityPublicKeyBytes: Uint8Array;
+  private readonly identityDhKeyPair: { privateKey: CryptoKey; publicKeyBytes: Uint8Array };
   private prekeySecrets: PrekeySecrets | null = null;
-  private pairwiseSessions: Map<string, RatchetSession> = new Map();
-  private groupSessions: Map<string, GroupSession> = new Map();
+  private readonly pairwiseSessions: Map<string, RatchetSession> = new Map();
+  private readonly groupSessions: Map<string, GroupSession> = new Map();
 
   constructor(
     signingKey: CryptoKey,

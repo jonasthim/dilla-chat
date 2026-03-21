@@ -116,11 +116,11 @@ function OverviewTab({
   teamId,
   team,
   onSave,
-}: {
+}: Readonly<{
   teamId: string;
   team: ReturnType<typeof useTeamStore.getState>['teams'] extends Map<string, infer T> ? T : never;
   onSave: (t: typeof team) => void;
-}) {
+}>) {
   const { t } = useTranslation();
   const [name, setName] = useState(team.name);
   const [description, setDescription] = useState(team.description);
@@ -200,7 +200,7 @@ function OverviewTab({
 }
 
 /* ─── Roles Tab ─── */
-function RolesTab({ teamId }: { teamId: string }) {
+function RolesTab({ teamId }: Readonly<{ teamId: string }>) {
   const { t } = useTranslation();
   const { roles, setRoles } = useTeamStore();
   const teamRoles = roles.get(teamId) ?? [];
@@ -342,7 +342,7 @@ function RolesTab({ teamId }: { teamId: string }) {
 }
 
 /* ─── Members Tab ─── */
-function MembersTab({ teamId }: { teamId: string }) {
+function MembersTab({ teamId }: Readonly<{ teamId: string }>) {
   const { t } = useTranslation();
   const { members, roles, setMembers } = useTeamStore();
   const teamMembers = members.get(teamId) ?? [];
@@ -493,7 +493,7 @@ function MembersTab({ teamId }: { teamId: string }) {
 }
 
 /* ─── Invites Tab ─── */
-function InvitesTab({ teamId }: { teamId: string }) {
+function InvitesTab({ teamId }: Readonly<{ teamId: string }>) {
   const { t } = useTranslation();
   const [invites, setInvites] = useState<Invite[]>([]);
   const [maxUses, setMaxUses] = useState<string>('0');
@@ -530,7 +530,7 @@ function InvitesTab({ teamId }: { teamId: string }) {
     }
   };
 
-  const getInviteLink = (token: string) => `${window.location.origin}/join/${token}`;
+  const getInviteLink = (token: string) => `${globalThis.location.origin}/join/${token}`;
 
   const copyLink = (inviteId: string, token: string) => {
     navigator.clipboard.writeText(getInviteLink(token)).catch(() => {
@@ -633,7 +633,7 @@ function InvitesTab({ teamId }: { teamId: string }) {
 }
 
 /* ─── Moderation Tab ─── */
-function ModerationTab({ teamId: _teamId }: { teamId: string }) {
+function ModerationTab({ teamId: _teamId }: Readonly<{ teamId: string }>) {
   const { t } = useTranslation();
 
   return (
@@ -647,7 +647,7 @@ function ModerationTab({ teamId: _teamId }: { teamId: string }) {
 }
 
 /* ─── Bans Tab ─── */
-function BansTab({ teamId }: { teamId: string }) {
+function BansTab({ teamId }: Readonly<{ teamId: string }>) {
   const { t } = useTranslation();
   const [bannedUsers, setBannedUsers] = useState<Array<{ id: string; username: string }>>([]);
 

@@ -136,6 +136,8 @@ export class NoiseSuppression {
 
 // Singleton — preserved across HMR
 const globalKey = '__dilla_noiseSuppression__';
-export const noiseSuppression: NoiseSuppression =
-  ((globalThis as Record<string, unknown>)[globalKey] as NoiseSuppression) ??
-  (((globalThis as Record<string, unknown>)[globalKey] = new NoiseSuppression()) as NoiseSuppression);
+const _nsGlobal = globalThis as Record<string, unknown>;
+if (!_nsGlobal[globalKey]) {
+  _nsGlobal[globalKey] = new NoiseSuppression();
+}
+export const noiseSuppression: NoiseSuppression = _nsGlobal[globalKey] as NoiseSuppression;

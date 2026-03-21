@@ -28,6 +28,7 @@ test_client_lint() {
         fi
     fi
     cd ..
+    return 0
 }
 
 # Function to run client build check
@@ -42,6 +43,7 @@ test_client_build() {
         echo "   (Auto-fix would reinstall dependencies)"
     fi
     cd ..
+    return 0
 }
 
 # Function to run server tests
@@ -56,6 +58,7 @@ test_server_tests() {
         echo "   (Auto-fix would run: go mod tidy)"
     fi
     cd ..
+    return 0
 }
 
 # Function to run server build
@@ -70,6 +73,7 @@ test_server_build() {
         echo "   (Auto-fix would run: go mod tidy && make build)"
     fi
     cd ..
+    return 0
 }
 
 # Main menu

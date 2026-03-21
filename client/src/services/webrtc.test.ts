@@ -207,8 +207,8 @@ function setupStores() {
 
   useUserSettingsStore.setState({
     selectedInputDevice: 'default',
-    inputVolume: 1.0,
-    outputVolume: 1.0,
+    inputVolume: 1,
+    outputVolume: 1,
     inputThreshold: 0.15,
   });
 
@@ -1057,11 +1057,11 @@ describe('WebRTCService', () => {
       await webrtcService.connect('ch-1', 'team-1');
 
       // Simulate key down
-      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV' }));
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV' }));
       expect(mockWs.voiceMute).toHaveBeenCalledWith('team-1', 'ch-1', false);
 
       // Simulate key up
-      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyV' }));
+      globalThis.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyV' }));
       expect(mockWs.voiceMute).toHaveBeenCalledWith('team-1', 'ch-1', true);
     });
 
@@ -1071,8 +1071,8 @@ describe('WebRTCService', () => {
       await webrtcService.connect('ch-1', 'team-1');
       mockWs.voiceMute.mockClear();
 
-      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }));
-      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyA' }));
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }));
+      globalThis.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyA' }));
       expect(mockWs.voiceMute).not.toHaveBeenCalled();
     });
   });

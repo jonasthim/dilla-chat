@@ -9,7 +9,7 @@ interface Props {
   channel: Channel;
 }
 
-function VideoPreview({ stream, onClick, className }: { stream: MediaStream; onClick?: () => void; className?: string }) {
+function VideoPreview({ stream, onClick, className }: Readonly<{ stream: MediaStream; onClick?: () => void; className?: string }>) {
   const videoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (videoRef.current) {
@@ -29,7 +29,7 @@ function VideoPreview({ stream, onClick, className }: { stream: MediaStream; onC
   );
 }
 
-export default function VoiceChannel({ channel }: Props) {
+export default function VoiceChannel({ channel }: Readonly<Props>) {
   const { t } = useTranslation();
   const { activeTeamId } = useTeamStore();
   const {
@@ -88,19 +88,25 @@ export default function VoiceChannel({ channel }: Props) {
           </div>
 
           {/* Focused webcam overlay or screen share */}
-          {focusedWebcam ? (
-            <button className="fullscreen-focused-webcam" onClick={() => setFocusedWebcam(null)} type="button">
-              {getWebcamStream(focusedWebcam) && (
-                <VideoPreview stream={getWebcamStream(focusedWebcam)!} className="fullscreen-focused-video" />
-              )}
-              <div className="fullscreen-focused-name">
-                {peers[focusedWebcam]?.username ?? 'Unknown'}
-                <span className="fullscreen-focused-hint">{t('voice.clickToGoBack', 'Click to go back')}</span>
-              </div>
-            </button>
-          ) : activeScreenStream ? (
-            <VideoPreview stream={activeScreenStream} className="screen-share-video" />
-          ) : null}
+          {(() => {
+            if (focusedWebcam) {
+              return (
+                <button className="fullscreen-focused-webcam" onClick={() => setFocusedWebcam(null)} type="button">
+                  {(() => { const s = getWebcamStream(focusedWebcam); return s ? (
+                    <VideoPreview stream={s} className="fullscreen-focused-video" />
+                  ) : null; })()}
+                  <div className="fullscreen-focused-name">
+                    {peers[focusedWebcam]?.username ?? 'Unknown'}
+                    <span className="fullscreen-focused-hint">{t('voice.clickToGoBack', 'Click to go back')}</span>
+                  </div>
+                </button>
+              );
+            }
+            if (activeScreenStream) {
+              return <VideoPreview stream={activeScreenStream} className="screen-share-video" />;
+            }
+            return null;
+          })()}
 
           {/* Floating webcam thumbnail bar */}
           {peerList.length > 0 && (
@@ -116,8 +122,8 @@ export default function VoiceChannel({ channel }: Props) {
                     style={hasWebcam ? { cursor: 'pointer' } : undefined}
                     type="button"
                   >
-                    {hasWebcam ? (
-                      <VideoPreview stream={webcamStream!} className="fullscreen-thumbnail-video" />
+                    {hasWebcam && webcamStream ? (
+                      <VideoPreview stream={webcamStream} className="fullscreen-thumbnail-video" />
                     ) : (
                       <div className="fullscreen-thumbnail-avatar">
                         {peer.username.slice(0, 1).toUpperCase()}
@@ -156,9 +162,10 @@ export default function VoiceChannel({ channel }: Props) {
             <div className="voice-channel-grid">
               {peerList.map((peer) => {
                 const isSharingWebcam = peer.webcam_sharing;
-                const webcamStream = isSharingWebcam
-                  ? (remoteWebcamStreams[peer.user_id] ?? (webcamSharing ? localWebcamStream : null))
-                  : null;
+                let webcamStream: MediaStream | null = null;
+                if (isSharingWebcam) {
+                  webcamStream = remoteWebcamStreams[peer.user_id] ?? (webcamSharing ? localWebcamStream : null);
+                }
 
                 return (
                   <div
@@ -200,11 +207,11 @@ export default function VoiceChannel({ channel }: Props) {
             onClick={handleJoinLeave}
             disabled={connecting}
           >
-            {connecting
-              ? t('voice.connecting')
-              : isInThisChannel
-                ? t('voice.leave')
-                : t('voice.join')}
+            {(() => {
+              if (connecting) return t('voice.connecting');
+              if (isInThisChannel) return t('voice.leave');
+              return t('voice.join');
+            })()}
           </button>
           {isInThisChannel && (
             <div className="voice-channel-participants">

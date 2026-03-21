@@ -14,7 +14,7 @@ async function getRpConfig(): Promise<{ rpId: string; rpName: string }> {
 
   try {
     // Try fetching from the server that served this page
-    const origin = window.location.origin;
+    const origin = globalThis.location.origin;
     const resp = await fetch(`${origin}/api/v1/config`, { signal: AbortSignal.timeout(3000) });
     if (resp.ok) {
       const config = await resp.json();

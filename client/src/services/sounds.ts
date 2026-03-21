@@ -5,9 +5,7 @@ import { useUserSettingsStore } from '../stores/userSettingsStore';
 let audioCtx: AudioContext | null = null;
 
 function getAudioContext(): AudioContext {
-  if (!audioCtx) {
-    audioCtx = new AudioContext();
-  }
+  audioCtx ??= new AudioContext();
   return audioCtx;
 }
 

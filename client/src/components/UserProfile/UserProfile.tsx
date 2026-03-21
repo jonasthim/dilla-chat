@@ -10,10 +10,10 @@ interface Props {
   x: number;
   y: number;
   onSendMessage?: () => void;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
-export default function UserProfile({ member, presence, x, y, onSendMessage }: Props) {
+export default function UserProfile({ member, presence, x, y, onSendMessage }: Readonly<Props>) {
   const { t } = useTranslation();
 
   const initials = (member.displayName || member.username)
@@ -23,7 +23,7 @@ export default function UserProfile({ member, presence, x, y, onSendMessage }: P
     .slice(0, 2)
     .toUpperCase();
 
-  const status = (presence?.status ?? 'offline') as 'online' | 'idle' | 'dnd' | 'offline';
+  const status = presence?.status ?? 'offline';
   const statusLabel = t(`presence.${status === 'offline' ? 'offline' : status}`);
 
   return (

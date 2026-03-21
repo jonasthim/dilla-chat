@@ -4,7 +4,7 @@ import { isTauri, getOriginServerUrl } from './platform';
 describe('isTauri', () => {
   afterEach(() => {
     // Clean up
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 
   it('returns false when __TAURI_INTERNALS__ is absent', () => {
@@ -12,14 +12,14 @@ describe('isTauri', () => {
   });
 
   it('returns true when __TAURI_INTERNALS__ is set', () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     expect(isTauri()).toBe(true);
   });
 });
 
 describe('getOriginServerUrl', () => {
   beforeEach(() => {
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 
   it('returns window.location.origin in browser mode', () => {
@@ -27,30 +27,30 @@ describe('getOriginServerUrl', () => {
   });
 
   it('returns null in Tauri mode', () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     expect(getOriginServerUrl()).toBeNull();
   });
 });
 
 describe('getDataDir', () => {
   beforeEach(() => {
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 
   afterEach(() => {
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 
   it('returns indexeddb in browser mode', async () => {
     // getDataDir is already imported at module level, use the direct import
     const { getDataDir } = await import('./platform');
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
     const dir = await getDataDir();
     expect(dir).toBe('indexeddb');
   });
 
   it('returns fallback path when in Tauri mode', async () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     const { getDataDir } = await import('./platform');
     const dir = await getDataDir();
     // Tauri import will fail in test env, so falls back to './dilla-data'

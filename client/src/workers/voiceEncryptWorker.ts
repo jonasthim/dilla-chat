@@ -22,7 +22,7 @@ async function importKey(raw: ArrayBuffer, usages: KeyUsage[]): Promise<CryptoKe
 }
 
 // Handle messages from the main thread
-self.onmessage = async (event: MessageEvent) => {
+globalThis.onmessage = async (event: MessageEvent) => {
   const { type, key, keyId, keys } = event.data;
 
   if (type === 'setKey' && key) {

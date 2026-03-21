@@ -23,7 +23,7 @@ export default function UserPanel({
   username,
   displayName,
   onSettingsClick,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const { myStatus, myCustomStatus, setMyStatus, setMyCustomStatus, updatePresence } = usePresenceStore();

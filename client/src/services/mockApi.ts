@@ -22,23 +22,23 @@ function now() { return new Date().toISOString(); }
  */
 export class MockApiService {
   private channels: Channel[] = [...MOCK_CHANNELS];
-  private messages: Map<string, Message[]> = new Map([
+  private readonly messages: Map<string, Message[]> = new Map([
     ['ch-1', [...MOCK_WELCOME_MESSAGES]],
     ['ch-2', [...MOCK_GENERAL_MESSAGES]],
   ]);
-  private dmChannels: DMChannel[] = [...MOCK_DM_CHANNELS];
-  private dmMessages: Map<string, Message[]> = new Map(
+  private readonly dmChannels: DMChannel[] = [...MOCK_DM_CHANNELS];
+  private readonly dmMessages: Map<string, Message[]> = new Map(
     Object.entries(MOCK_DM_MESSAGES).map(([k, v]) => [k, [...v]]),
   );
   private threads: Thread[] = [...MOCK_THREADS];
-  private threadMessages: Map<string, Message[]> = new Map(
+  private readonly threadMessages: Map<string, Message[]> = new Map(
     Object.entries(MOCK_THREAD_MESSAGES).map(([k, v]) => [k, [...v]]),
   );
 
   // Connection stubs
-  addTeam(_teamId: string, _baseUrl: string): void {}
-  removeTeam(_teamId: string): void {}
-  setToken(_teamId: string, _token: string): void {}
+  addTeam(_teamId: string, _baseUrl: string): void { /* noop */ }
+  removeTeam(_teamId: string): void { /* noop */ }
+  setToken(_teamId: string, _token: string): void { /* noop */ }
 
   // Auth — resolve immediately
   async requestChallenge(_teamId: string, _publicKey: string) {
@@ -53,7 +53,7 @@ export class MockApiService {
   // Invites
   async createInvite() { return { id: uid('inv'), token: 'demo-invite', uses: 0, max_uses: 10 }; }
   async listInvites() { return []; }
-  async revokeInvite() {}
+  async revokeInvite() { /* noop */ }
   async getInviteInfo() { return { team_name: MOCK_TEAM.name }; }
 
   // Team
@@ -86,10 +86,10 @@ export class MockApiService {
 
   // Members
   async getMembers() { return MOCK_MEMBERS; }
-  async updateMember() {}
-  async kickMember() {}
-  async banMember() {}
-  async unbanMember() {}
+  async updateMember() { /* noop */ }
+  async kickMember() { /* noop */ }
+  async banMember() { /* noop */ }
+  async unbanMember() { /* noop */ }
 
   // Roles
   async getRoles() { return MOCK_ROLES; }
@@ -97,7 +97,7 @@ export class MockApiService {
     return { id: uid('role'), ...data, position: MOCK_ROLES.length, isDefault: false };
   }
   async updateRole(_teamId: string, _roleId: string, updates: Record<string, unknown>) { return updates; }
-  async deleteRole() {}
+  async deleteRole() { /* noop */ }
 
   // Messages
   async getMessages(_teamId: string, channelId: string, _limit?: number, _before?: string) {
@@ -153,8 +153,8 @@ export class MockApiService {
     const msg = list.find(m => m.id === msgId);
     if (msg) { msg.deleted = true; msg.content = ''; }
   }
-  async addDMMembers() {}
-  async removeDMMember() {}
+  async addDMMembers() { /* noop */ }
+  async removeDMMember() { /* noop */ }
 
   // Threads
   async createThread(_teamId: string, channelId: string, parentMessageId: string, title?: string) {
@@ -254,14 +254,14 @@ export class MockApiService {
     };
   }
   getAttachmentUrl(): string { return ''; }
-  async deleteAttachment() {}
+  async deleteAttachment() { /* noop */ }
 
   // Presence
   async getPresences(): Promise<Record<string, UserPresence>> { return { ...MOCK_PRESENCES }; }
   async getUserPresence(_teamId: string, userId: string): Promise<UserPresence> {
     return MOCK_PRESENCES[userId] ?? { user_id: userId, status: 'offline' as const, custom_status: '', last_active: now() };
   }
-  async updatePresence() {}
+  async updatePresence() { /* noop */ }
 
   // Voice
   async getVoiceState(_teamId: string, channelId: string): Promise<VoiceState> {
@@ -270,7 +270,7 @@ export class MockApiService {
   async joinVoice(_teamId: string, channelId: string): Promise<VoiceState> {
     return { channel_id: channelId, peers: [{ user_id: DEMO_CURRENT_USER_ID, username: 'alice', muted: false, deafened: false, speaking: false, voiceLevel: 0 }] };
   }
-  async leaveVoice() {}
+  async leaveVoice() { /* noop */ }
 
   // Health
   async checkHealth(): Promise<boolean> { return true; }

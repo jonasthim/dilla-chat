@@ -49,8 +49,8 @@ done
 
 # Check if gh is installed
 if ! command -v gh &> /dev/null; then
-  echo "Error: GitHub CLI (gh) is not installed."
-  echo "Install it from: https://cli.github.com/"
+  echo "Error: GitHub CLI (gh) is not installed." >&2
+  echo "Install it from: https://cli.github.com/" >&2
   exit 1
 fi
 
@@ -63,6 +63,7 @@ get_autofix_issues() {
     --label "auto-fix" \
     --json number,title,state,labels,createdAt,closedAt,url \
     --jq '.[] | select(.labels | any(.name == "auto-fix"))'
+  return 0
 }
 
 # Function to get PRs created by Claude
@@ -74,6 +75,7 @@ get_claude_prs() {
     --author "Claude" \
     --json number,title,state,url,mergedAt,closedAt,body \
     --jq '.[]'
+  return 0
 }
 
 # Function to extract issue numbers from PR body
@@ -81,6 +83,7 @@ extract_fixed_issues() {
   local pr_body=$1
   # Look for patterns like "Closes #123", "Fixes #123", "Resolves #123"
   echo "$pr_body" | grep -oP '(?:Closes?|Fixes?|Resolves?) #\K\d+' || true
+  return 0
 }
 
 if [[ "$FORMAT" == "json" ]]; then

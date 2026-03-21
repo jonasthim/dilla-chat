@@ -2,7 +2,7 @@ class NotificationService {
   private enabled = true;
 
   async requestPermission(): Promise<boolean> {
-    if (!('Notification' in window)) return false;
+    if (!('Notification' in globalThis)) return false;
     if (Notification.permission === 'granted') return true;
     if (Notification.permission === 'denied') return false;
     const result = await Notification.requestPermission();
@@ -14,7 +14,7 @@ class NotificationService {
     if (document.hasFocus()) return;
 
     // Try Tauri notification API first (only in Tauri shell)
-    if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+    if (globalThis.window !== undefined && '__TAURI_INTERNALS__' in globalThis) {
       try {
         const mod = '@tauri-apps/api/notification';
         const { isPermissionGranted, requestPermission, sendNotification } =
@@ -31,7 +31,7 @@ class NotificationService {
     }
 
     // Browser Notification API fallback
-    if (!('Notification' in window)) return;
+    if (!('Notification' in globalThis)) return;
     if (Notification.permission !== 'granted') {
       const result = await Notification.requestPermission();
       if (result !== 'granted') return;

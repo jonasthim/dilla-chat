@@ -6,7 +6,6 @@ import './FilePreview.css';
 
 interface Props {
   attachments: Attachment[];
-  teamId: string;
 }
 
 function formatFileSize(bytes: number): string {
@@ -27,7 +26,7 @@ function isAudio(contentType: string): boolean {
   return contentType.startsWith('audio/');
 }
 
-function ImagePreview({ attachment }: { attachment: Attachment }) {
+function ImagePreview({ attachment }: Readonly<{ attachment: Attachment }>) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
@@ -55,7 +54,7 @@ function ImagePreview({ attachment }: { attachment: Attachment }) {
   );
 }
 
-function VideoPreview({ attachment }: { attachment: Attachment }) {
+function VideoPreview({ attachment }: Readonly<{ attachment: Attachment }>) {
   return (
     <div className="file-preview-video-container">
       <video
@@ -70,7 +69,7 @@ function VideoPreview({ attachment }: { attachment: Attachment }) {
   );
 }
 
-function AudioPreview({ attachment }: { attachment: Attachment }) {
+function AudioPreview({ attachment }: Readonly<{ attachment: Attachment }>) {
   return (
     <div className="file-preview-audio-container">
       <div className="file-preview-audio-info">
@@ -84,7 +83,7 @@ function AudioPreview({ attachment }: { attachment: Attachment }) {
   );
 }
 
-function FileCard({ attachment }: { attachment: Attachment }) {
+function FileCard({ attachment }: Readonly<{ attachment: Attachment }>) {
   const { t } = useTranslation();
 
   return (
@@ -106,7 +105,7 @@ function FileCard({ attachment }: { attachment: Attachment }) {
   );
 }
 
-export default function FilePreview({ attachments }: Props) {
+export default function FilePreview({ attachments }: Readonly<Props>) {
   if (!attachments || attachments.length === 0) return null;
 
   return (

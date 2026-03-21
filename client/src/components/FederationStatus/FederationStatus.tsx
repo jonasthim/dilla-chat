@@ -21,7 +21,7 @@ interface JoinTokenData {
   join_command: string;
 }
 
-export default function FederationStatus({ teamId }: { teamId: string }) {
+export default function FederationStatus({ teamId }: Readonly<{ teamId: string }>) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<FederationStatusData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,13 +66,7 @@ export default function FederationStatus({ teamId }: { teamId: string }) {
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 2000);
     } catch {
-      // Fallback for non-secure contexts
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
+      // Clipboard API not available — silent failure
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 2000);
     }

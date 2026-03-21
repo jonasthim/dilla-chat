@@ -11,19 +11,8 @@ import { NoiseSuppression } from '../services/noiseSuppression';
 import { notificationService } from '../services/notifications';
 import { api } from '../services/api';
 import { startMicTest, stopMicTest, type MicTestSession } from '../services/micTest';
+import { shortcuts } from '../utils/keyboardShortcuts';
 import './UserSettings.css';
-
-const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.userAgent);
-const mod = isMac ? '⌘' : 'Ctrl';
-
-const shortcuts = [
-  { key: `${mod}+K`, action: 'shortcuts.search' },
-  { key: 'Escape', action: 'shortcuts.closePanel' },
-  { key: `${mod}+Shift+M`, action: 'shortcuts.toggleMute' },
-  { key: `${mod}+Shift+D`, action: 'shortcuts.toggleDeafen' },
-  { key: 'Alt+↑/↓', action: 'shortcuts.navigateChannels' },
-  { key: `${mod}+/`, action: 'shortcuts.showShortcuts' },
-];
 
 /** Maps KeyboardEvent.code to a readable label */
 function keyCodeToLabel(code: string): string {
@@ -107,8 +96,8 @@ export default function UserSettings() {
       setPushToTalkKey(e.code);
       setCapturingKey(false);
     };
-    window.addEventListener('keydown', handler, true);
-    return () => window.removeEventListener('keydown', handler, true);
+    globalThis.addEventListener('keydown', handler, true);
+    return () => globalThis.removeEventListener('keydown', handler, true);
   }, [capturingKey, setPushToTalkKey]);
 
   const saveDisplayName = async () => {
@@ -635,13 +624,13 @@ export default function UserSettings() {
 }
 
 /* ─── Profile Option Component ─── */
-function ProfileOption({ value, selected, onChange, name, desc }: {
+function ProfileOption({ value, selected, onChange, name, desc }: Readonly<{
   value: InputProfile;
   selected: InputProfile;
   onChange: (v: InputProfile) => void;
   name: string;
   desc: string;
-}) {
+}>) {
   const isSelected = selected === value;
   return (
     <label className={`voice-profile-option ${isSelected ? 'selected' : ''}`} aria-label={name}>
@@ -661,7 +650,7 @@ function ProfileOption({ value, selected, onChange, name, desc }: {
 }
 
 /* ─── Mic Test Component ─── */
-function MicTest({ deviceId, inputVolume }: { deviceId: string; inputVolume: number }) {
+function MicTest({ deviceId, inputVolume }: Readonly<{ deviceId: string; inputVolume: number }>) {
   const { t } = useTranslation();
   const [testing, setTesting] = useState(false);
   const [level, setLevel] = useState(0);

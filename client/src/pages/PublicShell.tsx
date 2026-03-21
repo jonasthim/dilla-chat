@@ -8,7 +8,7 @@ interface PublicShellProps {
   steps?: [number, number];
 }
 
-export default function PublicShell({ children, steps }: PublicShellProps) {
+export default function PublicShell({ children, steps }: Readonly<PublicShellProps>) {
   const { t } = useTranslation();
 
   return (

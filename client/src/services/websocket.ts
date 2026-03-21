@@ -12,22 +12,22 @@ const MAX_RECONNECT_DELAY = 30_000;
 const BASE_RECONNECT_DELAY = 1_000;
 
 export class WebSocketService {
-  private connections: Map<string, WebSocket> = new Map();
-  private handlers: Map<string, Set<EventHandler>> = new Map();
-  private reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
-  private reconnectAttempts: Map<string, number> = new Map();
-  private connectionParams: Map<string, { url: string; token: string }> = new Map();
-  private heartbeatTimers: Map<string, ReturnType<typeof setInterval>> = new Map();
+  private readonly connections: Map<string, WebSocket> = new Map();
+  private readonly handlers: Map<string, Set<EventHandler>> = new Map();
+  private readonly reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private readonly reconnectAttempts: Map<string, number> = new Map();
+  private readonly connectionParams: Map<string, { url: string; token: string }> = new Map();
+  private readonly heartbeatTimers: Map<string, ReturnType<typeof setInterval>> = new Map();
   private lastUserActivity = Date.now();
 
   constructor() {
     // Track user activity in the browser
     const markActive = () => { this.lastUserActivity = Date.now(); };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('mousemove', markActive, { passive: true });
-      window.addEventListener('keydown', markActive, { passive: true });
-      window.addEventListener('scroll', markActive, { passive: true, capture: true });
-      window.addEventListener('click', markActive, { passive: true });
+    if (globalThis.window !== undefined) {
+      globalThis.addEventListener('mousemove', markActive, { passive: true });
+      globalThis.addEventListener('keydown', markActive, { passive: true });
+      globalThis.addEventListener('scroll', markActive, { passive: true, capture: true });
+      globalThis.addEventListener('click', markActive, { passive: true });
     }
   }
 
@@ -191,7 +191,7 @@ export class WebSocketService {
   }
 
   // Request/response pattern for data fetching over WS
-  private pendingRequests: Map<string, { resolve: (data: unknown) => void; reject: (err: Error) => void }> = new Map();
+  private readonly pendingRequests: Map<string, { resolve: (data: unknown) => void; reject: (err: Error) => void }> = new Map();
 
   request<T = unknown>(teamId: string, action: string, payload: Record<string, unknown> = {}): Promise<T> {
     return new Promise((resolve, reject) => {

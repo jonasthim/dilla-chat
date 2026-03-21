@@ -10,8 +10,8 @@ beforeEach(() => {
     selectedInputDevice: 'default',
     selectedOutputDevice: 'default',
     inputThreshold: 0.15,
-    inputVolume: 1.0,
-    outputVolume: 1.0,
+    inputVolume: 1,
+    outputVolume: 1,
     desktopNotifications: true,
     soundNotifications: true,
     theme: 'dark',
@@ -23,8 +23,8 @@ describe('defaults', () => {
     expect(getState().selectedInputDevice).toBe('default');
     expect(getState().selectedOutputDevice).toBe('default');
     expect(getState().inputThreshold).toBe(0.15);
-    expect(getState().inputVolume).toBe(1.0);
-    expect(getState().outputVolume).toBe(1.0);
+    expect(getState().inputVolume).toBe(1);
+    expect(getState().outputVolume).toBe(1);
     expect(getState().desktopNotifications).toBe(true);
     expect(getState().soundNotifications).toBe(true);
     expect(getState().theme).toBe('dark');
@@ -88,22 +88,22 @@ describe('volume boundaries', () => {
   });
 
   it('accepts max volume', () => {
-    getState().setInputVolume(2.0);
-    expect(getState().inputVolume).toBe(2.0);
+    getState().setInputVolume(2);
+    expect(getState().inputVolume).toBe(2);
   });
 
   it('accepts threshold at boundaries', () => {
     getState().setInputThreshold(0);
     expect(getState().inputThreshold).toBe(0);
-    getState().setInputThreshold(1.0);
-    expect(getState().inputThreshold).toBe(1.0);
+    getState().setInputThreshold(1);
+    expect(getState().inputThreshold).toBe(1);
   });
 });
 
 describe('state independence', () => {
   it('changing one setting does not affect others', () => {
     getState().setSelectedInputDevice('mic-2');
-    expect(getState().outputVolume).toBe(1.0);
+    expect(getState().outputVolume).toBe(1);
     expect(getState().theme).toBe('dark');
   });
 });

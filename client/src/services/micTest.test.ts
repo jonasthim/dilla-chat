@@ -132,7 +132,7 @@ describe('startMicTest', () => {
 
     await startMicTest({
       audioConstraints: {},
-      inputVolume: 1.0,
+      inputVolume: 1,
       useRNNoise: false,
       onLevelUpdate: onLevel,
     });
@@ -152,7 +152,7 @@ describe('startMicTest', () => {
 
     const session = await startMicTest({
       audioConstraints: {},
-      inputVolume: 1.0,
+      inputVolume: 1,
       useRNNoise: true,
       createNoiseSuppression: () => mockNS,
       onLevelUpdate: vi.fn(),
@@ -168,7 +168,7 @@ describe('startMicTest', () => {
   it('connects source directly to gain without RNNoise', async () => {
     await startMicTest({
       audioConstraints: {},
-      inputVolume: 1.0,
+      inputVolume: 1,
       useRNNoise: false,
       onLevelUpdate: vi.fn(),
     });

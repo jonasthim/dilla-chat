@@ -14,7 +14,7 @@ interface SearchResult {
   matchEnd: number;
 }
 
-export default function SearchBar({ onJumpToMessage }: Props) {
+export default function SearchBar({ onJumpToMessage }: Readonly<Props>) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);

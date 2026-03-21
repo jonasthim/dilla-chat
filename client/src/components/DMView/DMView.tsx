@@ -52,7 +52,7 @@ interface Props {
   showMembers?: boolean;
 }
 
-export default function DMView({ dm, currentUserId, showMembers = false }: Props) {
+export default function DMView({ dm, currentUserId, showMembers = false }: Readonly<Props>) {
   const { t } = useTranslation();
   const { activeTeamId } = useTeamStore();
   const { derivedKey } = useAuthStore();
@@ -238,7 +238,6 @@ export default function DMView({ dm, currentUserId, showMembers = false }: Props
   }, [activeTeamId, dm.id]);
 
   return (
-    <>
       <div className="dm-view-body">
         <div className="dm-view-messages">
           <MessageList
@@ -277,6 +276,5 @@ export default function DMView({ dm, currentUserId, showMembers = false }: Props
           </div>
         )}
       </div>
-    </>
   );
 }

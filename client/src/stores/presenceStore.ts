@@ -1,20 +1,22 @@
 import { create } from 'zustand';
 
+export type PresenceStatus = 'online' | 'idle' | 'dnd' | 'offline';
+
 export interface UserPresence {
   user_id: string;
-  status: 'online' | 'idle' | 'dnd' | 'offline';
+  status: PresenceStatus;
   custom_status: string;
   last_active: string;
 }
 
 interface PresenceState {
   presences: Record<string, Record<string, UserPresence>>; // teamId -> userId -> presence
-  myStatus: 'online' | 'idle' | 'dnd' | 'offline';
+  myStatus: PresenceStatus;
   myCustomStatus: string;
 
   setPresences: (teamId: string, presences: Record<string, UserPresence>) => void;
   updatePresence: (teamId: string, presence: UserPresence) => void;
-  setMyStatus: (status: 'online' | 'idle' | 'dnd' | 'offline') => void;
+  setMyStatus: (status: PresenceStatus) => void;
   setMyCustomStatus: (text: string) => void;
   getPresence: (teamId: string, userId: string) => UserPresence | undefined;
 }
@@ -34,7 +36,7 @@ export const usePresenceStore = create<PresenceState>((set, get) => ({
       presences: {
         ...state.presences,
         [teamId]: {
-          ...(state.presences[teamId] ?? {}),
+          ...state.presences[teamId],
           [presence.user_id]: presence,
         },
       },

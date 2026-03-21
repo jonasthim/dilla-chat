@@ -101,8 +101,18 @@ function applyFormatting(textarea: HTMLTextAreaElement, format: FormatType, setV
   // Restore cursor position after React re-render
   requestAnimationFrame(() => {
     const pos = before.length + cursorOffset;
-    textarea.selectionStart = selected ? pos : before.length + (format === 'link' ? 1 : (format === 'bold' || format === 'strikethrough' ? 2 : 1));
-    textarea.selectionEnd = selected ? pos : before.length + replacement.length - (format === 'link' ? 5 : (format === 'bold' || format === 'strikethrough' ? 2 : 1));
+    let selStartOffset: number;
+    if (format === 'link') selStartOffset = 1;
+    else if (format === 'bold' || format === 'strikethrough') selStartOffset = 2;
+    else selStartOffset = 1;
+
+    let selEndOffset: number;
+    if (format === 'link') selEndOffset = 5;
+    else if (format === 'bold' || format === 'strikethrough') selEndOffset = 2;
+    else selEndOffset = 1;
+
+    textarea.selectionStart = selected ? pos : before.length + selStartOffset;
+    textarea.selectionEnd = selected ? pos : before.length + replacement.length - selEndOffset;
     textarea.focus();
   });
 }
@@ -139,7 +149,7 @@ function PlusCircleIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>;
 }
 
-function TypingIndicator({ channelId, currentUserId }: { channelId: string; currentUserId: string }) {
+function TypingIndicator({ channelId, currentUserId }: Readonly<{ channelId: string; currentUserId: string }>) {
   const { t } = useTranslation();
   const typing = useMessageStore((s) => s.typing);
   const clearTyping = useMessageStore((s) => s.clearTyping);
@@ -188,7 +198,7 @@ export default function MessageInput({
   onTyping,
   onUploadFile,
   placeholder: customPlaceholder,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const [value, setValue] = useState('');
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
@@ -472,7 +482,7 @@ export default function MessageInput({
         {pendingFiles.length > 0 && (
           <div className="message-input-file-previews">
             {pendingFiles.map((pf, idx) => (
-              <div key={idx} className="message-input-file-preview">
+              <div key={`${pf.file.name}-${pf.file.size}-${idx}`} className="message-input-file-preview">
                 {pf.preview ? (
                   <img src={pf.preview} alt={pf.file.name} className="file-preview-thumb" />
                 ) : (

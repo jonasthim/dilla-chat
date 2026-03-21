@@ -159,11 +159,10 @@ export default function MemberList() {
           x={popup.x}
           y={popup.y}
           onSendMessage={
-            popup.member.userId !== currentUserId
-              ? () => handleSendMessage(popup.member)
-              : undefined
+            popup.member.userId === currentUserId
+              ? undefined
+              : () => handleSendMessage(popup.member)
           }
-          onClose={() => setPopup(null)}
         />
       )}
     </div>

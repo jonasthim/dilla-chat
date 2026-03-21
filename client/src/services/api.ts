@@ -46,7 +46,7 @@ interface TeamConnection {
 }
 
 class ApiService {
-  private connections: Map<string, TeamConnection> = new Map();
+  private readonly connections: Map<string, TeamConnection> = new Map();
   private onAuthError: (() => void) | null = null;
 
   setAuthErrorHandler(handler: () => void): void {
@@ -437,7 +437,8 @@ class ApiService {
     if (limit != null) params.set('limit', String(limit));
     if (before) params.set('before', before);
     const qs = params.toString();
-    const path = `/api/v1/teams/${teamId}/channels/${channelId}/messages${qs ? `?${qs}` : ''}`;
+    const suffix = qs ? `?${qs}` : '';
+    const path = `/api/v1/teams/${teamId}/channels/${channelId}/messages${suffix}`;
     const data = await this.request(conn.baseUrl, path, { method: 'GET' }, conn.token);
     return this.unwrapArray(data, 'messages');
   }
@@ -521,7 +522,8 @@ class ApiService {
     if (before) params.set('before', before);
     if (limit != null) params.set('limit', String(limit));
     const qs = params.toString();
-    const path = `/api/v1/teams/${teamId}/dms/${dmId}/messages${qs ? `?${qs}` : ''}`;
+    const dmSuffix = qs ? `?${qs}` : '';
+    const path = `/api/v1/teams/${teamId}/dms/${dmId}/messages${dmSuffix}`;
     const data = await this.request(conn.baseUrl, path, { method: 'GET' }, conn.token);
     return this.unwrapArray(data, 'messages');
   }
@@ -635,7 +637,8 @@ class ApiService {
     if (before) params.set('before', before);
     if (limit != null) params.set('limit', String(limit));
     const qs = params.toString();
-    const path = `/api/v1/teams/${teamId}/threads/${threadId}/messages${qs ? `?${qs}` : ''}`;
+    const threadSuffix = qs ? `?${qs}` : '';
+    const path = `/api/v1/teams/${teamId}/threads/${threadId}/messages${threadSuffix}`;
     const data = await this.request(conn.baseUrl, path, { method: 'GET' }, conn.token);
     return this.unwrapArray(data, 'messages');
   }

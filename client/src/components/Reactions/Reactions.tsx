@@ -12,7 +12,7 @@ interface Props {
   onAddReaction: (emoji: string) => void;
 }
 
-export default function Reactions({ reactions, currentUserId, onToggleReaction, onAddReaction }: Props) {
+export default function Reactions({ reactions, currentUserId, onToggleReaction, onAddReaction }: Readonly<Props>) {
   const { t } = useTranslation();
   const [showPicker, setShowPicker] = useState(false);
   const [hoveredEmoji, setHoveredEmoji] = useState<string | null>(null);
