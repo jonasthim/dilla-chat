@@ -8,7 +8,8 @@ import Reactions from '../Reactions/Reactions';
 import FilePreview from '../FilePreview/FilePreview';
 import EmojiPicker from '../EmojiPicker/EmojiPicker';
 import type { Attachment } from '../../services/api';
-import { usernameColor } from '../../utils/colors';
+import { usernameColor, getInitials } from '../../utils/colors';
+import { groupMessages, formatTime } from '../../utils/messageGrouping';
 import './MessageList.css';
 
 interface Props {
@@ -24,61 +25,6 @@ interface Props {
   onOpenThread?: (messageId: string) => void;
   onReaction?: (messageId: string, emoji: string) => void;
   threadInfo?: Record<string, { count: number; lastReplyAt: string | null }>;
-}
-
-function formatTime(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-
-  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  if (isToday) return `Today at ${time}`;
-  if (isYesterday) return `Yesterday at ${time}`;
-  return `${date.toLocaleDateString()} ${time}`;
-}
-
-function getInitials(username: string): string {
-  return (username || '?').slice(0, 2).toUpperCase();
-}
-
-
-interface MessageGroup {
-  authorId: string;
-  username: string;
-  messages: Message[];
-}
-
-function groupMessages(messages: Message[]): MessageGroup[] {
-  const groups: MessageGroup[] = [];
-  for (const msg of messages) {
-    const last = groups.at(-1);
-    const isSystem = msg.type === 'system';
-    if (
-      !isSystem &&
-      last?.authorId === msg.authorId &&
-      !msg.deleted
-    ) {
-      // Group if within 7 minutes of previous
-      const lastMsg = last.messages.at(-1);
-      const timeDiff = lastMsg
-        ? new Date(msg.createdAt).getTime() - new Date(lastMsg.createdAt).getTime()
-        : Infinity;
-      if (timeDiff < 7 * 60 * 1000) {
-        last.messages.push(msg);
-        continue;
-      }
-    }
-    groups.push({
-      authorId: msg.authorId,
-      username: msg.username,
-      messages: [msg],
-    });
-  }
-  return groups;
 }
 
 // Sanitize links to open in new tab

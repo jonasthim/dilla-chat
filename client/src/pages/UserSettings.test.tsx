@@ -55,28 +55,7 @@ vi.mock('../components/PasskeyManager/PasskeyManager', () => ({
   default: () => <div data-testid="passkey-manager">PasskeyManager</div>,
 }));
 
-function MockSettingsLayout({ children, sections, onSelect, onClose }: Readonly<{
-  children: React.ReactNode;
-  sections: Array<{ label?: string; items: Array<{ id: string; label: string; danger?: boolean }> }>;
-  onSelect: (id: string) => void;
-  onClose: () => void;
-}>) {
-  return (
-    <div data-testid="settings-layout">
-      <nav data-testid="settings-nav">
-        {sections.flatMap((s) =>
-          s.items.map((item) => (
-            <button key={item.id} data-testid={`nav-${item.id}`} onClick={() => onSelect(item.id)}>
-              {item.label}
-            </button>
-          )),
-        )}
-      </nav>
-      <button data-testid="close-btn" onClick={onClose}>Close</button>
-      <div data-testid="settings-content">{children}</div>
-    </div>
-  );
-}
+import { MockSettingsLayout } from '../test/MockSettingsLayout';
 
 vi.mock('../components/SettingsLayout/SettingsLayout', () => ({
   default: MockSettingsLayout,
@@ -150,29 +129,15 @@ describe('UserSettings', () => {
     expect(screen.getByTestId('settings-layout')).toBeInTheDocument();
   });
 
-  it('shows My Account tab by default with username', () => {
+  it.each([
+    ['username', '@testuser'],
+    ['display name', 'Test User'],
+    ['public key fingerprint', 'test-public-key-fingerprint'],
+    ['edit button', 'Edit'],
+    ['user initials in avatar', 'TU'],
+  ])('shows %s on My Account tab by default', (_label, expectedText) => {
     renderUserSettings();
-    expect(screen.getByText('@testuser')).toBeInTheDocument();
-  });
-
-  it('shows display name', () => {
-    renderUserSettings();
-    expect(screen.getByText('Test User')).toBeInTheDocument();
-  });
-
-  it('shows public key fingerprint', () => {
-    renderUserSettings();
-    expect(screen.getByText('test-public-key-fingerprint')).toBeInTheDocument();
-  });
-
-  it('shows edit button for display name', () => {
-    renderUserSettings();
-    expect(screen.getByText('Edit')).toBeInTheDocument();
-  });
-
-  it('shows user initials in avatar', () => {
-    renderUserSettings();
-    expect(screen.getByText('TU')).toBeInTheDocument();
+    expect(screen.getByText(expectedText)).toBeInTheDocument();
   });
 
   it('navigates to /app on close', () => {
@@ -187,67 +152,42 @@ describe('UserSettings', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/welcome');
   });
 
-  // Voice & Video tab
-  it('shows device selectors in voice tab', () => {
+  // Voice & Video tab content checks
+  it.each([
+    ['device selectors', ['Input Device', 'Output Device']],
+    ['volume sliders', ['Input Volume', 'Output Volume']],
+    ['input profile radio options', ['Voice Isolation', 'Studio', 'Custom']],
+    ['mic test button', ['Test Mic']],
+  ])('shows %s in voice tab', (_label, expectedTexts) => {
     navigateToTab('voice-video');
-
-    expect(screen.getByText('Input Device')).toBeInTheDocument();
-    expect(screen.getByText('Output Device')).toBeInTheDocument();
-  });
-
-  it('shows volume sliders in voice tab', () => {
-    navigateToTab('voice-video');
-
-    expect(screen.getByText('Input Volume')).toBeInTheDocument();
-    expect(screen.getByText('Output Volume')).toBeInTheDocument();
-  });
-
-  it('shows input profile radio options', () => {
-    navigateToTab('voice-video');
-
-    expect(screen.getByText('Voice Isolation')).toBeInTheDocument();
-    expect(screen.getByText('Studio')).toBeInTheDocument();
-    expect(screen.getByText('Custom')).toBeInTheDocument();
+    for (const text of expectedTexts) {
+      expect(screen.getByText(text)).toBeInTheDocument();
+    }
   });
 
   it('shows custom settings when Custom profile selected', () => {
     useAudioSettingsStore.setState({ inputProfile: 'custom' });
-
     navigateToTab('voice-video');
-
     expect(screen.getByText('Echo Cancellation')).toBeInTheDocument();
     expect(screen.getByText('Push to Talk')).toBeInTheDocument();
   });
 
   it('does not show custom settings when Voice Isolation profile selected', () => {
     useAudioSettingsStore.setState({ inputProfile: 'voice-isolation' });
-
     navigateToTab('voice-video');
-
     expect(screen.queryByText('Echo Cancellation')).not.toBeInTheDocument();
     expect(screen.queryByText('Push to Talk')).not.toBeInTheDocument();
   });
 
-  it('shows mic test button', () => {
-    navigateToTab('voice-video');
-
-    expect(screen.getByText('Test Mic')).toBeInTheDocument();
-  });
-
-  // Notifications tab
-  it('shows notification toggles', () => {
-    navigateToTab('notifications');
-
-    expect(screen.getByText('Desktop Notifications')).toBeInTheDocument();
-    expect(screen.getByText('Notification Sounds')).toBeInTheDocument();
-  });
-
-  // Appearance tab
-  it('shows theme buttons in appearance tab', () => {
-    navigateToTab('appearance');
-
-    expect(screen.getByText('Dark')).toBeInTheDocument();
-    expect(screen.getByText('Light')).toBeInTheDocument();
+  // Tab content checks for notifications, appearance
+  it.each([
+    ['notifications', ['Desktop Notifications', 'Notification Sounds']],
+    ['appearance', ['Dark', 'Light']],
+  ])('shows expected content in %s tab', (tabId, expectedTexts) => {
+    navigateToTab(tabId);
+    for (const text of expectedTexts) {
+      expect(screen.getByText(text)).toBeInTheDocument();
+    }
   });
 
   it('shows dark theme button as active by default', () => {
@@ -517,28 +457,16 @@ describe('UserSettings', () => {
     expect(screen.getByText('A')).toBeInTheDocument();
   });
 
-  it('changes VAD threshold slider in rnnoise mode', () => {
-    useAudioSettingsStore.setState({ inputProfile: 'custom', noiseSuppressionMode: 'rnnoise', vadThreshold: 0.5 });
+  it.each([
+    ['VAD Threshold', { vadThreshold: 0.5 }, '70'],
+    ['Grace Period', { vadGracePeriodMs: 200 }, '300'],
+    ['Retroactive Grace', { retroactiveGraceMs: 30 }, '50'],
+  ])('changes %s slider in rnnoise mode', (sliderName, extraState, newValue) => {
+    useAudioSettingsStore.setState({ inputProfile: 'custom', noiseSuppressionMode: 'rnnoise', ...extraState });
     navigateToTab('voice-video');
-    const vadSlider = screen.getByRole('slider', { name: 'VAD Threshold' });
-    fireEvent.change(vadSlider, { target: { value: '70' } });
-    expect(vadSlider).toHaveValue('70');
-  });
-
-  it('changes grace period slider in rnnoise mode', () => {
-    useAudioSettingsStore.setState({ inputProfile: 'custom', noiseSuppressionMode: 'rnnoise', vadGracePeriodMs: 200 });
-    navigateToTab('voice-video');
-    const graceSlider = screen.getByRole('slider', { name: 'Grace Period' });
-    fireEvent.change(graceSlider, { target: { value: '300' } });
-    expect(graceSlider).toHaveValue('300');
-  });
-
-  it('changes retroactive grace slider in rnnoise mode', () => {
-    useAudioSettingsStore.setState({ inputProfile: 'custom', noiseSuppressionMode: 'rnnoise', retroactiveGraceMs: 30 });
-    navigateToTab('voice-video');
-    const retroSlider = screen.getByRole('slider', { name: 'Retroactive Grace' });
-    fireEvent.change(retroSlider, { target: { value: '50' } });
-    expect(retroSlider).toHaveValue('50');
+    const slider = screen.getByRole('slider', { name: sliderName });
+    fireEvent.change(slider, { target: { value: newValue } });
+    expect(slider).toHaveValue(newValue);
   });
 
   it('changes input sensitivity slider when auto gain is off', () => {
@@ -629,19 +557,13 @@ describe('UserSettings', () => {
     // Note: AudioContext is not available in jsdom, so it may fail silently
   });
 
-  it('shows voice isolation profile description', () => {
+  it.each([
+    ['voice isolation', /Just your beautiful voice/],
+    ['studio', /Pure audio/],
+    ['custom', /Advanced mode/],
+  ])('shows %s profile description', (_label, pattern) => {
     navigateToTab('voice-video');
-    expect(screen.getByText(/Just your beautiful voice/)).toBeInTheDocument();
-  });
-
-  it('shows studio profile description', () => {
-    navigateToTab('voice-video');
-    expect(screen.getByText(/Pure audio/)).toBeInTheDocument();
-  });
-
-  it('shows custom profile description', () => {
-    navigateToTab('voice-video');
-    expect(screen.getByText(/Advanced mode/)).toBeInTheDocument();
+    expect(screen.getByText(pattern)).toBeInTheDocument();
   });
 
   it('selects voice isolation profile via radio', () => {
@@ -651,22 +573,14 @@ describe('UserSettings', () => {
     fireEvent.click(voiceIsolationRadio);
   });
 
-  it('shows auto sensitivity toggle description in custom mode', () => {
+  it.each([
+    ['auto sensitivity toggle', /Automatically adjusts your mic volume/],
+    ['echo cancellation', /Removes echo from speakers/],
+    ['push to talk', /Hold a key to transmit/],
+  ])('shows %s description in custom mode', (_label, pattern) => {
     useAudioSettingsStore.setState({ inputProfile: 'custom' });
     navigateToTab('voice-video');
-    expect(screen.getByText(/Automatically adjusts your mic volume/)).toBeInTheDocument();
-  });
-
-  it('shows echo cancellation description in custom mode', () => {
-    useAudioSettingsStore.setState({ inputProfile: 'custom' });
-    navigateToTab('voice-video');
-    expect(screen.getByText(/Removes echo from speakers/)).toBeInTheDocument();
-  });
-
-  it('shows push to talk description in custom mode', () => {
-    useAudioSettingsStore.setState({ inputProfile: 'custom' });
-    navigateToTab('voice-video');
-    expect(screen.getByText(/Hold a key to transmit/)).toBeInTheDocument();
+    expect(screen.getByText(pattern)).toBeInTheDocument();
   });
 
   it('shows language selector in language tab', () => {
@@ -674,22 +588,14 @@ describe('UserSettings', () => {
     expect(screen.getByText('Select Language')).toBeInTheDocument();
   });
 
-  it('keyCodeToLabel converts KeyX to X', () => {
-    useAudioSettingsStore.setState({ inputProfile: 'custom', pushToTalk: true, pushToTalkKey: 'KeyA' });
+  it.each([
+    ['KeyA', 'A', 'converts KeyX to X'],
+    ['Digit5', '5', 'converts DigitX to X'],
+    ['ShiftLeft', 'Shift Left', 'handles camelCase codes'],
+  ])('keyCodeToLabel %s — %s', (pushToTalkKey, expectedLabel) => {
+    useAudioSettingsStore.setState({ inputProfile: 'custom', pushToTalk: true, pushToTalkKey });
     navigateToTab('voice-video');
-    expect(screen.getByText('A')).toBeInTheDocument();
-  });
-
-  it('keyCodeToLabel converts DigitX to X', () => {
-    useAudioSettingsStore.setState({ inputProfile: 'custom', pushToTalk: true, pushToTalkKey: 'Digit5' });
-    navigateToTab('voice-video');
-    expect(screen.getByText('5')).toBeInTheDocument();
-  });
-
-  it('keyCodeToLabel handles camelCase codes', () => {
-    useAudioSettingsStore.setState({ inputProfile: 'custom', pushToTalk: true, pushToTalkKey: 'ShiftLeft' });
-    navigateToTab('voice-video');
-    expect(screen.getByText('Shift Left')).toBeInTheDocument();
+    expect(screen.getByText(expectedLabel)).toBeInTheDocument();
   });
 
   it('does not save display name when baseUrl or token is missing', async () => {

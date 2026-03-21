@@ -41,6 +41,7 @@ vi.mock('../EmojiPicker/EmojiPicker', () => ({
 
 vi.mock('../../utils/colors', () => ({
   usernameColor: () => '#aabbcc',
+  getInitials: (username: string) => (username || '?').slice(0, 2).toUpperCase(),
 }));
 
 // jsdom does not implement scrollIntoView

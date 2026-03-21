@@ -1,22 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { Xmark } from 'iconoir-react';
+import { shortcuts } from '../../utils/keyboardShortcuts';
 import './ShortcutsModal.css';
 
 interface Props {
   onClose: () => void;
 }
-
-const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.userAgent);
-const mod = isMac ? '⌘' : 'Ctrl';
-
-const shortcuts = [
-  { key: `${mod}+K`, action: 'shortcuts.search' },
-  { key: 'Escape', action: 'shortcuts.closePanel' },
-  { key: `${mod}+Shift+M`, action: 'shortcuts.toggleMute' },
-  { key: `${mod}+Shift+D`, action: 'shortcuts.toggleDeafen' },
-  { key: 'Alt+↑/↓', action: 'shortcuts.navigateChannels' },
-  { key: `${mod}+/`, action: 'shortcuts.showShortcuts' },
-];
 
 export default function ShortcutsModal({ onClose }: Readonly<Props>) {
   const { t } = useTranslation();

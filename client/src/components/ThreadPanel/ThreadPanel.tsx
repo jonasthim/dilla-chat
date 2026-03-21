@@ -9,24 +9,12 @@ import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { api } from '../../services/api';
 import { usernameColor, getInitials } from '../../utils/colors';
+import { formatTime } from '../../utils/messageGrouping';
 import { ws } from '../../services/websocket';
 import { cryptoService } from '../../services/crypto';
 import { cacheMessage, getCachedMessage, deleteCachedMessage } from '../../services/messageCache';
 import MessageInput from '../MessageInput/MessageInput';
 import './ThreadPanel.css';
-
-function formatTime(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (isToday) return `Today at ${time}`;
-  if (isYesterday) return `Yesterday at ${time}`;
-  return `${date.toLocaleDateString()} ${time}`;
-}
 
 
 const markdownComponents = {

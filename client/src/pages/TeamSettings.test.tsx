@@ -31,28 +31,7 @@ vi.mock('../components/FederationStatus/FederationStatus', () => ({
   default: () => <div data-testid="federation-status">FederationStatus</div>,
 }));
 
-function MockSettingsLayout({ children, sections, onSelect, onClose }: Readonly<{
-  children: React.ReactNode;
-  sections: Array<{ label?: string; items: Array<{ id: string; label: string }> }>;
-  onSelect: (id: string) => void;
-  onClose: () => void;
-}>) {
-  return (
-    <div data-testid="settings-layout">
-      <nav data-testid="settings-nav">
-        {sections.flatMap((s) =>
-          s.items.map((item) => (
-            <button key={item.id} data-testid={`nav-${item.id}`} onClick={() => onSelect(item.id)}>
-              {item.label}
-            </button>
-          )),
-        )}
-      </nav>
-      <button data-testid="close-btn" onClick={onClose}>Close</button>
-      <div data-testid="settings-content">{children}</div>
-    </div>
-  );
-}
+import { MockSettingsLayout } from '../test/MockSettingsLayout';
 
 vi.mock('../components/SettingsLayout/SettingsLayout', () => ({
   default: MockSettingsLayout,
@@ -130,39 +109,16 @@ describe('TeamSettings', () => {
     expect(screen.getByTestId('settings-layout')).toBeInTheDocument();
   });
 
-  it('shows overview tab by default with team name input', () => {
+  it.each([
+    ['team name input', 'getByDisplayValue', 'Test Team'],
+    ['description textarea', 'getByDisplayValue', 'A test team'],
+    ['save button', 'getByText', 'Save Changes'],
+    ['allow invites toggle', 'getByText', 'Allow Member Invites'],
+    ['team name label', 'getByText', 'Team Name'],
+    ['description label', 'getByText', 'Description'],
+  ] as const)('renders %s in overview', (_label, queryMethod, text) => {
     renderTeamSettings();
-    expect(screen.getByDisplayValue('Test Team')).toBeInTheDocument();
-  });
-
-  it('renders team name input in overview', () => {
-    renderTeamSettings();
-    expect(screen.getByDisplayValue('Test Team')).toBeInTheDocument();
-  });
-
-  it('renders description textarea in overview', () => {
-    renderTeamSettings();
-    expect(screen.getByDisplayValue('A test team')).toBeInTheDocument();
-  });
-
-  it('renders save button in overview', () => {
-    renderTeamSettings();
-    expect(screen.getByText('Save Changes')).toBeInTheDocument();
-  });
-
-  it('renders allow invites toggle', () => {
-    renderTeamSettings();
-    expect(screen.getByText('Allow Member Invites')).toBeInTheDocument();
-  });
-
-  it('renders team name label', () => {
-    renderTeamSettings();
-    expect(screen.getByText('Team Name')).toBeInTheDocument();
-  });
-
-  it('renders description label', () => {
-    renderTeamSettings();
-    expect(screen.getByText('Description')).toBeInTheDocument();
+    expect(screen[queryMethod](text)).toBeInTheDocument();
   });
 
   it('navigates to /app on close', () => {
@@ -220,34 +176,16 @@ describe('TeamSettings', () => {
     expect(screen.getByText('Ban')).toBeInTheDocument();
   });
 
-  it('switches to invites tab', () => {
-    navigateToTab('invites');
-    expect(screen.getByText('Create Invite')).toBeInTheDocument();
-  });
-
-  it('switches to federation tab', () => {
-    navigateToTab('federation');
-    expect(screen.getByTestId('federation-status')).toBeInTheDocument();
-  });
-
-  it('shows moderation tab content', () => {
-    navigateToTab('moderation');
-    expect(screen.getByText('Configure moderation tools and auto-moderation rules.')).toBeInTheDocument();
-  });
-
-  it('shows audit log tab content', () => {
-    navigateToTab('audit-log');
-    expect(screen.getByText('No recent actions')).toBeInTheDocument();
-  });
-
-  it('shows bans tab content', () => {
-    navigateToTab('bans');
-    expect(screen.getByText('No banned users')).toBeInTheDocument();
-  });
-
-  it('shows delete server tab content', () => {
-    navigateToTab('delete-server');
-    expect(screen.getByText('This action is irreversible. All data will be permanently deleted.')).toBeInTheDocument();
+  it.each([
+    ['invites', 'getByText', 'Create Invite'],
+    ['moderation', 'getByText', 'Configure moderation tools and auto-moderation rules.'],
+    ['audit-log', 'getByText', 'No recent actions'],
+    ['bans', 'getByText', 'No banned users'],
+    ['delete-server', 'getByText', 'This action is irreversible. All data will be permanently deleted.'],
+    ['federation', 'getByTestId', 'federation-status'],
+  ] as const)('shows expected content in %s tab', (tabId, queryMethod, expected) => {
+    navigateToTab(tabId);
+    expect(screen[queryMethod](expected)).toBeInTheDocument();
   });
 
   it('shows permission checkboxes in role editor', () => {
@@ -561,11 +499,6 @@ describe('TeamSettings', () => {
       const usesCell = screen.getByText(/0\/∞/);
       expect(usesCell).toBeInTheDocument();
     });
-  });
-
-  it('bans tab shows no banned users message', () => {
-    navigateToTab('bans');
-    expect(screen.getByText('No banned users')).toBeInTheDocument();
   });
 
   it('role creation handles API failure', async () => {
