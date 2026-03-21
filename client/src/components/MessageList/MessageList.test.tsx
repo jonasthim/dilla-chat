@@ -387,9 +387,8 @@ describe('MessageList', () => {
         threadInfo={{ 'msg-1': { count: 2, lastReplyAt: null } }}
       />,
     );
-    const replyButton = screen.getByText('{{count}} replies').closest('button');
-    expect(replyButton).toBeInTheDocument();
-    fireEvent.click(replyButton!);
+    const replyButton = screen.getByText('{{count}} replies').closest('button') as HTMLElement;
+    fireEvent.click(replyButton);
     expect(onOpenThread).toHaveBeenCalledWith('msg-1');
   });
 
