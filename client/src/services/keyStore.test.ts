@@ -326,7 +326,7 @@ describe('encodeRecoveryKey / decodeRecoveryKey', () => {
     const key = randomBytes(32);
     const encoded = encodeRecoveryKey(key);
     // Replace valid chars with confusables
-    const mangled = encoded.replace(/0/g, 'O').replace(/1/g, 'I');
+    const mangled = encoded.replaceAll('0', 'O').replaceAll('1', 'I');
     const decoded = decodeRecoveryKey(mangled);
 
     expect(Array.from(decoded)).toEqual(Array.from(key));

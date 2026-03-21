@@ -260,14 +260,14 @@
 
   function b64ToBytes(b64) {
     // Convert URL-safe base64 back to standard, add padding
-    const std = b64.replace(/-/g, '+').replace(/_/g, '/');
+    const std = b64.replaceAll('-', '+').replaceAll('_', '/');
     const padded = std + '='.repeat((4 - std.length % 4) % 4);
-    return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+    return Uint8Array.from(atob(padded), c => c.codePointAt(0));
   }
 
   function bytesToB64(bytes) {
     let s = '';
-    for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    for (let i = 0; i < bytes.length; i++) s += String.fromCodePoint(bytes[i]);
     return btoa(s);
   }
 
@@ -283,7 +283,7 @@
     const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
     const bin = atob(padded);
     const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.codePointAt(i);
     return bytes.buffer;
   }
 

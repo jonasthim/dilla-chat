@@ -58,13 +58,13 @@ class NoiseSuppressorProcessor extends AudioWorkletProcessor {
       }
     };
 
-    this._init();
+    this._initializing = false;
   }
 
   async _init() {
     try {
       // Import the rnnoise WASM module from the public directory
-      const { default: createModule } = await import('/rnnoise/rnnoise.js');
+      const { default: createModule } = await import('./rnnoise/rnnoise.js');
       this._module = await createModule({
         locateFile: (file) => `/rnnoise/${file}`,
       });
@@ -91,6 +91,12 @@ class NoiseSuppressorProcessor extends AudioWorkletProcessor {
     const output = outputs[0]?.[0];
 
     if (!input || !output) return true;
+
+    // Lazy-init on first process call (constructor must not call async methods)
+    if (!this._ready && !this._initializing) {
+      this._initializing = true;
+      this._init();
+    }
 
     // If not ready or disabled, pass through
     if (!this._ready || !this._enabled) {

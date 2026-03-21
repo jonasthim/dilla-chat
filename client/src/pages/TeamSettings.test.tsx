@@ -32,13 +32,12 @@ vi.mock('../components/FederationStatus/FederationStatus', () => ({
 }));
 
 vi.mock('../components/SettingsLayout/SettingsLayout', () => ({
-  default: ({ children, sections, activeId: _activeId, onSelect, onClose }: {
+  default: ({ children, sections, onSelect, onClose }: Readonly<{
     children: React.ReactNode;
     sections: Array<{ label?: string; items: Array<{ id: string; label: string }> }>;
-    activeId: string;
     onSelect: (id: string) => void;
     onClose: () => void;
-  }) => (
+  }>) => (
     <div data-testid="settings-layout">
       <nav data-testid="settings-nav">
         {sections.flatMap((s) =>

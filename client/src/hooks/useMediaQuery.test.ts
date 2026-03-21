@@ -7,7 +7,7 @@ describe('useMediaQuery', () => {
 
   beforeEach(() => {
     listeners = new Map();
-    vi.mocked(window.matchMedia).mockImplementation((query: string) => {
+    vi.mocked(globalThis.matchMedia).mockImplementation((query: string) => {
       const mql = {
         matches: false,
         media: query,
@@ -38,7 +38,7 @@ describe('useMediaQuery', () => {
   });
 
   it('returns true when query matches', () => {
-    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+    vi.mocked(globalThis.matchMedia).mockImplementation((query: string) => ({
       matches: true,
       media: query,
       onchange: null,
@@ -66,7 +66,7 @@ describe('useMediaQuery', () => {
 
   it('cleans up listener on unmount', () => {
     const removeEventListener = vi.fn();
-    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+    vi.mocked(globalThis.matchMedia).mockImplementation((query: string) => ({
       matches: false,
       media: query,
       onchange: null,
@@ -86,13 +86,13 @@ describe('useMediaQuery', () => {
 describe('useIsMobile', () => {
   it('queries the correct breakpoint', () => {
     renderHook(() => useIsMobile());
-    expect(window.matchMedia).toHaveBeenCalledWith('(max-width: 767px)');
+    expect(globalThis.matchMedia).toHaveBeenCalledWith('(max-width: 767px)');
   });
 });
 
 describe('useIsTablet', () => {
   it('queries the correct breakpoint', () => {
     renderHook(() => useIsTablet());
-    expect(window.matchMedia).toHaveBeenCalledWith('(min-width: 768px) and (max-width: 1023px)');
+    expect(globalThis.matchMedia).toHaveBeenCalledWith('(min-width: 768px) and (max-width: 1023px)');
   });
 });

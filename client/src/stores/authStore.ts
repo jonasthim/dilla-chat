@@ -205,7 +205,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set((state) => {
       const teams = new Map(state.teams);
       const entry = teams.get(teamId);
-      if (!entry || !entry.user) return {};
+      if (!entry?.user) return {};
       teams.set(teamId, { ...entry, user: { ...entry.user, ...userUpdates } });
       persistTeams(teams);
       return { teams };

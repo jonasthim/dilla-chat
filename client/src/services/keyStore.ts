@@ -357,7 +357,7 @@ export async function createIdentity(
     .join('');
 
   // Standard base64 for server API
-  const publicKeyB64 = btoa(String.fromCharCode(...ed25519.publicKeyBytes));
+  const publicKeyB64 = btoa(String.fromCodePoint(...ed25519.publicKeyBytes));
 
   return {
     publicKeyB64,
@@ -440,7 +440,7 @@ export async function createIdentityWithPassphrase(
   const publicKeyHex = Array.from(ed25519.publicKeyBytes)
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
-  const publicKeyB64 = btoa(String.fromCharCode(...ed25519.publicKeyBytes));
+  const publicKeyB64 = btoa(String.fromCodePoint(...ed25519.publicKeyBytes));
 
   return {
     publicKeyB64,
@@ -499,7 +499,7 @@ async function decryptIdentity(keyFile: EncryptedKeyFileV3, mek: Uint8Array): Pr
 }
 
 function fromBase64url(b64url: string): Uint8Array {
-  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  const b64 = b64url.replaceAll('-', '+').replaceAll('_', '/');
   const pad = b64.length % 4;
   return fromBase64(pad ? b64 + '='.repeat(4 - pad) : b64);
 }
@@ -649,7 +649,7 @@ export function encodeRecoveryKey(key: Uint8Array): string {
 /** Decode a Crockford base32 recovery key back to bytes */
 export function decodeRecoveryKey(encoded: string): Uint8Array {
   const clean = encoded.replace(/[-\s]/g, '').toUpperCase()
-    .replace(/O/g, '0').replace(/I/g, '1').replace(/L/g, '1');
+    .replaceAll('O', '0').replaceAll('I', '1').replaceAll('L', '1');
   let bits = '';
   for (const char of clean) {
     const idx = CROCKFORD_ALPHABET.indexOf(char);

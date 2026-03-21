@@ -613,12 +613,12 @@ describe('CreateIdentity', () => {
 
   it('shows server address input in Tauri mode and allows typing', () => {
     // Simulate Tauri environment
-    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     render(<CreateIdentity />);
     const serverInput = screen.getByPlaceholderText('Server address (e.g. dilla.example.com)');
     expect(serverInput).toBeInTheDocument();
     fireEvent.change(serverInput, { target: { value: 'my.server.com' } });
     expect(serverInput).toHaveValue('my.server.com');
-    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 });

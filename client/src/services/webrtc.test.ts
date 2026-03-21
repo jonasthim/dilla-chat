@@ -1486,7 +1486,7 @@ describe('WebRTCService', () => {
       emitWS('voice:key-distribute', {
         sender_id: 'peer-1',
         key_id: 1,
-        encrypted_keys: { 'user-1': btoa(String.fromCharCode(...new Uint8Array(32))) },
+        encrypted_keys: { 'user-1': btoa(String.fromCodePoint(...new Uint8Array(32))) },
       });
 
       // Give the async handler time to run

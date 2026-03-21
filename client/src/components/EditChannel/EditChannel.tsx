@@ -55,8 +55,9 @@ export default function EditChannel({ channel, onClose }: Props) {
   };
 
   return (
-    <div className="edit-channel-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
-      <div className="edit-channel-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="edit-channel-title">
+    <dialog className="edit-channel-overlay" open aria-labelledby="edit-channel-title">
+      <button type="button" className="dialog-backdrop" onClick={onClose} aria-label="Close" />
+      <div className="edit-channel-modal">
         <h2 id="edit-channel-title">{t('channels.editChannel', 'Edit Channel')}</h2>
 
         <div className="edit-channel-field">
@@ -118,6 +119,6 @@ export default function EditChannel({ channel, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

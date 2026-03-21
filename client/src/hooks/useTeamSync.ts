@@ -104,6 +104,16 @@ function loadDataViaREST(teamId: string, setters: SyncStoreSetters) {
   }).catch((err) => console.error('Failed to fetch presences:', err));
 }
 
+/** Restore API connections from persisted team entries */
+function restoreApiConnections(teams: Map<string, { baseUrl: string; token: string }>) {
+  teams.forEach((entry, teamId) => {
+    if (!entry.baseUrl) return;
+    api.addTeam(teamId, entry.baseUrl);
+    if (entry.token) api.setToken(teamId, entry.token);
+    console.log(`[AppLayout] API restored: ${teamId} → ${entry.baseUrl} (has token: ${!!entry.token})`);
+  });
+}
+
 /**
  * Handles API connection restoration, auth-error redirects, WS setup,
  * sync:init on connect, and REST-fallback data loading.
@@ -146,14 +156,7 @@ export function useTeamSync(activeTeamId: string | null): { authChecked: boolean
     if (apiRestored.current) return;
     apiRestored.current = true;
     console.log(`[AppLayout] Restoring API connections for ${teams.size} teams`);
-    teams.forEach((entry, teamId) => {
-      const baseUrl = entry.baseUrl;
-      if (baseUrl) {
-        api.addTeam(teamId, baseUrl);
-        if (entry.token) api.setToken(teamId, entry.token);
-        console.log(`[AppLayout] API restored: ${teamId} → ${baseUrl} (has token: ${!!entry.token})`);
-      }
-    });
+    restoreApiConnections(teams);
 
     // Validate token is still accepted by the server
     const firstTeamId = teams.keys().next().value;

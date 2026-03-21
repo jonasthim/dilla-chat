@@ -20,7 +20,6 @@ export default function PresenceIndicator({ status, size = 'medium', className =
     <span
       className={`presence-indicator presence-${size} ${className}`}
       data-status={status}
-      role="img"
       aria-label={statusLabels[status]}
     />
   );
