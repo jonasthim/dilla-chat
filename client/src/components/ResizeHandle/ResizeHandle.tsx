@@ -44,9 +44,11 @@ export default function ResizeHandle({ onResize, onResizeEnd }: ResizeHandleProp
   }, [dragging, onResize, onResizeEnd]);
 
   return (
-    <div
+    <button
+      type="button"
       className={`resize-handle ${dragging ? 'dragging' : ''}`}
       onMouseDown={handleMouseDown}
+      aria-label="Resize panel"
     />
   );
 }

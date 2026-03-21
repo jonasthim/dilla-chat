@@ -49,7 +49,7 @@ function randomBytes(n: number): Uint8Array {
 function toBase64(data: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < data.length; i++) {
-    binary += String.fromCharCode(data[i]);
+    binary += String.fromCodePoint(data[i]);
   }
   return btoa(binary);
 }
@@ -58,7 +58,7 @@ function fromBase64(b64: string): Uint8Array {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+    bytes[i] = binary.codePointAt(i)!;
   }
   return bytes;
 }
@@ -290,7 +290,7 @@ export async function generatePrekeyBundle(
 }
 
 function fromBase64url(b64url: string): Uint8Array {
-  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  const b64 = b64url.replaceAll('-', '+').replaceAll('_', '/');
   const pad = b64.length % 4;
   return fromBase64(pad ? b64 + '='.repeat(4 - pad) : b64);
 }

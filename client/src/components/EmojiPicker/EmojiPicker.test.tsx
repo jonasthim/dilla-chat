@@ -83,7 +83,7 @@ describe('EmojiPicker', () => {
     expect(picker).toBeInTheDocument();
     expect(picker?.getAttribute('style')).toContain('fixed');
 
-    document.body.removeChild(anchorRef.current);
+    anchorRef.current.remove();
   });
 
   it('uses absolute positioning when no anchorRef', () => {

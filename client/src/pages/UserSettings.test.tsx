@@ -55,32 +55,35 @@ vi.mock('../components/PasskeyManager/PasskeyManager', () => ({
   default: () => <div data-testid="passkey-manager">PasskeyManager</div>,
 }));
 
-vi.mock('../components/SettingsLayout/SettingsLayout', () => ({
-  default: ({ children, sections, activeId: _activeId, onSelect, onClose }: {
-    children: React.ReactNode;
-    sections: Array<{ label?: string; items: Array<{ id: string; label: string; danger?: boolean }> }>;
-    activeId: string;
-    onSelect: (id: string) => void;
-    onClose: () => void;
-  }) => (
+function MockSettingsLayout({ children, sections, onSelect, onClose }: {
+  children: React.ReactNode;
+  sections: Array<{ label?: string; items: Array<{ id: string; label: string; danger?: boolean }> }>;
+  activeId: string;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  const allItems = sections.flatMap((s) => s.items);
+  return (
     <div data-testid="settings-layout">
       <nav data-testid="settings-nav">
-        {sections.flatMap((s) =>
-          s.items.map((item) => (
-            <button
-              key={item.id}
-              data-testid={`nav-${item.id}`}
-              onClick={() => onSelect(item.id)}
-            >
-              {item.label}
-            </button>
-          )),
-        )}
+        {allItems.map((item) => (
+          <button
+            key={item.id}
+            data-testid={`nav-${item.id}`}
+            onClick={() => onSelect(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
       </nav>
       <button data-testid="close-btn" onClick={onClose}>Close</button>
       <div data-testid="settings-content">{children}</div>
     </div>
-  ),
+  );
+}
+
+vi.mock('../components/SettingsLayout/SettingsLayout', () => ({
+  default: MockSettingsLayout,
 }));
 
 vi.mock('../components/TitleBar/TitleBar', () => ({
@@ -118,8 +121,8 @@ describe('UserSettings', () => {
       selectedInputDevice: 'default',
       selectedOutputDevice: 'default',
       inputThreshold: 0.15,
-      inputVolume: 1.0,
-      outputVolume: 1.0,
+      inputVolume: 1,
+      outputVolume: 1,
       desktopNotifications: true,
       soundNotifications: true,
       theme: 'dark',
@@ -435,7 +438,7 @@ describe('UserSettings', () => {
     fireEvent.click(screen.getByTestId('nav-voice-video'));
     const captureBtn = screen.getByRole('button', { name: /Click to change push to talk key/ });
     fireEvent.click(captureBtn);
-    fireEvent.keyDown(window, { code: 'KeyG' });
+    fireEvent.keyDown(globalThis as unknown as Element, { code: 'KeyG' });
     expect(screen.getByText('G')).toBeInTheDocument();
   });
 
@@ -592,7 +595,7 @@ describe('UserSettings', () => {
     const { api } = await import('../services/api');
     let resolveUpdate: (v: unknown) => void;
     const updatePromise = new Promise(r => { resolveUpdate = r; });
-    vi.mocked(api.updateMe).mockReturnValueOnce(updatePromise as Promise<unknown>);
+    vi.mocked(api.updateMe).mockReturnValueOnce(updatePromise);
 
     render(<UserSettings />);
     fireEvent.click(screen.getByText('Edit'));

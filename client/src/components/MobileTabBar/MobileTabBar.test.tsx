@@ -6,24 +6,22 @@ import MobileTabBar from './MobileTabBar';
 describe('MobileTabBar', () => {
   it('renders 4 tabs', () => {
     render(<MobileTabBar activeTab="chat" onTabChange={vi.fn()} />);
-    const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(4);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(4);
   });
 
   it('highlights the active tab', () => {
     render(<MobileTabBar activeTab="channels" onTabChange={vi.fn()} />);
-    const tabs = screen.getAllByRole('tab');
-    const channelsTab = tabs.find((t) => t.textContent?.includes('Kanals'));
+    const channelsTab = screen.getByText('Kanals').closest('button')!;
     expect(channelsTab).toHaveClass('active');
-    expect(channelsTab).toHaveAttribute('aria-selected', 'true');
+    expect(channelsTab).toHaveAttribute('aria-current', 'page');
   });
 
   it('calls onTabChange when a tab is clicked', async () => {
     const onTabChange = vi.fn();
     render(<MobileTabBar activeTab="chat" onTabChange={onTabChange} />);
-    const tabs = screen.getAllByRole('tab');
-    const teamsTab = tabs.find((t) => t.textContent?.includes('Teams'));
-    await userEvent.click(teamsTab!);
+    const teamsTab = screen.getByText('Teams').closest('button')!;
+    await userEvent.click(teamsTab);
     expect(onTabChange).toHaveBeenCalledWith('teams');
   });
 

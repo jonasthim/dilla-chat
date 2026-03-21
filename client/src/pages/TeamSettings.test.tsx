@@ -31,32 +31,35 @@ vi.mock('../components/FederationStatus/FederationStatus', () => ({
   default: () => <div data-testid="federation-status">FederationStatus</div>,
 }));
 
-vi.mock('../components/SettingsLayout/SettingsLayout', () => ({
-  default: ({ children, sections, activeId: _activeId, onSelect, onClose }: {
-    children: React.ReactNode;
-    sections: Array<{ label?: string; items: Array<{ id: string; label: string }> }>;
-    activeId: string;
-    onSelect: (id: string) => void;
-    onClose: () => void;
-  }) => (
+function MockSettingsLayout({ children, sections, onSelect, onClose }: {
+  children: React.ReactNode;
+  sections: Array<{ label?: string; items: Array<{ id: string; label: string }> }>;
+  activeId: string;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  const allItems = sections.flatMap((s) => s.items);
+  return (
     <div data-testid="settings-layout">
       <nav data-testid="settings-nav">
-        {sections.flatMap((s) =>
-          s.items.map((item) => (
-            <button
-              key={item.id}
-              data-testid={`nav-${item.id}`}
-              onClick={() => onSelect(item.id)}
-            >
-              {item.label}
-            </button>
-          )),
-        )}
+        {allItems.map((item) => (
+          <button
+            key={item.id}
+            data-testid={`nav-${item.id}`}
+            onClick={() => onSelect(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
       </nav>
       <button data-testid="close-btn" onClick={onClose}>Close</button>
       <div data-testid="settings-content">{children}</div>
     </div>
-  ),
+  );
+}
+
+vi.mock('../components/SettingsLayout/SettingsLayout', () => ({
+  default: MockSettingsLayout,
 }));
 
 vi.mock('../components/TitleBar/TitleBar', () => ({
@@ -761,7 +764,7 @@ describe('TeamSettings', () => {
   it('shows "Saving..." while overview save is in progress', async () => {
     const { api } = await import('../services/api');
     let resolveSave: (v: unknown) => void;
-    vi.mocked(api.updateTeam).mockReturnValueOnce(new Promise(r => { resolveSave = r; }) as Promise<unknown>);
+    vi.mocked(api.updateTeam).mockReturnValueOnce(new Promise(r => { resolveSave = r; }));
     render(<TeamSettings />);
     fireEvent.click(screen.getByText('Save Changes'));
     expect(screen.getByText('Saving...')).toBeInTheDocument();
@@ -771,7 +774,7 @@ describe('TeamSettings', () => {
   it('shows "Creating..." while invite is being created', async () => {
     const { api } = await import('../services/api');
     let resolveCreate: (v: unknown) => void;
-    vi.mocked(api.createInvite).mockReturnValueOnce(new Promise(r => { resolveCreate = r; }) as Promise<unknown>);
+    vi.mocked(api.createInvite).mockReturnValueOnce(new Promise(r => { resolveCreate = r; }));
     render(<TeamSettings />);
     fireEvent.click(screen.getByTestId('nav-invites'));
     fireEvent.click(screen.getByText('Create Invite'));

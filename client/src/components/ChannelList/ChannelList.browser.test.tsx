@@ -42,10 +42,8 @@ describe('ChannelList category arrow', () => {
   test('category-arrow rotates when collapsed', async () => {
     const screen = await render(
       <div className="channel-category-name">
-        <span className="category-arrow collapsed" data-testid="arrow">
-          ▶
-        </span>
-        General
+        <span className="category-arrow collapsed" data-testid="arrow">{'▶'}</span>
+        {'General'}
       </div>,
     );
 

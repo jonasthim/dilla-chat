@@ -174,7 +174,7 @@ function TypingIndicator({ channelId, currentUserId }: { channelId: string; curr
     text = t('messages.typingSeveral', 'Several people are typing...');
   }
 
-  return <div className="typing-indicator" role="status" aria-live="polite">{text}</div>;
+  return <output className="typing-indicator" aria-live="polite">{text}</output>;
 }
 
 export default function MessageInput({
@@ -394,11 +394,12 @@ export default function MessageInput({
   };
 
   return (
-    <div
+    <section
       className={`message-input-wrapper ${dragging ? 'message-input-dragging' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      aria-label="Message composer"
     >
       <TypingIndicator channelId={channelId} currentUserId={currentUserId} />
 
@@ -541,6 +542,6 @@ export default function MessageInput({
       </div>
 
       {uploading && <div className="message-input-uploading">{t('upload.uploading', 'Uploading...')}</div>}
-    </div>
+    </section>
   );
 }

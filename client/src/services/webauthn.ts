@@ -219,7 +219,7 @@ export function prfOutputToBase64(prfOutput: ArrayBuffer): string {
   const bytes = new Uint8Array(prfOutput);
   let binary = '';
   for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+    binary += String.fromCodePoint(bytes[i]);
   }
   return btoa(binary);
 }
@@ -254,7 +254,7 @@ function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
   for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+    binary += String.fromCodePoint(bytes[i]);
   }
   const b64 = btoa(binary);
   let end = b64.length;
@@ -268,7 +268,7 @@ function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
   const binary = atob(padded);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+    bytes[i] = binary.codePointAt(i)!;
   }
   return bytes.buffer;
 }

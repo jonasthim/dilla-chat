@@ -222,8 +222,17 @@ describe('FederationStatus', () => {
 
   it('uses fallback copy when clipboard API fails', async () => {
     vi.useRealTimers();
-    Object.assign(navigator, { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('not supported')) } });
-    document.execCommand = vi.fn();
+    // First clipboard.writeText rejects, so the component falls back to
+    // creating a textarea and using the legacy execCommand('copy') API.
+    // We mock clipboard.writeText to reject but then succeed on retry via
+    // a second writeText call that the fallback textarea-select triggers.
+    const writeTextMock = vi.fn()
+      .mockRejectedValueOnce(new Error('not supported'))
+      .mockResolvedValueOnce(undefined);
+    Object.assign(navigator, { clipboard: { writeText: writeTextMock } });
+    // Also stub execCommand so the legacy fallback path does not throw
+    const origExecCommand = document.execCommand;
+    Object.defineProperty(document, 'execCommand', { value: vi.fn().mockReturnValue(true), configurable: true });
 
     render(<FederationStatus teamId="team-1" />);
     fireEvent.click(screen.getByText('federation.generateJoinToken'));
@@ -238,6 +247,8 @@ describe('FederationStatus', () => {
     await waitFor(() => {
       expect(document.execCommand).toHaveBeenCalledWith('copy');
     });
+
+    Object.defineProperty(document, 'execCommand', { value: origExecCommand, configurable: true });
   });
 
   it('copies curl one-liner to clipboard', async () => {
@@ -296,8 +307,7 @@ describe('FederationStatus', () => {
     vi.useRealTimers();
     const { api } = await import('../../services/api');
     // Mock toLocaleString to throw, triggering the catch block
-    const origToLocaleString = Date.prototype.toLocaleString;
-    Date.prototype.toLocaleString = () => { throw new Error('locale error'); };
+    const toLocaleStringSpy = vi.spyOn(Date.prototype, 'toLocaleString').mockImplementation(() => { throw new Error('locale error'); });
 
     (api.getFederationStatus as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       node_name: 'node-fallback',
@@ -310,6 +320,6 @@ describe('FederationStatus', () => {
       expect(screen.getByText('raw-fallback-string')).toBeInTheDocument();
     });
 
-    Date.prototype.toLocaleString = origToLocaleString;
+    toLocaleStringSpy.mockRestore();
   });
 });

@@ -15,10 +15,10 @@ vi.mock('@tauri-apps/api/window', () => ({
 describe('TitleBar', () => {
   // Suppress unhandled rejections from Tauri dynamic imports in test env
   const handler = (e: PromiseRejectionEvent) => e.preventDefault();
-  beforeAll(() => window.addEventListener('unhandledrejection', handler));
-  afterAll(() => window.removeEventListener('unhandledrejection', handler));
+  beforeAll(() => globalThis.addEventListener('unhandledrejection', handler));
+  afterAll(() => globalThis.removeEventListener('unhandledrejection', handler));
   afterEach(() => {
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 
   it('renders nothing when not in Tauri', () => {
@@ -27,7 +27,7 @@ describe('TitleBar', () => {
   });
 
   it('renders a titlebar when Tauri is available', () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     const { container } = render(<TitleBar />);
     // After useEffect flushes, should render a titlebar
     const titlebar = container.querySelector('.titlebar');
@@ -35,7 +35,7 @@ describe('TitleBar', () => {
   });
 
   it('renders window control buttons on non-mac platforms', () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     // Default jsdom userAgent doesn't contain 'Mac' or 'Win', so it's 'linux'
     Object.defineProperty(navigator, 'userAgent', {
       value: 'Mozilla/5.0 (X11; Linux x86_64)',
@@ -49,7 +49,7 @@ describe('TitleBar', () => {
   });
 
   it('renders macOS drag region on Mac platform', () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     Object.defineProperty(navigator, 'userAgent', {
       value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
       configurable: true,
@@ -62,7 +62,7 @@ describe('TitleBar', () => {
   });
 
   it('renders Windows controls on Windows platform', () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     Object.defineProperty(navigator, 'userAgent', {
       value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
       configurable: true,
@@ -76,7 +76,7 @@ describe('TitleBar', () => {
   });
 
   it('handles close button click', async () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     Object.defineProperty(navigator, 'userAgent', {
       value: 'Mozilla/5.0 (X11; Linux x86_64)',
       configurable: true,
@@ -91,7 +91,7 @@ describe('TitleBar', () => {
   });
 
   it('handles minimize button click', async () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     Object.defineProperty(navigator, 'userAgent', {
       value: 'Mozilla/5.0 (X11; Linux x86_64)',
       configurable: true,
@@ -104,7 +104,7 @@ describe('TitleBar', () => {
   });
 
   it('handles maximize button click', async () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     Object.defineProperty(navigator, 'userAgent', {
       value: 'Mozilla/5.0 (X11; Linux x86_64)',
       configurable: true,
@@ -118,7 +118,7 @@ describe('TitleBar', () => {
 
   it('button handlers are no-op when TAURI_INTERNALS is not present', async () => {
     // First render with Tauri to get buttons
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     Object.defineProperty(navigator, 'userAgent', {
       value: 'Mozilla/5.0 (X11; Linux x86_64)',
       configurable: true,
@@ -126,7 +126,7 @@ describe('TitleBar', () => {
 
     render(<TitleBar />);
     // Remove TAURI_INTERNALS after render but before click
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
     const closeBtn = screen.getByLabelText('Close');
     fireEvent.click(closeBtn);
     await new Promise(r => setTimeout(r, 10));
@@ -134,7 +134,7 @@ describe('TitleBar', () => {
   });
 
   it('has data-tauri-drag-region attribute', () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     Object.defineProperty(navigator, 'userAgent', {
       value: 'Mozilla/5.0 (X11; Linux x86_64)',
       configurable: true,

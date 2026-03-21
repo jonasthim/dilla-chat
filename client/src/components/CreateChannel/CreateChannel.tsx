@@ -58,8 +58,8 @@ export default function CreateChannel({ defaultCategory, onClose }: Props) {
   };
 
   return (
-    <div className="create-channel-overlay" onClick={onClose}>
-      <div className="create-channel-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="create-channel-title">
+    <dialog className="create-channel-overlay" open onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} aria-labelledby="create-channel-title">
+      <div className="create-channel-modal" onClick={(e) => e.stopPropagation()}>
         <h2 id="create-channel-title">{t('channels.create')}</h2>
 
         <div className="create-channel-field">
@@ -137,6 +137,6 @@ export default function CreateChannel({ defaultCategory, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

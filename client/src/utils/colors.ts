@@ -18,7 +18,7 @@ export function usernameColor(username: string): string {
   const name = username || 'Unknown';
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    hash = (name.codePointAt(i) ?? 0) + ((hash << 5) - hash);
   }
   return USERNAME_COLORS[Math.abs(hash) % USERNAME_COLORS.length];
 }

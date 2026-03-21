@@ -109,6 +109,37 @@ function loadDataViaREST(teamId: string, setters: SyncStoreSetters) {
   }).catch((err) => console.error('Failed to fetch presences:', err));
 }
 
+/** Restore API connections from persisted team entries */
+function restoreApiConnections(teams: Map<string, { baseUrl?: string; token?: string }>) {
+  console.log(`[AppLayout] Restoring API connections for ${teams.size} teams`);
+  teams.forEach((entry, teamId) => {
+    if (!entry.baseUrl) return;
+    api.addTeam(teamId, entry.baseUrl);
+    if (entry.token) api.setToken(teamId, entry.token);
+    console.log(`[AppLayout] API restored: ${teamId} → ${entry.baseUrl} (has token: ${!!entry.token})`);
+  });
+}
+
+/** Validate token via a lightweight API call; resolves true once checked */
+function validateToken(
+  teams: Map<string, unknown>,
+  setAuthChecked: (v: boolean) => void,
+) {
+  const firstTeamId = teams.keys().next().value;
+  if (!firstTeamId) {
+    setAuthChecked(true);
+    return;
+  }
+  api.getTeam(firstTeamId)
+    .then(() => setAuthChecked(true))
+    .catch(() => setAuthChecked(true)); // 401 → authErrorHandler fires redirect
+}
+
+/** Build a WebSocket URL from an HTTP base URL */
+function toWsUrl(baseUrl: string): string {
+  return baseUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') + '/ws';
+}
+
 /**
  * Handles API connection restoration, auth-error redirects, WS setup,
  * sync:init on connect, and REST-fallback data loading.
@@ -150,25 +181,8 @@ export function useTeamSync(activeTeamId: string | null): { authChecked: boolean
   useEffect(() => {
     if (apiRestored.current) return;
     apiRestored.current = true;
-    console.log(`[AppLayout] Restoring API connections for ${teams.size} teams`);
-    teams.forEach((entry, teamId) => {
-      const baseUrl = entry.baseUrl;
-      if (baseUrl) {
-        api.addTeam(teamId, baseUrl);
-        if (entry.token) api.setToken(teamId, entry.token);
-        console.log(`[AppLayout] API restored: ${teamId} → ${baseUrl} (has token: ${!!entry.token})`);
-      }
-    });
-
-    // Validate token is still accepted by the server
-    const firstTeamId = teams.keys().next().value;
-    if (firstTeamId) {
-      api.getTeam(firstTeamId)
-        .then(() => setAuthChecked(true))
-        .catch(() => setAuthChecked(true)); // 401 → authErrorHandler fires redirect
-    } else {
-      setAuthChecked(true);
-    }
+    restoreApiConnections(teams as Map<string, { baseUrl?: string; token?: string }>);
+    validateToken(teams, setAuthChecked);
   }, [teams]);
 
   // Auto-select first team if none active
@@ -221,11 +235,7 @@ export function useTeamSync(activeTeamId: string | null): { authChecked: boolean
     const connInfo = api.getConnectionInfo(activeTeamId);
     if (!connInfo?.token) return;
 
-    const wsUrl = connInfo.baseUrl
-      .replace(/^http:/, 'ws:')
-      .replace(/^https:/, 'wss:')
-      + '/ws';
-
+    const wsUrl = toWsUrl(connInfo.baseUrl);
     console.log(`[AppLayout] Connecting WebSocket for team ${activeTeamId} → ${wsUrl}`);
     ws.connect(activeTeamId, wsUrl, connInfo.token);
     wsConnected.current.add(activeTeamId);

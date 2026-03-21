@@ -17,12 +17,11 @@ const tabs: { id: MobileTab; label: string; Icon: typeof HomeSimple }[] = [
 
 export default function MobileTabBar({ activeTab, onTabChange }: MobileTabBarProps) {
   return (
-    <nav className="mobile-tab-bar" role="tablist">
+    <nav className="mobile-tab-bar" aria-label="Main navigation">
       {tabs.map(({ id, label, Icon }) => (
         <button
           key={id}
-          role="tab"
-          aria-selected={activeTab === id}
+          aria-current={activeTab === id ? 'page' : undefined}
           className={`mobile-tab-bar-item ${activeTab === id ? 'active' : ''}`}
           onClick={() => onTabChange(id)}
         >

@@ -8,7 +8,7 @@ beforeEach(() => {
 });
 
 function fireKeyDown(opts: KeyboardEventInit) {
-  window.dispatchEvent(new KeyboardEvent('keydown', { ...opts, bubbles: true }));
+  globalThis.dispatchEvent(new KeyboardEvent('keydown', { ...opts, bubbles: true }));
 }
 
 describe('useKeyboardShortcuts', () => {
@@ -92,7 +92,7 @@ describe('useKeyboardShortcuts', () => {
       bubbles: true,
     });
     Object.defineProperty(event, 'target', { value: input });
-    window.dispatchEvent(event);
+    globalThis.dispatchEvent(event);
     expect(useVoiceStore.getState().muted).toBe(false);
 
     const navEvent = new KeyboardEvent('keydown', {
@@ -101,9 +101,9 @@ describe('useKeyboardShortcuts', () => {
       bubbles: true,
     });
     Object.defineProperty(navEvent, 'target', { value: input });
-    window.dispatchEvent(navEvent);
+    globalThis.dispatchEvent(navEvent);
     expect(onNavigateChannel).not.toHaveBeenCalled();
 
-    document.body.removeChild(input);
+    input.remove();
   });
 });

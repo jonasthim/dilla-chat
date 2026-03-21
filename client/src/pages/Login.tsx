@@ -133,7 +133,7 @@ export default function Login() {
     const identity = await unlockWithPrf(prfKey);
     await initCrypto(identity, derivedKeyB64);
 
-    const pubKeyB64 = btoa(String.fromCharCode(...identity.publicKeyBytes));
+    const pubKeyB64 = btoa(String.fromCodePoint(...identity.publicKeyBytes));
     console.log('[Login] Identity unlocked, refreshing server tokens...');
 
     setDerivedKey(derivedKeyB64);
@@ -196,7 +196,7 @@ export default function Login() {
 
       await initCrypto(identity, recoveryKeyB64);
 
-      const pubKeyB64 = btoa(String.fromCharCode(...identity.publicKeyBytes));
+      const pubKeyB64 = btoa(String.fromCodePoint(...identity.publicKeyBytes));
 
       setDerivedKey(recoveryKeyB64);
       setPublicKey(pubKeyB64);
@@ -228,11 +228,11 @@ export default function Login() {
     try {
       const identity = await unlockWithPassphrase(loginPassphrase);
       // Use a stable derived key for session — hash the passphrase for this
-      const passphraseKeyB64 = btoa(String.fromCharCode(...new TextEncoder().encode(loginPassphrase.slice(0, 32))));
+      const passphraseKeyB64 = btoa(String.fromCodePoint(...new TextEncoder().encode(loginPassphrase.slice(0, 32))));
 
       await initCrypto(identity, passphraseKeyB64);
 
-      const pubKeyB64 = btoa(String.fromCharCode(...identity.publicKeyBytes));
+      const pubKeyB64 = btoa(String.fromCodePoint(...identity.publicKeyBytes));
       setDerivedKey(passphraseKeyB64);
       setPublicKey(pubKeyB64);
       await refreshServerTokens(pubKeyB64);
