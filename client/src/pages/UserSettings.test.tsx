@@ -454,8 +454,7 @@ describe('UserSettings', () => {
   it('shows "Saving..." when display name save is in progress', async () => {
     const { api } = await import('../services/api');
     let resolveUpdate: (v: unknown) => void;
-    const updatePromise = new Promise(r => { resolveUpdate = r; });
-    vi.mocked(api.updateMe).mockReturnValueOnce(updatePromise as Promise<unknown>);
+    vi.mocked(api.updateMe).mockReturnValueOnce(new Promise<unknown>(r => { resolveUpdate = r; }));
 
     renderUserSettings();
     fireEvent.click(screen.getByText('Edit'));

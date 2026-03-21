@@ -23,7 +23,7 @@ describe('MobileTabBar', () => {
     render(<MobileTabBar activeTab="chat" onTabChange={onTabChange} />);
     const tabs = screen.getAllByRole('button');
     const teamsTab = tabs.find((t) => t.textContent?.includes('Teams'));
-    await userEvent.click(teamsTab!);
+    await userEvent.click(teamsTab as HTMLElement);
     expect(onTabChange).toHaveBeenCalledWith('teams');
   });
 

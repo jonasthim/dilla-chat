@@ -25,6 +25,11 @@ const ALLOWED_ATTRIBUTES = new Set([
   'web_vital.rating',
 ]);
 
+/** Escapes special regex characters in a string for use in `new RegExp(...)`. */
+function escapeRegExp(str: string): string {
+  return str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+}
+
 let sdkActive = false;
 let providerRef: { shutdown(): Promise<void> } | null = null;
 
@@ -86,7 +91,7 @@ export async function startTelemetry(): Promise<void> {
         '@opentelemetry/instrumentation-fetch': {
           ignoreUrls: [/\/api\/v1\/telemetry/],
           propagateTraceHeaderCorsUrls: [
-            new RegExp(serverOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+            new RegExp(escapeRegExp(serverOrigin)),
           ],
           clearTimingResources: true,
         },

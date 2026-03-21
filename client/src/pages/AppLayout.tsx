@@ -364,7 +364,7 @@ export default function AppLayout() {
         </div>
         <div className="channel-sidebar-tabs">
           <button
-            className={`sidebar-tab ${!isDMMode ? 'active' : ''}`}
+            className={`sidebar-tab ${isDMMode ? '' : 'active'}`}
             onClick={switchToChannels}
             title={t('channels.uncategorized', 'Channels')}
           >

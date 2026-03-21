@@ -17,6 +17,19 @@ import { fromBase64 } from '../services/cryptoCore';
 import type { PasskeyRegistrationResult } from '../services/webauthn';
 import PublicShell from './PublicShell';
 
+type Step = 'form' | 'passphrase' | 'recovery' | 'done';
+
+function computeStepNumber(step: Step, needsPassphrase: boolean): number {
+  if (step === 'form') return 1;
+  if (step === 'passphrase') return 2;
+  if (step === 'recovery') return needsPassphrase ? 3 : 2;
+  return needsPassphrase ? 4 : 3;
+}
+
+function buildServerUrl(address: string): string {
+  return address.startsWith('http') ? address.replace(/\/$/, '') : `https://${address}`;
+}
+
 export default function CreateIdentity() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -30,7 +43,7 @@ export default function CreateIdentity() {
   const [username, setUsername] = useState(localStorage.getItem('dilla_username') ?? '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<'form' | 'passphrase' | 'recovery' | 'done'>('form');
+  const [step, setStep] = useState<Step>('form');
   const [recoveryKey, setRecoveryKey] = useState('');
   const [recoveryConfirmed, setRecoveryConfirmed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -47,9 +60,7 @@ export default function CreateIdentity() {
     setLoading(true);
     try {
       // Construct server URL
-      const serverUrl = serverAddress.startsWith('http')
-        ? serverAddress.replace(/\/$/, '')
-        : `https://${serverAddress}`;
+      const serverUrl = buildServerUrl(serverAddress);
       localStorage.setItem('dilla_auth_server', serverUrl);
 
       // Generate PRF salt for this identity
@@ -147,11 +158,7 @@ export default function CreateIdentity() {
 
   const passphraseValid = passphrase.length >= 12 && passphrase === passphraseConfirm;
   const totalSteps = needsPassphrase ? 4 : 3;
-  let stepNumber: number;
-  if (step === 'form') stepNumber = 1;
-  else if (step === 'passphrase') stepNumber = 2;
-  else if (step === 'recovery') stepNumber = needsPassphrase ? 3 : 2;
-  else stepNumber = totalSteps;
+  const stepNumber = computeStepNumber(step, needsPassphrase);
 
   if (step === 'done') {
     const pendingToken = sessionStorage.getItem('pendingInviteToken');

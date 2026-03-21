@@ -109,6 +109,10 @@ export default function UserPanel({
     toggleDeafen();
   };
 
+  let muteTitle = t('voice.mute', 'Mute');
+  if (deafened) muteTitle = t('voice.deafened', 'Deafened');
+  else if (muted) muteTitle = t('voice.unmute', 'Unmute');
+
   return (
     <div className="user-panel">
       <button
@@ -138,7 +142,7 @@ export default function UserPanel({
           className={`user-panel-btn ${muted ? 'user-panel-btn-active' : ''}`}
           onClick={handleMute}
           disabled={deafened}
-          title={deafened ? t('voice.deafened', 'Deafened') : muted ? t('voice.unmute', 'Unmute') : t('voice.mute', 'Mute')}
+          title={muteTitle}
         >
           {muted ? <MicrophoneMute width={20} height={20} strokeWidth={2} /> : <Microphone width={20} height={20} strokeWidth={2} />}
         </button>

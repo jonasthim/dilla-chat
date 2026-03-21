@@ -118,7 +118,7 @@ export class MockApiService {
       return { user_id: id, username: u?.username ?? 'unknown', display_name: u?.displayName ?? 'Unknown' };
     });
     // Always include current user
-    if (!members.find(m => m.user_id === DEMO_CURRENT_USER_ID)) {
+    if (!members.some(m => m.user_id === DEMO_CURRENT_USER_ID)) {
       members.unshift({ user_id: DEMO_CURRENT_USER_ID, username: 'alice', display_name: 'Alice' });
     }
     const dm: DMChannel = {
