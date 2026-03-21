@@ -9,7 +9,7 @@ interface Props {
   onClose: () => void;
 }
 
-export default function EditChannel({ channel, onClose }: Props) {
+export default function EditChannel({ channel, onClose }: Readonly<Props>) {
   const { t } = useTranslation();
   const { activeTeamId, channels, updateChannel } = useTeamStore();
   const [name, setName] = useState(channel.name);

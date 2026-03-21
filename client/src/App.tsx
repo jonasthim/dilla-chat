@@ -34,7 +34,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
           <h1>Something went wrong</h1>
           <pre style={{ whiteSpace: 'pre-wrap', fontSize: '14px' }}>{this.state.error.message}</pre>
           <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px', color: 'var(--text-muted)' }}>{this.state.error.stack}</pre>
-          <button onClick={() => { this.setState({ error: null }); window.location.href = '/'; }}
+          <button onClick={() => { this.setState({ error: null }); globalThis.location.href = '/'; }}
             style={{ marginTop: '1rem', padding: '0.5rem 1rem', cursor: 'pointer' }}>
             Restart App
           </button>

@@ -23,7 +23,7 @@ export default function UserPanel({
   username,
   displayName,
   onSettingsClick,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const { myStatus, myCustomStatus, setMyStatus, setMyCustomStatus, updatePresence } = usePresenceStore();
@@ -138,7 +138,7 @@ export default function UserPanel({
           className={`user-panel-btn ${muted ? 'user-panel-btn-active' : ''}`}
           onClick={handleMute}
           disabled={deafened}
-          title={deafened ? t('voice.deafened', 'Deafened') : muted ? t('voice.unmute', 'Unmute') : t('voice.mute', 'Mute')}
+          title={(() => { if (deafened) return t('voice.deafened', 'Deafened'); if (muted) return t('voice.unmute', 'Unmute'); return t('voice.mute', 'Mute'); })()}
         >
           {muted ? <MicrophoneMute width={20} height={20} strokeWidth={2} /> : <Microphone width={20} height={20} strokeWidth={2} />}
         </button>

@@ -8,7 +8,7 @@ function applyTheme(theme: 'dark' | 'light') {
   for (const [key, value] of Object.entries(colors)) {
     root.style.setProperty(key, value);
   }
-  root.setAttribute('data-theme', theme);
+  root.dataset.theme = theme;
   root.style.colorScheme = theme;
 }
 

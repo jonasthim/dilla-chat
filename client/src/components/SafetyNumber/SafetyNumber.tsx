@@ -7,7 +7,7 @@ interface SafetyNumberProps {
   derivedKey: string;
 }
 
-export default function SafetyNumber({ peerId, peerPublicKey, derivedKey }: SafetyNumberProps) {
+export default function SafetyNumber({ peerId, peerPublicKey, derivedKey }: Readonly<SafetyNumberProps>) {
   const [safetyNumber, setSafetyNumber] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,8 +50,8 @@ export default function SafetyNumber({ peerId, peerPublicKey, derivedKey }: Safe
     >
       <div style={{ marginBottom: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Safety Number</div>
       <div style={{ fontSize: '1.25rem', lineHeight: '2', color: 'var(--header-primary)', letterSpacing: '0.1em' }}>
-        {rows.map((row, i) => (
-          <div key={i}>{row.join(' ')}</div>
+        {rows.map((row) => (
+          <div key={row.join('-')}>{row.join(' ')}</div>
         ))}
       </div>
       <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>

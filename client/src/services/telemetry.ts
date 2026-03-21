@@ -61,7 +61,7 @@ export async function startTelemetry(): Promise<void> {
     import('@opentelemetry/auto-instrumentations-web'),
   ]);
 
-  const serverOrigin = import.meta.env.VITE_API_URL || window.location.origin;
+  const serverOrigin = import.meta.env.VITE_API_URL || globalThis.location.origin;
   const telemetryUrl = `${serverOrigin}/api/v1/telemetry?type=traces`;
 
   const resource = resourceFromAttributes({

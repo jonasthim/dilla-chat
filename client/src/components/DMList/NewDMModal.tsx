@@ -12,7 +12,7 @@ interface Props {
   onDMCreated: (dm: DMChannel) => void;
 }
 
-export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Props) {
+export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Readonly<Props>) {
   const { t } = useTranslation();
   const { activeTeamId, members } = useTeamStore();
   const [search, setSearch] = useState('');
@@ -70,6 +70,11 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Prop
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
+
+  let createButtonLabel: string;
+  if (creating) createButtonLabel = t('common.creating', 'Creating...');
+  else if (selected.length > 1) createButtonLabel = t('dm.groupDM', 'Group Message');
+  else createButtonLabel = t('dm.startConversation', 'Start Conversation');
 
   return (
     <dialog className="new-dm-overlay" open aria-labelledby="new-dm-title">
@@ -135,11 +140,7 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Prop
             disabled={selected.length === 0 || creating}
             onClick={handleCreate}
           >
-            {creating
-              ? t('common.creating', 'Creating...')
-              : selected.length > 1
-                ? t('dm.groupDM', 'Group Message')
-                : t('dm.startConversation', 'Start Conversation')}
+            {createButtonLabel}
           </button>
         </div>
       </div>

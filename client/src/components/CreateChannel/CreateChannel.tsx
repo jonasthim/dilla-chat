@@ -10,7 +10,7 @@ interface Props {
   onClose: () => void;
 }
 
-export default function CreateChannel({ defaultCategory, onClose }: Props) {
+export default function CreateChannel({ defaultCategory, onClose }: Readonly<Props>) {
   const { t } = useTranslation();
   const { activeTeamId, channels, addChannel } = useTeamStore();
   const [name, setName] = useState('');

@@ -61,11 +61,10 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
       if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault();
         handlers.onNavigateChannel?.(e.key === 'ArrowUp' ? 'up' : 'down');
-        return;
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    globalThis.addEventListener('keydown', handleKeyDown);
+    return () => globalThis.removeEventListener('keydown', handleKeyDown);
   }, [handlers, connected, toggleMute, toggleDeafen]);
 }

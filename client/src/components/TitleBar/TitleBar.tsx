@@ -15,25 +15,25 @@ export default function TitleBar() {
   const [platform, setPlatform] = useState<Platform>('linux');
 
   useEffect(() => {
-    const tauriAvailable = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+    const tauriAvailable = typeof globalThis.window !== 'undefined' && '__TAURI_INTERNALS__' in globalThis;
     setIsTauri(tauriAvailable);
     setPlatform(detectPlatform());
   }, []);
 
   const handleClose = useCallback(async () => {
-    if (!('__TAURI_INTERNALS__' in window)) return;
+    if (!('__TAURI_INTERNALS__' in globalThis)) return;
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     getCurrentWindow().close();
   }, []);
 
   const handleMinimize = useCallback(async () => {
-    if (!('__TAURI_INTERNALS__' in window)) return;
+    if (!('__TAURI_INTERNALS__' in globalThis)) return;
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     getCurrentWindow().minimize();
   }, []);
 
   const handleMaximize = useCallback(async () => {
-    if (!('__TAURI_INTERNALS__' in window)) return;
+    if (!('__TAURI_INTERNALS__' in globalThis)) return;
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     getCurrentWindow().toggleMaximize();
   }, []);

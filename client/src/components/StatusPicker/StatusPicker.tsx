@@ -29,7 +29,7 @@ export default function StatusPicker({
   onStatusChange,
   onCustomStatusChange,
   onClose,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const [customText, setCustomText] = useState(customStatus);
 

@@ -20,6 +20,7 @@ detect_platform() {
     aarch64|arm64)   ARCH="arm64" ;;
     *)               echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
   esac
+  return 0
 }
 
 main() {
@@ -59,6 +60,7 @@ main() {
   echo "  DILLA_INSECURE=true dilla-server      # Start without TLS (dev mode)"
   echo ""
   echo "Documentation: https://github.com/${REPO}"
+  return 0
 }
 
 main

@@ -16,13 +16,13 @@ interface Props {
   children: React.ReactNode;
 }
 
-export default function SettingsLayout({ sections, activeId, onSelect, onClose, children }: Props) {
+export default function SettingsLayout({ sections, activeId, onSelect, onClose, children }: Readonly<Props>) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    globalThis.addEventListener('keydown', handleKey);
+    return () => globalThis.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
   return (
@@ -31,7 +31,7 @@ export default function SettingsLayout({ sections, activeId, onSelect, onClose, 
       <div className="settings-nav-wrapper">
         <nav className="settings-nav">
           {sections.map((section, si) => (
-            <div key={si} className="settings-nav-section">
+            <div key={section.label ?? section.items.map(i => i.id).join(',')} className="settings-nav-section">
               {si > 0 && <div className="settings-nav-separator" />}
               {section.label && (
                 <div className="settings-nav-header">{section.label}</div>

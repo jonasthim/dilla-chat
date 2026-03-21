@@ -42,7 +42,7 @@ export default function JoinTeam() {
 
   // Auto-fill server address from current origin when navigating via invite link
   const fromInviteLink = !!urlToken;
-  const [serverAddress, setServerAddress] = useState(fromInviteLink ? window.location.origin : '');
+  const [serverAddress, setServerAddress] = useState(fromInviteLink ? globalThis.location.origin : '');
   const [inviteToken, setInviteToken] = useState(urlToken ?? '');
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState(localStorage.getItem('dilla_username') ?? '');
@@ -78,7 +78,7 @@ export default function JoinTeam() {
     if (!fromInviteLink || !urlToken) return;
     const autoCheck = async () => {
       try {
-        const url = normalizeUrl(window.location.origin);
+        const url = normalizeUrl(globalThis.location.origin);
         const res = await fetch(`${url}/api/v1/health`, { signal: AbortSignal.timeout(5000) });
         if (res.ok) {
           setServerStatus('online');

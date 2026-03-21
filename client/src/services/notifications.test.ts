@@ -51,11 +51,11 @@ describe('NotificationService', () => {
   });
 
   it('requestPermission returns false when Notification API is not available', async () => {
-    const original = (window as Record<string, unknown>).Notification;
-    delete (window as Record<string, unknown>).Notification;
+    const original = (globalThis as Record<string, unknown>).Notification;
+    delete (globalThis as Record<string, unknown>).Notification;
     const result = await notificationService.requestPermission();
     expect(result).toBe(false);
-    (window as Record<string, unknown>).Notification = original;
+    (globalThis as Record<string, unknown>).Notification = original;
   });
 
   it('requestPermission returns false when permission is denied', async () => {
@@ -115,7 +115,7 @@ describe('NotificationService', () => {
     const mockRequestPermission = vi.fn().mockResolvedValue('granted');
 
     // Set up Tauri internals
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
 
     // Mock the dynamic import
     vi.doMock('@tauri-apps/api/notification', () => ({
@@ -127,7 +127,7 @@ describe('NotificationService', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(false);
     await notificationService.notify('Title', 'Body');
 
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
     vi.doUnmock('@tauri-apps/api/notification');
   });
 
@@ -136,7 +136,7 @@ describe('NotificationService', () => {
     const mockIsPermissionGranted = vi.fn().mockResolvedValue(false);
     const mockRequestPermission = vi.fn().mockResolvedValue('granted');
 
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
 
     vi.doMock('@tauri-apps/api/notification', () => ({
       isPermissionGranted: mockIsPermissionGranted,
@@ -147,27 +147,27 @@ describe('NotificationService', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(false);
     await notificationService.notify('Title', 'Body');
 
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
     vi.doUnmock('@tauri-apps/api/notification');
   });
 
   it('notify falls through to browser API when Tauri import fails', async () => {
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (globalThis as Record<string, unknown>).__TAURI_INTERNALS__ = {};
 
     vi.spyOn(document, 'hasFocus').mockReturnValue(false);
     // The import will fail since @tauri-apps/api/notification doesn't exist in test
     await notificationService.notify('Title', 'Body');
     expect(Notification).toHaveBeenCalledWith('Title', { body: 'Body', icon: undefined });
 
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (globalThis as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 
   it('notify does nothing when Notification API is not available and not in Tauri', async () => {
-    const original = (window as Record<string, unknown>).Notification;
-    delete (window as Record<string, unknown>).Notification;
+    const original = (globalThis as Record<string, unknown>).Notification;
+    delete (globalThis as Record<string, unknown>).Notification;
     vi.spyOn(document, 'hasFocus').mockReturnValue(false);
     // Should not throw
     await notificationService.notify('Title', 'Body');
-    (window as Record<string, unknown>).Notification = original;
+    (globalThis as Record<string, unknown>).Notification = original;
   });
 });

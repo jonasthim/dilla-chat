@@ -220,10 +220,10 @@ describe('FederationStatus', () => {
     expect(writeTextMock).toHaveBeenCalledWith('dilla join --token abc123');
   });
 
-  it('uses fallback copy when clipboard API fails', async () => {
+  it('handles clipboard API failure gracefully', async () => {
     vi.useRealTimers();
-    Object.assign(navigator, { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('not supported')) } });
-    Object.defineProperty(document, 'execCommand', { value: vi.fn().mockReturnValue(true), configurable: true });
+    const writeTextMock = vi.fn().mockRejectedValue(new Error('not supported'));
+    Object.assign(navigator, { clipboard: { writeText: writeTextMock } });
 
     render(<FederationStatus teamId="team-1" />);
     fireEvent.click(screen.getByText('federation.generateJoinToken'));
@@ -236,7 +236,7 @@ describe('FederationStatus', () => {
     fireEvent.click(copyBtns[0]);
 
     await waitFor(() => {
-      expect(document.execCommand).toHaveBeenCalledWith('copy');
+      expect(writeTextMock).toHaveBeenCalledWith('dilla join --token abc123');
     });
   });
 

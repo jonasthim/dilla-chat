@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Picker from 'emoji-picker-react';
-import { Theme } from 'emoji-picker-react';
+import Picker, { Theme } from 'emoji-picker-react';
 import './EmojiPicker.css';
 
 interface Props {

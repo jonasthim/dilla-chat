@@ -101,7 +101,11 @@ export default function AppLayout() {
   const displayName = currentUser?.display_name;
 
   // Find active channel info
-  const teamChannels = useMemo(() => activeTeamId ? (Array.isArray(channels.get(activeTeamId)) ? channels.get(activeTeamId)! : []) : [], [activeTeamId, channels]);
+  const teamChannels = useMemo(() => {
+    if (!activeTeamId) return [];
+    const ch = channels.get(activeTeamId);
+    return Array.isArray(ch) ? ch : [];
+  }, [activeTeamId, channels]);
   const activeChannel = teamChannels.find((c) => c.id === activeChannelId);
 
   // Find active DM info
@@ -144,6 +148,122 @@ export default function AppLayout() {
   };
 
   const isDMMode = viewMode === 'dms';
+
+  // Pre-compute content header for S3358 (no nested ternaries in JSX)
+  const renderContentHeader = () => {
+    if (isDMMode && activeDM) {
+      return (
+        <>
+          <span className="content-header-icon">
+            {activeDM.is_group ? <Group width={20} height={20} strokeWidth={2} /> : <ChatBubble width={20} height={20} strokeWidth={2} />}
+          </span>
+          <span className="content-header-name">
+            {activeDM.is_group
+              ? ((activeDM as unknown as { name?: string }).name || activeDM.members.map((m) => m.display_name || m.username).join(', '))
+              : (() => {
+                  const other = activeDM.members.find((m) => m.user_id !== currentUserId);
+                  return other ? (other.display_name || other.username) : t('dm.title', 'Direct Message');
+                })()}
+          </span>
+          {derivedKey && (
+            <span className="content-header-encrypted" title="End-to-end encrypted">
+              <Lock width={14} height={14} strokeWidth={2} />
+            </span>
+          )}
+          {activeDM.is_group && (
+            <>
+              <span className="content-header-divider" />
+              <span className="content-header-topic">
+                {t('dm.members', '{{count}} members', { count: activeDM.members.length })}
+              </span>
+            </>
+          )}
+          <div className="content-header-actions">
+            <SearchBar onJumpToMessage={handleJumpToMessage} />
+            {activeDM.is_group && (
+              <button
+                className={`header-action-btn ${showDMMembers ? 'active' : ''}`}
+                onClick={() => setShowDMMembers(v => !v)}
+                title={t('members.toggle', 'Toggle Member List')}
+              >
+                <Group width={20} height={20} strokeWidth={2} />
+              </button>
+            )}
+          </div>
+        </>
+      );
+    }
+    if (!isDMMode && activeChannel) {
+      return (
+        <>
+          <span className="content-header-icon">
+            {activeChannel.type === 'voice' ? <SoundHigh width={20} height={20} strokeWidth={2} /> : <span className="channel-tilde">~</span>}
+          </span>
+          <span className="content-header-name">{activeChannel.name}</span>
+          {derivedKey && (
+            <span className="content-header-encrypted" title="End-to-end encrypted">
+              <Lock width={14} height={14} strokeWidth={2} />
+            </span>
+          )}
+          {activeChannel.topic && (
+            <>
+              <span className="content-header-divider" />
+              <span className="content-header-topic">{activeChannel.topic}</span>
+            </>
+          )}
+          <div className="content-header-actions">
+            <SearchBar onJumpToMessage={handleJumpToMessage} />
+            <button
+              className={`header-action-btn ${showMembers ? 'active' : ''}`}
+              onClick={() => setShowMembers(v => !v)}
+              title={t('members.toggle', 'Toggle Member List')}
+            >
+              <Group width={20} height={20} strokeWidth={2} />
+            </button>
+          </div>
+        </>
+      );
+    }
+    return (
+      <>
+        <span className="content-header-name">{t('app.name')}</span>
+        <div className="content-header-actions">
+          <SearchBar onJumpToMessage={handleJumpToMessage} />
+          <button
+            className={`header-action-btn ${showMembers ? 'active' : ''}`}
+            onClick={() => setShowMembers(!showMembers)}
+            title={t('members.toggle', 'Toggle Member List')}
+          >
+            <Group width={20} height={20} strokeWidth={2} />
+          </button>
+        </div>
+      </>
+    );
+  };
+
+  // Pre-compute content area for S3358
+  const renderContentArea = () => {
+    if (isDMMode && activeDM) {
+      return <DMView dm={activeDM} currentUserId={currentUserId} showMembers={showDMMembers} />;
+    }
+    if (!isDMMode && activeChannel?.type === 'voice') {
+      return <VoiceChannel channel={activeChannel} />;
+    }
+    if (!isDMMode && activeChannel) {
+      return <ChannelView channel={activeChannel} />;
+    }
+    return (
+      <div className="message-area">
+        <div className="message-area-empty">
+          <p>
+            {isDMMode
+              ? t('dm.noDMs', 'No direct messages yet')
+              : t('channels.selectChannel', 'Select a channel to start chatting')}
+          </p>
+        </div>
+      </div>
+    );
+  };
 
   const handleJumpToMessage = useCallback(
     (channelId: string, messageId: string) => {
@@ -231,7 +351,7 @@ export default function AppLayout() {
       <div className="channel-sidebar-header">
         <div className="channel-sidebar-header-top">
           <span className="channel-sidebar-header-name">
-            {isDMMode ? t('dm.title', 'Direct Messages') : (activeTeamId ? teamMap.get(activeTeamId)?.name : null) ?? t('app.name')}
+            {isDMMode ? t('dm.title', 'Direct Messages') : (activeTeamId && teamMap.get(activeTeamId)?.name) || t('app.name')}
           </span>
           <button
             className="sidebar-settings-btn"
@@ -315,109 +435,12 @@ export default function AppLayout() {
       {(!isMobile || mobileTab === 'chat') && (
       <div className="content-wrapper">
         <div className="content-header">
-          {isDMMode && activeDM ? (
-            <>
-              <span className="content-header-icon">
-                {activeDM.is_group ? <Group width={20} height={20} strokeWidth={2} /> : <ChatBubble width={20} height={20} strokeWidth={2} />}
-              </span>
-              <span className="content-header-name">
-                {activeDM.is_group
-                  ? ((activeDM as unknown as { name?: string }).name || activeDM.members.map((m) => m.display_name || m.username).join(', '))
-                  : (() => {
-                      const other = activeDM.members.find((m) => m.user_id !== currentUserId);
-                      return other ? (other.display_name || other.username) : t('dm.title', 'Direct Message');
-                    })()}
-              </span>
-              {derivedKey && (
-                <span className="content-header-encrypted" title="End-to-end encrypted">
-                  <Lock width={14} height={14} strokeWidth={2} />
-                </span>
-              )}
-              {activeDM.is_group && (
-                <>
-                  <span className="content-header-divider" />
-                  <span className="content-header-topic">
-                    {t('dm.members', '{{count}} members', { count: activeDM.members.length })}
-                  </span>
-                </>
-              )}
-              <div className="content-header-actions">
-                <SearchBar onJumpToMessage={handleJumpToMessage} />
-                {activeDM.is_group && (
-                  <button
-                    className={`header-action-btn ${showDMMembers ? 'active' : ''}`}
-                    onClick={() => setShowDMMembers(v => !v)}
-                    title={t('members.toggle', 'Toggle Member List')}
-                  >
-                    <Group width={20} height={20} strokeWidth={2} />
-                  </button>
-                )}
-              </div>
-            </>
-          ) : !isDMMode && activeChannel ? (
-            <>
-              <span className="content-header-icon">
-                {activeChannel.type === 'voice' ? <SoundHigh width={20} height={20} strokeWidth={2} /> : <span className="channel-tilde">~</span>}
-              </span>
-              <span className="content-header-name">{activeChannel.name}</span>
-              {derivedKey && (
-                <span className="content-header-encrypted" title="End-to-end encrypted">
-                  <Lock width={14} height={14} strokeWidth={2} />
-                </span>
-              )}
-              {activeChannel.topic && (
-                <>
-                  <span className="content-header-divider" />
-                  <span className="content-header-topic">{activeChannel.topic}</span>
-                </>
-              )}
-              <div className="content-header-actions">
-                <SearchBar onJumpToMessage={handleJumpToMessage} />
-                <button
-                  className={`header-action-btn ${showMembers ? 'active' : ''}`}
-                  onClick={() => setShowMembers(v => !v)}
-                  title={t('members.toggle', 'Toggle Member List')}
-                >
-                  <Group width={20} height={20} strokeWidth={2} />
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <span className="content-header-name">{t('app.name')}</span>
-              <div className="content-header-actions">
-                <SearchBar onJumpToMessage={handleJumpToMessage} />
-                <button
-                  className={`header-action-btn ${showMembers ? 'active' : ''}`}
-                  onClick={() => setShowMembers(!showMembers)}
-                  title={t('members.toggle', 'Toggle Member List')}
-                >
-                  <Group width={20} height={20} strokeWidth={2} />
-                </button>
-              </div>
-            </>
-          )}
+          {renderContentHeader()}
         </div>
 
         <div className="content-body">
           <div className="content-area">
-            {isDMMode && activeDM ? (
-              <DMView dm={activeDM} currentUserId={currentUserId} showMembers={showDMMembers} />
-            ) : !isDMMode && activeChannel && activeChannel.type === 'voice' ? (
-              <VoiceChannel channel={activeChannel} />
-            ) : !isDMMode && activeChannel ? (
-              <ChannelView channel={activeChannel} />
-            ) : (
-              <div className="message-area">
-                <div className="message-area-empty">
-                  <p>
-                    {isDMMode
-                      ? t('dm.noDMs', 'No direct messages yet')
-                      : t('channels.selectChannel', 'Select a channel to start chatting')}
-                  </p>
-                </div>
-              </div>
-            )}
+            {renderContentArea()}
           </div>
 
           {threadPanelOpen && activeThread && (

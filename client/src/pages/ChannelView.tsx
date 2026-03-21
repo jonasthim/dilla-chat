@@ -124,7 +124,7 @@ interface Props {
   channel: Channel;
 }
 
-export default function ChannelView({ channel }: Props) {
+export default function ChannelView({ channel }: Readonly<Props>) {
   const { activeTeamId, members } = useTeamStore();
   const teamMembers = activeTeamId ? members.get(activeTeamId) ?? [] : [];
   const { teams, derivedKey } = useAuthStore();
@@ -328,7 +328,7 @@ export default function ChannelView({ channel }: Props) {
         msgs = (await api.getMessages(activeTeamId, channel.id, MESSAGE_PAGE_SIZE, oldestId)) as ServerMessage[];
       }
       const decrypted = await Promise.all(
-        (msgs as ServerMessage[]).map(async (msg) => {
+        msgs.map(async (msg) => {
           const content = await tryDecrypt(msg.id, msg.content, msg.author_id, channel.id, derivedKey);
           return serverToMessage(msg, content, teamMembers);
         }),

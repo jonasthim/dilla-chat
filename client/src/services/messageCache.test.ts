@@ -214,83 +214,81 @@ describe('transaction error handling', () => {
   });
 });
 
-describe('IDB error path coverage', () => {
-  // Intercept IDBTransaction to capture and invoke onerror callbacks
-  function interceptTransactionErrors() {
-    const capturedErrorHandlers: Array<() => void> = [];
-    const origTransaction = IDBDatabase.prototype.transaction;
+// Intercept IDBTransaction to capture and invoke onerror callbacks
+function interceptTransactionErrors() {
+  const capturedErrorHandlers: Array<() => void> = [];
+  const origTransaction = IDBDatabase.prototype.transaction;
 
-    IDBDatabase.prototype.transaction = function (
-      this: IDBDatabase,
-      storeNames: string | string[],
-      mode?: IDBTransactionMode,
-    ) {
-      const tx = origTransaction.call(this, storeNames, mode);
-      // Wrap the onerror setter to capture the handler
-      let _onerror: ((ev: Event) => void) | null = null;
-      Object.defineProperty(tx, 'onerror', {
-        get() { return _onerror; },
-        set(fn: (ev: Event) => void) {
-          _onerror = fn;
-          capturedErrorHandlers.push(() => {
-            if (_onerror) {
-              Object.defineProperty(tx, 'error', {
-                value: new DOMException('Simulated error'),
-                configurable: true,
-              });
-              _onerror(new Event('error'));
-            }
-          });
-        },
-        configurable: true,
-      });
-      return tx;
-    };
-
-    return {
-      restore: () => { IDBDatabase.prototype.transaction = origTransaction; },
-      fireLast: () => {
-        if (capturedErrorHandlers.length > 0) {
-          capturedErrorHandlers[capturedErrorHandlers.length - 1]();
-        }
+  IDBDatabase.prototype.transaction = function (
+    this: IDBDatabase,
+    storeNames: string | string[],
+    mode?: IDBTransactionMode,
+  ) {
+    const tx = origTransaction.call(this, storeNames, mode);
+    // Wrap the onerror setter to capture the handler
+    let _onerror: ((ev: Event) => void) | null = null;
+    Object.defineProperty(tx, 'onerror', {
+      get() { return _onerror; },
+      set(fn: (ev: Event) => void) {
+        _onerror = fn;
+        capturedErrorHandlers.push(() => {
+          if (_onerror) {
+            Object.defineProperty(tx, 'error', {
+              value: new DOMException('Simulated error'),
+              configurable: true,
+            });
+            _onerror(new Event('error'));
+          }
+        });
       },
-      handlers: capturedErrorHandlers,
-    };
-  }
+      configurable: true,
+    });
+    return tx;
+  };
 
-  // Intercept IDBRequest to capture and invoke onerror callbacks
-  function interceptRequestErrors() {
-    const capturedHandlers: Array<() => void> = [];
-    const origGet = IDBObjectStore.prototype.get;
+  return {
+    restore: () => { IDBDatabase.prototype.transaction = origTransaction; },
+    fireLast: () => {
+      capturedErrorHandlers.at(-1)?.();
+    },
+    handlers: capturedErrorHandlers,
+  };
+}
 
-    IDBObjectStore.prototype.get = function (key: IDBValidKey | IDBKeyRange) {
-      const req = origGet.call(this, key);
-      let _onerror: ((ev: Event) => void) | null = null;
-      Object.defineProperty(req, 'onerror', {
-        get() { return _onerror; },
-        set(fn: (ev: Event) => void) {
-          _onerror = fn;
-          capturedHandlers.push(() => {
-            if (_onerror) {
-              Object.defineProperty(req, 'error', {
-                value: new DOMException('Simulated get error'),
-                configurable: true,
-              });
-              _onerror(new Event('error'));
-            }
-          });
-        },
-        configurable: true,
-      });
-      return req;
-    };
+// Intercept IDBRequest to capture and invoke onerror callbacks
+function interceptRequestErrors() {
+  const capturedHandlers: Array<() => void> = [];
+  const origGet = IDBObjectStore.prototype.get;
 
-    return {
-      restore: () => { IDBObjectStore.prototype.get = origGet; },
-      handlers: capturedHandlers,
-    };
-  }
+  IDBObjectStore.prototype.get = function (key: IDBValidKey | IDBKeyRange) {
+    const req = origGet.call(this, key);
+    let _onerror: ((ev: Event) => void) | null = null;
+    Object.defineProperty(req, 'onerror', {
+      get() { return _onerror; },
+      set(fn: (ev: Event) => void) {
+        _onerror = fn;
+        capturedHandlers.push(() => {
+          if (_onerror) {
+            Object.defineProperty(req, 'error', {
+              value: new DOMException('Simulated get error'),
+              configurable: true,
+            });
+            _onerror(new Event('error'));
+          }
+        });
+      },
+      configurable: true,
+    });
+    return req;
+  };
 
+  return {
+    restore: () => { IDBObjectStore.prototype.get = origGet; },
+    handlers: capturedHandlers,
+  };
+}
+
+describe('IDB error path coverage', () => {
   it('cacheMessage tx.onerror path rejects the promise', async () => {
     const interceptor = interceptTransactionErrors();
     // Start the cacheMessage but don't await yet
@@ -316,9 +314,7 @@ describe('IDB error path coverage', () => {
     const interceptor = interceptRequestErrors();
     const promise = getCachedMessage('err-get-1');
     await new Promise((r) => setTimeout(r, 10));
-    if (interceptor.handlers.length > 0) {
-      interceptor.handlers[interceptor.handlers.length - 1]();
-    }
+    interceptor.handlers.at(-1)?.();
     interceptor.restore();
     await promise.catch(() => {});
   });
@@ -329,9 +325,7 @@ describe('IDB error path coverage', () => {
     const promise = getCachedMessages(['good-msg', 'missing-msg']);
     await new Promise((r) => setTimeout(r, 10));
     // Fire error on one of the requests
-    if (interceptor.handlers.length > 0) {
-      interceptor.handlers[interceptor.handlers.length - 1]();
-    }
+    interceptor.handlers.at(-1)?.();
     interceptor.restore();
     const result = await promise.catch(() => new Map<string, string>());
     expect(result).toBeDefined();

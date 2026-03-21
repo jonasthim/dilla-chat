@@ -91,7 +91,7 @@ export default function ConnectionStatus() {
     intervalRef.current = setInterval(pingServer, PING_INTERVAL);
     return () => {
       clearTimeout(id);
-      clearInterval(intervalRef.current!);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [pingServer]);
 
@@ -125,7 +125,7 @@ export default function ConnectionStatus() {
           </div>
           <div className="connection-status__tooltip-row">
             <span>Latency</span>
-            <span>{state.latency !== null ? `${state.latency} ms` : '—'}</span>
+            <span>{state.latency === null ? '—' : `${state.latency} ms`}</span>
           </div>
           <div className="connection-status__tooltip-row">
             <span>WebSocket</span>

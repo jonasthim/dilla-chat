@@ -15,7 +15,7 @@ const tabs: { id: MobileTab; label: string; Icon: typeof HomeSimple }[] = [
   { id: 'members', label: 'Members', Icon: Group },
 ];
 
-export default function MobileTabBar({ activeTab, onTabChange }: MobileTabBarProps) {
+export default function MobileTabBar({ activeTab, onTabChange }: Readonly<MobileTabBarProps>) {
   return (
     <nav className="mobile-tab-bar" aria-label="Main navigation">
       {tabs.map(({ id, label, Icon }) => (

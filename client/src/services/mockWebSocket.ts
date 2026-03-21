@@ -7,7 +7,7 @@ type EventHandler = (payload: unknown) => void;
  * Simulates typing indicators, new messages, and presence changes.
  */
 export class MockWebSocketService {
-  private handlers: Map<string, Set<EventHandler>> = new Map();
+  private readonly handlers: Map<string, Set<EventHandler>> = new Map();
   private timers: ReturnType<typeof setTimeout>[] = [];
   private running = false;
 
@@ -46,29 +46,29 @@ export class MockWebSocketService {
   }
 
   // No-op send — in demo mode we intercept at the store level
-  send(_teamId: string, _event: { type: string; payload: unknown }): void {}
+  send(_teamId: string, _event: { type: string; payload: unknown }): void { /* noop */ }
 
   // WS methods that are no-ops in demo (the mock API handles mutations)
-  sendMessage(): void {}
-  editMessage(): void {}
-  deleteMessage(): void {}
-  addReaction(): void {}
-  removeReaction(): void {}
-  startTyping(): void {}
-  joinChannel(): void {}
-  leaveChannel(): void {}
-  updatePresence(): void {}
-  voiceJoin(): void {}
-  voiceLeave(): void {}
-  voiceAnswer(): void {}
-  voiceICECandidate(): void {}
-  voiceMute(): void {}
-  voiceDeafen(): void {}
-  sendDMMessage(): void {}
-  editDMMessage(): void {}
-  deleteDMMessage(): void {}
-  startDMTyping(): void {}
-  stopDMTyping(): void {}
+  sendMessage(): void { /* noop */ }
+  editMessage(): void { /* noop */ }
+  deleteMessage(): void { /* noop */ }
+  addReaction(): void { /* noop */ }
+  removeReaction(): void { /* noop */ }
+  startTyping(): void { /* noop */ }
+  joinChannel(): void { /* noop */ }
+  leaveChannel(): void { /* noop */ }
+  updatePresence(): void { /* noop */ }
+  voiceJoin(): void { /* noop */ }
+  voiceLeave(): void { /* noop */ }
+  voiceAnswer(): void { /* noop */ }
+  voiceICECandidate(): void { /* noop */ }
+  voiceMute(): void { /* noop */ }
+  voiceDeafen(): void { /* noop */ }
+  sendDMMessage(): void { /* noop */ }
+  editDMMessage(): void { /* noop */ }
+  deleteDMMessage(): void { /* noop */ }
+  startDMTyping(): void { /* noop */ }
+  stopDMTyping(): void { /* noop */ }
 
   // ─── Simulation timers (demo-only, not security-sensitive) ──────────────
 

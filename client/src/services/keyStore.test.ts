@@ -66,7 +66,7 @@ describe('createIdentity (PRF-based)', () => {
 
     const pubKey = await getPublicKey();
     expect(pubKey).not.toBeNull();
-    expect(Array.from(pubKey!)).toEqual(Array.from(result.identity.publicKeyBytes));
+    expect(Array.from(pubKey as Uint8Array)).toEqual(Array.from(result.identity.publicKeyBytes));
   });
 });
 
@@ -250,7 +250,7 @@ describe('exportIdentityBlob / importIdentityBlob', () => {
     await deleteIdentity();
     expect(await hasIdentity()).toBe(false);
 
-    await importIdentityBlob(blob!);
+    await importIdentityBlob(blob as string);
     expect(await hasIdentity()).toBe(true);
 
     const unlocked = await unlockWithPrf(prfKey);
@@ -385,7 +385,7 @@ describe('corrupt key file handling', () => {
     await createIdentity('https://example.com', prfKey, prfSalt, makeCredential());
 
     // Export, tamper, re-import
-    const blob = JSON.parse((await exportIdentityBlob())!);
+    const blob = JSON.parse((await exportIdentityBlob()) as string);
     blob.mek_ciphertext[0] ^= 0xff;
     await importIdentityBlob(JSON.stringify(blob));
 
@@ -398,7 +398,7 @@ describe('corrupt key file handling', () => {
     const prfSalt = randomBytes(32);
     await createIdentity('https://example.com', prfKey, prfSalt, makeCredential());
 
-    const blob = JSON.parse((await exportIdentityBlob())!);
+    const blob = JSON.parse((await exportIdentityBlob()) as string);
     blob.key_slots[0].wrapped_mek[0] ^= 0xff;
     await importIdentityBlob(JSON.stringify(blob));
 

@@ -68,7 +68,7 @@ describe('SettingsLayout', () => {
         <div>Content</div>
       </SettingsLayout>,
     );
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(globalThis, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -79,7 +79,9 @@ describe('SettingsLayout', () => {
         <div>Content</div>
       </SettingsLayout>,
     );
-    fireEvent.click(screen.getByText('ESC').previousElementSibling!);
+    const sibling = screen.getByText('ESC').previousElementSibling;
+    expect(sibling).not.toBeNull();
+    fireEvent.click(sibling as Element);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

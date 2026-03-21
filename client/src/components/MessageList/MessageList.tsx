@@ -55,18 +55,18 @@ interface MessageGroup {
 function groupMessages(messages: Message[]): MessageGroup[] {
   const groups: MessageGroup[] = [];
   for (const msg of messages) {
-    const last = groups[groups.length - 1];
+    const last = groups.at(-1);
     const isSystem = msg.type === 'system';
     if (
       !isSystem &&
-      last &&
-      last.authorId === msg.authorId &&
+      last?.authorId === msg.authorId &&
       !msg.deleted
     ) {
       // Group if within 7 minutes of previous
-      const lastMsg = last.messages[last.messages.length - 1];
-      const timeDiff =
-        new Date(msg.createdAt).getTime() - new Date(lastMsg.createdAt).getTime();
+      const lastMsg = last.messages.at(-1);
+      const timeDiff = lastMsg
+        ? new Date(msg.createdAt).getTime() - new Date(lastMsg.createdAt).getTime()
+        : Infinity;
       if (timeDiff < 7 * 60 * 1000) {
         last.messages.push(msg);
         continue;
@@ -91,7 +91,6 @@ const markdownComponents = {
 export default function MessageList({
   channelId,
   channelName = '',
-  teamId = '',
   currentUserId,
   onLoadMore,
   onReply,
@@ -101,7 +100,7 @@ export default function MessageList({
   onOpenThread,
   onReaction,
   threadInfo,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const { messages, loadingHistory, hasMore } = useMessageStore();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -287,7 +286,6 @@ export default function MessageList({
                   {!msg.deleted && (msg as Message & { attachments?: Attachment[] }).attachments && (
                     <FilePreview
                       attachments={(msg as Message & { attachments?: Attachment[] }).attachments!}
-                      teamId={teamId}
                     />
                   )}
                   {!msg.deleted && msg.reactions && msg.reactions.length > 0 && (

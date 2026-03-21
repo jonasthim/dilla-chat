@@ -23,9 +23,9 @@ export default function CreateIdentity() {
   const { setDerivedKey, setPublicKey } = useAuthStore();
 
   const hasPendingInvite = !!sessionStorage.getItem('pendingInviteToken');
-  const isBrowser = !(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  const isBrowser = !(globalThis as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
   const [serverAddress, setServerAddress] = useState(
-    hasPendingInvite || isBrowser ? window.location.origin : '',
+    hasPendingInvite || isBrowser ? globalThis.location.origin : '',
   );
   const [username, setUsername] = useState(localStorage.getItem('dilla_username') ?? '');
   const [error, setError] = useState('');
@@ -147,8 +147,11 @@ export default function CreateIdentity() {
 
   const passphraseValid = passphrase.length >= 12 && passphrase === passphraseConfirm;
   const totalSteps = needsPassphrase ? 4 : 3;
-  const stepNumber =
-    step === 'form' ? 1 : step === 'passphrase' ? 2 : step === 'recovery' ? (needsPassphrase ? 3 : 2) : totalSteps;
+  let stepNumber: number;
+  if (step === 'form') stepNumber = 1;
+  else if (step === 'passphrase') stepNumber = 2;
+  else if (step === 'recovery') stepNumber = needsPassphrase ? 3 : 2;
+  else stepNumber = totalSteps;
 
   if (step === 'done') {
     const pendingToken = sessionStorage.getItem('pendingInviteToken');

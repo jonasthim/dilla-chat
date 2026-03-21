@@ -16,11 +16,11 @@ class WebRTCService {
   private localStream: MediaStream | null = null;
   private rawStream: MediaStream | null = null;
   private screenStream: MediaStream | null = null;
-  private remoteStreams: Map<string, MediaStream> = new Map();
-  private remoteVideoStreams: Map<string, MediaStream> = new Map();
+  private readonly remoteStreams: Map<string, MediaStream> = new Map();
+  private readonly remoteVideoStreams: Map<string, MediaStream> = new Map();
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
-  private remoteAnalysers: Map<string, { analyser: AnalyserNode; data: Uint8Array; userId: string }> = new Map();
+  private readonly remoteAnalysers: Map<string, { analyser: AnalyserNode; data: Uint8Array; userId: string }> = new Map();
   private vadTimer: ReturnType<typeof setInterval> | null = null;
   private remoteVadTimer: ReturnType<typeof setInterval> | null = null;
   private channelId: string | null = null;
@@ -38,9 +38,9 @@ class WebRTCService {
 
   // E2E voice encryption
   private e2eEnabled = false;
-  private voiceKeyManager = new VoiceKeyManager();
+  private readonly voiceKeyManager = new VoiceKeyManager();
   private encryptWorker: Worker | null = null;
-  private decryptWorkers: Map<string, Worker> = new Map();
+  private readonly decryptWorkers: Map<string, Worker> = new Map();
 
   async connect(channelId: string, teamId: string): Promise<void> {
     this.channelId = channelId;
@@ -262,7 +262,7 @@ class WebRTCService {
       const currentKey = useAudioSettingsStore.getState().pushToTalkKey;
       if (e.code === currentKey && this.localStream) {
         const audioTrack = this.localStream.getAudioTracks()[0];
-        if (audioTrack && audioTrack.enabled) {
+        if (audioTrack?.enabled) {
           audioTrack.enabled = false;
           if (this.teamId && this.channelId) {
             ws.voiceMute(this.teamId, this.channelId, true);
@@ -271,11 +271,11 @@ class WebRTCService {
       }
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
+    globalThis.addEventListener('keydown', onKeyDown);
+    globalThis.addEventListener('keyup', onKeyUp);
     this.pttListeners.push(
-      () => window.removeEventListener('keydown', onKeyDown),
-      () => window.removeEventListener('keyup', onKeyUp),
+      () => globalThis.removeEventListener('keydown', onKeyDown),
+      () => globalThis.removeEventListener('keyup', onKeyUp),
     );
 
     // Subscribe to PTT setting changes to re-setup when toggled
@@ -325,9 +325,6 @@ class WebRTCService {
           console.error('[WebRTC] Failed to handle offer:', err);
         }
       }),
-    );
-
-    this.unsubscribers.push(
       ws.on('voice:ice-candidate', async (payload: { candidate: string; sdp_mid?: string; sdp_mline_index?: number }) => {
         if (!this.pc) return;
         const init: RTCIceCandidateInit = {
@@ -345,9 +342,6 @@ class WebRTCService {
           console.error('[WebRTC] ICE candidate error:', err);
         }
       }),
-    );
-
-    this.unsubscribers.push(
       ws.on('voice:user-joined', (payload: { user_id: string; username: string }) => {
         store().addPeer({
           user_id: payload.user_id,
@@ -355,29 +349,21 @@ class WebRTCService {
           muted: false,
           deafened: false,
           speaking: false,
-          voiceLevel: 0,        });
+          voiceLevel: 0,
+        });
         if (payload.user_id !== this.localUserId) {
           playJoinSound();
           // Distribute our E2E voice key to the new participant
           this.distributeVoiceKey();
         }
       }),
-    );
-
-    this.unsubscribers.push(
       ws.on('voice:user-left', (payload: { user_id: string }) => {
         store().removePeer(payload.user_id);
         if (payload.user_id !== this.localUserId) playLeaveSound();
       }),
-    );
-
-    this.unsubscribers.push(
       ws.on('voice:speaking', (payload: { user_id: string; speaking: boolean }) => {
         store().updatePeer(payload.user_id, { speaking: payload.speaking });
       }),
-    );
-
-    this.unsubscribers.push(
       ws.on('voice:state', (payload: { peers: Array<{ user_id: string; username: string; muted: boolean; deafened: boolean; speaking: boolean; voiceLevel?: number; screen_sharing?: boolean; webcam_sharing?: boolean }> }) => {
         console.log('[Voice] WS voice:state received, peers:', payload.peers?.length ?? 0);
         store().setPeers(payload.peers.map((p) => ({ ...p, voiceLevel: p.voiceLevel ?? 0 })));
@@ -391,10 +377,7 @@ class WebRTCService {
         // Distribute E2E voice key to existing participants after joining
         this.distributeVoiceKey();
       }),
-    );
-
-    // E2E voice key distribution handler
-    this.unsubscribers.push(
+      // E2E voice key distribution handler
       ws.on(
         'voice:key-distribute',
         async (payload: {
@@ -409,27 +392,18 @@ class WebRTCService {
           }
         },
       ),
-    );
-
-    this.unsubscribers.push(
       ws.on('voice:mute-update', (payload: { user_id: string; muted: boolean; deafened: boolean }) => {
         store().updatePeer(payload.user_id, { muted: payload.muted, deafened: payload.deafened });
       }),
-    );
-
-    this.unsubscribers.push(
       ws.on('voice:screen-update', (payload: { user_id: string; sharing: boolean }) => {
         store().updatePeer(payload.user_id, { screen_sharing: payload.sharing });
-        if (!payload.sharing) {
+        if (payload.sharing) {
+          store().setScreenSharingUserId(payload.user_id);
+        } else {
           store().setRemoteScreenStream(null);
           store().setScreenSharingUserId(null);
-        } else {
-          store().setScreenSharingUserId(payload.user_id);
         }
       }),
-    );
-
-    this.unsubscribers.push(
       ws.on('voice:webcam-update', (payload: { user_id: string; sharing: boolean }) => {
         store().updatePeer(payload.user_id, { webcam_sharing: payload.sharing });
         if (!payload.sharing) {
@@ -828,9 +802,7 @@ class WebRTCService {
   }
 
   private getAudioContext(): AudioContext {
-    if (!this.audioContext) {
-      this.audioContext = new AudioContext();
-    }
+    this.audioContext ??= new AudioContext();
     return this.audioContext;
   }
 
@@ -940,6 +912,8 @@ class WebRTCService {
 
 // Preserve singleton across Vite HMR reloads to avoid dropping active connections.
 const globalKey = '__dilla_webrtcService__';
-export const webrtcService: WebRTCService =
-  (globalThis as Record<string, unknown>)[globalKey] as WebRTCService ??
-  ((globalThis as Record<string, unknown>)[globalKey] = new WebRTCService()) as WebRTCService;
+const _global = globalThis as Record<string, unknown>;
+if (!_global[globalKey]) {
+  _global[globalKey] = new WebRTCService();
+}
+export const webrtcService: WebRTCService = _global[globalKey] as WebRTCService;

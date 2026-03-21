@@ -38,7 +38,7 @@ function getDMDisplayName(dm: DMChannel, currentUserId: string): string {
   return other?.display_name || other?.username || 'Unknown';
 }
 
-export default function DMList({ currentUserId, onNewDM }: Props) {
+export default function DMList({ currentUserId, onNewDM }: Readonly<Props>) {
   const { t } = useTranslation();
   const { activeTeamId } = useTeamStore();
   const activeDMId = useDMStore((state) => state.activeDMId);

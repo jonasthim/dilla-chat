@@ -14,7 +14,7 @@ const USERNAME_COLORS = [
   '#7b8fa8', // steel blue
 ];
 
-export function usernameColor(username: string): string {
+export function usernameColor(username = 'Unknown'): string {
   const name = username || 'Unknown';
   let hash = 0;
   for (let i = 0; i < name.length; i++) {

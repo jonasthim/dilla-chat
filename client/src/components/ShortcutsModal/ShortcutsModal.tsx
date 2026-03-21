@@ -18,7 +18,7 @@ const shortcuts = [
   { key: `${mod}+/`, action: 'shortcuts.showShortcuts' },
 ];
 
-export default function ShortcutsModal({ onClose }: Props) {
+export default function ShortcutsModal({ onClose }: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

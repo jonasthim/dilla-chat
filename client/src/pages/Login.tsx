@@ -31,6 +31,10 @@ interface IdentityInfo {
   createdAt: string | null;
 }
 
+async function tryReconnectToCurrentServer(pubKey: string): Promise<boolean> {
+  return doTryReconnect(pubKey);
+}
+
 export default function Login() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -51,10 +55,6 @@ export default function Login() {
   // Delegate to extracted service functions (fully unit-tested in authReconnect.test.ts)
   async function refreshServerTokens(pubKey: string) {
     await doRefreshServerTokens(teams, pubKey);
-  }
-
-  async function tryReconnectToCurrentServer(pubKey: string): Promise<boolean> {
-    return doTryReconnect(pubKey);
   }
 
   // Load identity info from IndexedDB on mount
@@ -315,7 +315,9 @@ export default function Login() {
         <div className="form">
           <button className="btn-primary" onClick={handlePasskeyUnlock} disabled={loading}>
             {loading
-              ? `${t('login.openingBrowser', 'Waiting for browser...')}${countdown > 0 ? ` (${countdown}s)` : ''}`
+              ? (countdown > 0
+                  ? `${t('login.openingBrowser', 'Waiting for browser...')} (${countdown}s)`
+                  : t('login.openingBrowser', 'Waiting for browser...'))
               : t('login.unlockWithPasskey')}
           </button>
           {loading && (
@@ -382,11 +384,7 @@ export default function Login() {
           <p style={{ fontSize: '0.9rem', marginBottom: 8 }}>
             {t('login.confirmDelete', 'Are you sure? This will permanently delete your local identity.')}
           </p>
-          {!confirmDelete ? (
-            <button className="btn-danger" onClick={() => setConfirmDelete(true)}>
-              {t('login.deleteIdentity', 'Delete identity')}
-            </button>
-          ) : (
+          {confirmDelete ? (
             <div>
               <button className="btn-danger" onClick={handleDeleteIdentity} style={{ marginRight: 8 }}>
                 {t('login.yesDelete', 'Yes, delete')}
@@ -395,6 +393,10 @@ export default function Login() {
                 {t('common.cancel', 'Cancel')}
               </button>
             </div>
+          ) : (
+            <button className="btn-danger" onClick={() => setConfirmDelete(true)}>
+              {t('login.deleteIdentity', 'Delete identity')}
+            </button>
           )}
         </div>
       </details>

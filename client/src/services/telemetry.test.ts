@@ -3,18 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock the OTel SDK modules before importing telemetry
 vi.mock('@opentelemetry/sdk-trace-web', () => ({
   WebTracerProvider: class {
-    register() {}
+    register() { /* noop */ }
     shutdown() { return Promise.resolve(); }
   },
-  BatchSpanProcessor: class {
-    constructor() {}
-  },
+  BatchSpanProcessor: class {},
 }));
 
 vi.mock('@opentelemetry/exporter-trace-otlp-http', () => ({
-  OTLPTraceExporter: class {
-    constructor() {}
-  },
+  OTLPTraceExporter: class {},
 }));
 
 vi.mock('@opentelemetry/resources', () => ({

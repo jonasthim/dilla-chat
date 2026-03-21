@@ -14,9 +14,9 @@ export default function SetupAdmin() {
   const [searchParams] = useSearchParams();
   const { publicKey, derivedKey, addTeam, setPublicKey } = useAuthStore();
 
-  const isBrowser = !(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  const isBrowser = !(globalThis as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
   const [serverAddress, setServerAddress] = useState(
-    isBrowser ? window.location.origin : '',
+    isBrowser ? globalThis.location.origin : '',
   );
   const [bootstrapToken, setBootstrapToken] = useState(
     searchParams.get('token') ?? '',
@@ -95,12 +95,12 @@ export default function SetupAdmin() {
       const realTeamId = (result.team?.id as string) || tempId;
 
       // Re-register with real team ID if different
-      if (realTeamId !== tempId) {
+      if (realTeamId === tempId) {
+        api.setToken(tempId, result.token);
+      } else {
         api.removeTeam(tempId);
         api.addTeam(realTeamId, normalizedUrl);
         api.setToken(realTeamId, result.token);
-      } else {
-        api.setToken(tempId, result.token);
       }
 
       addTeam(realTeamId, result.token, result.user, result.team, normalizedUrl);

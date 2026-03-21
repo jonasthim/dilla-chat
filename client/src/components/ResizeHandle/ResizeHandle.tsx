@@ -6,7 +6,7 @@ interface ResizeHandleProps {
   onResizeEnd?: () => void;
 }
 
-export default function ResizeHandle({ onResize, onResizeEnd }: ResizeHandleProps) {
+export default function ResizeHandle({ onResize, onResizeEnd }: Readonly<ResizeHandleProps>) {
   const [dragging, setDragging] = useState(false);
   const lastX = useRef(0);
 

@@ -73,7 +73,7 @@ interface Props {
   onClose: () => void;
 }
 
-export default function ThreadPanel({ thread, onClose }: Props) {
+export default function ThreadPanel({ thread, onClose }: Readonly<Props>) {
   const { t } = useTranslation();
   const { activeTeamId } = useTeamStore();
   const { teams, derivedKey } = useAuthStore();
@@ -313,11 +313,11 @@ export default function ThreadPanel({ thread, onClose }: Props) {
         <div className="thread-panel-header-info">
           <div className="thread-panel-title">{threadTitle}</div>
           <div className="thread-panel-subtitle">
-            {thread.message_count > 0
-              ? thread.message_count === 1
-                ? t('thread.reply', '1 reply')
-                : t('thread.replies', '{{count}} replies', { count: thread.message_count })
-              : t('thread.noReplies', 'No replies yet. Start the conversation!')}
+            {(() => {
+              if (thread.message_count === 0) return t('thread.noReplies', 'No replies yet. Start the conversation!');
+              if (thread.message_count === 1) return t('thread.reply', '1 reply');
+              return t('thread.replies', '{{count}} replies', { count: thread.message_count });
+            })()}
           </div>
         </div>
         <button className="thread-panel-close" onClick={onClose} title={t('thread.closeThread', 'Close')}>

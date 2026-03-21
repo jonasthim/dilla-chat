@@ -27,7 +27,7 @@ a {
   display: inline-flex;
   align-items: center;
   background: linear-gradient(135deg, #e8b84b 0%, #d4a03a 100%);
-  color: #fff;
+  color: #1a1a1a;
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 0.8em 2em;
   border-radius: 8px;

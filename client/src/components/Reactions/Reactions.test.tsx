@@ -48,7 +48,9 @@ describe('Reactions', () => {
       />,
     );
     // Click the first reaction chip (contains 🎉)
-    fireEvent.click(screen.getByText('🎉').closest('button')!);
+    const btn = screen.getByText('🎉').closest('button');
+    expect(btn).not.toBeNull();
+    fireEvent.click(btn as HTMLButtonElement);
     expect(onToggle).toHaveBeenCalledWith('🎉');
   });
 

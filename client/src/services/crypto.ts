@@ -66,7 +66,7 @@ async function persistSessions(derivedKey: string): Promise<void> {
 }
 
 // Re-export PrekeyBundle type for consumers
-export type { PrekeyBundle };
+export type { PrekeyBundle } from './cryptoCore';
 
 /**
  * E2E encryption service. Uses pure TypeScript CryptoManager internally.

@@ -41,7 +41,7 @@ export default function PasskeyManager() {
   }, []);
 
   const handleAddPasskey = async () => {
-    if (!credInfo || !credInfo.prfSalt || !derivedKey) return;
+    if (!credInfo?.prfSalt || !derivedKey) return;
     setError('');
     setLoading(true);
 
@@ -50,8 +50,8 @@ export default function PasskeyManager() {
       const userId = new TextEncoder().encode(username.padEnd(32, '\0').slice(0, 32));
 
       const result = await registerPasskey(username, userId, credInfo.prfSalt);
-      const newDerivedKey = prfOutputToBase64(result.prfOutput);
-      void newDerivedKey;
+      // Compute new derived key (used for re-wrapping in future)
+      prfOutputToBase64(result.prfOutput);
 
       const updated = [
         ...credInfo.credentials,

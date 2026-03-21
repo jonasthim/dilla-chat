@@ -20,8 +20,8 @@ export function supportsE2EVoice(): boolean {
  * VoiceKeyManager manages per-user encryption keys for a voice session.
  */
 export class VoiceKeyManager {
-  private keys: Map<string, CryptoKey> = new Map();
-  private rawKeys: Map<string, Uint8Array> = new Map();
+  private readonly keys: Map<string, CryptoKey> = new Map();
+  private readonly rawKeys: Map<string, Uint8Array> = new Map();
   private localKey: CryptoKey | null = null;
   private localRawKey: Uint8Array | null = null;
   private localKeyId = 0;

@@ -88,7 +88,7 @@ function loadDataViaREST(teamId: string, setters: SyncStoreSetters) {
 
   api.getTeam(teamId).then((data) => {
     const team = data as Team;
-    if (team && team.id) setters.setTeam(team);
+    if (team?.id) setters.setTeam(team);
   }).catch((err) => console.error('Failed to fetch team:', err));
 
   api.getMembers(teamId).then((data) => {
