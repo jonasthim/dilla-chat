@@ -254,11 +254,12 @@ export default function Login() {
     navigate('/create-identity');
   };
 
-  const passkeyButtonLabel = loading
-    ? (countdown > 0
-        ? `${t('login.openingBrowser', 'Waiting for browser...')} (${countdown}s)`
-        : t('login.openingBrowser', 'Waiting for browser...'))
-    : t('login.unlockWithPasskey');
+  let passkeyButtonLabel = t('login.unlockWithPasskey');
+  if (loading && countdown > 0) {
+    passkeyButtonLabel = `${t('login.openingBrowser', 'Waiting for browser...')} (${countdown}s)`;
+  } else if (loading) {
+    passkeyButtonLabel = t('login.openingBrowser', 'Waiting for browser...');
+  }
 
   return (
     <PublicShell>
