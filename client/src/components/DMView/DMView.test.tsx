@@ -215,21 +215,15 @@ describe('DMView', () => {
   });
 
   it.each([
-    { event: 'dm:message:new', payload: { id: 'dm-msg-2', dm_id: 'dm-1', channel_id: 'dm-1', author_id: 'user-2', username: 'bob', content: 'Hi!', type: 'text', thread_id: null, edited_at: null, deleted: false, created_at: '2025-01-01T01:00:00Z', reactions: [] } },
-    { event: 'dm:message:updated', payload: { dm_id: 'dm-1', message_id: 'dm-msg-1', content: 'edited', author_id: 'user-2', username: 'bob' } },
-    { event: 'dm:message:deleted', payload: { dm_id: 'dm-1', message_id: 'dm-msg-1' } },
-    { event: 'dm:typing:indicator', payload: { dm_id: 'dm-1', user_id: 'user-2', username: 'bob' } },
-  ])('handles $event for this DM', async ({ event, payload }) => {
-    renderDMView();
-    await fireWsEvent(event, payload);
-  });
-
-  it.each([
-    { event: 'dm:message:new', payload: { id: 'dm-msg-x', dm_id: 'other-dm', channel_id: 'other-dm', author_id: 'user-3', username: 'charlie', content: 'Nope', type: 'text', thread_id: null, edited_at: null, deleted: false, created_at: '2025-01-01T01:00:00Z', reactions: [] } },
-    { event: 'dm:message:updated', payload: { dm_id: 'other-dm', message_id: 'msg-x', content: 'edited', author_id: 'user-3', username: 'charlie' } },
-    { event: 'dm:message:deleted', payload: { dm_id: 'other-dm', message_id: 'msg-x' } },
-    { event: 'dm:typing:indicator', payload: { dm_id: 'other-dm', user_id: 'user-3', username: 'charlie' } },
-  ])('ignores $event for other DMs', async ({ event, payload }) => {
+    { event: 'dm:message:new', dmId: 'dm-1', payload: { id: 'dm-msg-2', dm_id: 'dm-1', channel_id: 'dm-1', author_id: 'user-2', username: 'bob', content: 'Hi!', type: 'text', thread_id: null, edited_at: null, deleted: false, created_at: '2025-01-01T01:00:00Z', reactions: [] } },
+    { event: 'dm:message:updated', dmId: 'dm-1', payload: { dm_id: 'dm-1', message_id: 'dm-msg-1', content: 'edited', author_id: 'user-2', username: 'bob' } },
+    { event: 'dm:message:deleted', dmId: 'dm-1', payload: { dm_id: 'dm-1', message_id: 'dm-msg-1' } },
+    { event: 'dm:typing:indicator', dmId: 'dm-1', payload: { dm_id: 'dm-1', user_id: 'user-2', username: 'bob' } },
+    { event: 'dm:message:new', dmId: 'other-dm', payload: { id: 'dm-msg-x', dm_id: 'other-dm', channel_id: 'other-dm', author_id: 'user-3', username: 'charlie', content: 'Nope', type: 'text', thread_id: null, edited_at: null, deleted: false, created_at: '2025-01-01T01:00:00Z', reactions: [] } },
+    { event: 'dm:message:updated', dmId: 'other-dm', payload: { dm_id: 'other-dm', message_id: 'msg-x', content: 'edited', author_id: 'user-3', username: 'charlie' } },
+    { event: 'dm:message:deleted', dmId: 'other-dm', payload: { dm_id: 'other-dm', message_id: 'msg-x' } },
+    { event: 'dm:typing:indicator', dmId: 'other-dm', payload: { dm_id: 'other-dm', user_id: 'user-3', username: 'charlie' } },
+  ])('processes $event for dm=$dmId without error', async ({ event, payload }) => {
     renderDMView();
     await fireWsEvent(event, payload);
   });

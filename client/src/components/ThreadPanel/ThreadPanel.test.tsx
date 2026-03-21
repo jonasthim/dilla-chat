@@ -177,7 +177,7 @@ describe('ThreadPanel', () => {
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn();
     renderThreadPanel(undefined, onClose);
-    fireEvent.click(screen.getByTestId('Xmark').closest('button')!);
+    fireEvent.click(screen.getByTestId('Xmark').closest('button') as HTMLElement);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -217,7 +217,7 @@ describe('ThreadPanel', () => {
 
   it('clicking edit sets editing state, cancel clears it', () => {
     renderThreadPanel();
-    fireEvent.click(screen.getByTestId('EditPencil').closest('button')!);
+    fireEvent.click(screen.getByTestId('EditPencil').closest('button') as HTMLElement);
     expect(screen.getByTestId('editing-indicator')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('cancel-edit'));
     expect(screen.queryByTestId('editing-indicator')).not.toBeInTheDocument();
@@ -226,7 +226,7 @@ describe('ThreadPanel', () => {
   it('clicking delete button calls ws.deleteThreadMessage', async () => {
     const { ws } = await import('../../services/websocket');
     renderThreadPanel();
-    fireEvent.click(screen.getByTestId('Trash').closest('button')!);
+    fireEvent.click(screen.getByTestId('Trash').closest('button') as HTMLElement);
     expect(ws.deleteThreadMessage).toHaveBeenCalledWith('team-1', 'thread-1', 'tmsg-1');
   });
 
@@ -255,21 +255,13 @@ describe('ThreadPanel', () => {
   });
 
   it.each([
-    { event: 'thread:message:new', payload: { id: 'tmsg-new', channel_id: 'ch-1', author_id: 'user-2', username: 'bob', content: 'New thread msg', type: 'text', thread_id: 'thread-1', edited_at: null, deleted: false, created_at: '2025-01-01T12:00:00Z', reactions: [] } },
-    { event: 'thread:message:updated', payload: { id: 'tmsg-1', channel_id: 'ch-1', author_id: 'user-1', username: 'alice', content: 'Edited content', type: 'text', thread_id: 'thread-1', edited_at: '2025-01-01T12:30:00Z', deleted: false, created_at: '2025-01-01T11:00:00Z', reactions: [] } },
-    { event: 'thread:message:deleted', payload: { message_id: 'tmsg-1', thread_id: 'thread-1' } },
-  ])('handles $event for this thread', async ({ event, payload }) => {
-    const { ws } = await import('../../services/websocket');
-    renderThreadPanel();
-    const handler = getWsHandler(vi.mocked(ws.on), event);
-    if (handler) await invokeWsHandler(handler, payload);
-  });
-
-  it.each([
-    { event: 'thread:message:new', payload: { id: 'tmsg-other', channel_id: 'ch-1', author_id: 'user-2', username: 'bob', content: 'Other', type: 'text', thread_id: 'other-thread', edited_at: null, deleted: false, created_at: '2025-01-01T12:00:00Z', reactions: [] } },
-    { event: 'thread:message:updated', payload: { id: 'tmsg-1', channel_id: 'ch-1', author_id: 'user-1', username: 'alice', content: 'Edited', type: 'text', thread_id: 'other-thread', edited_at: '2025-01-01T12:30:00Z', deleted: false, created_at: '2025-01-01T11:00:00Z', reactions: [] } },
-    { event: 'thread:message:deleted', payload: { message_id: 'tmsg-1', thread_id: 'other-thread' } },
-  ])('ignores $event for other threads', async ({ event, payload }) => {
+    { event: 'thread:message:new', threadId: 'thread-1', payload: { id: 'tmsg-new', channel_id: 'ch-1', author_id: 'user-2', username: 'bob', content: 'New thread msg', type: 'text', thread_id: 'thread-1', edited_at: null, deleted: false, created_at: '2025-01-01T12:00:00Z', reactions: [] } },
+    { event: 'thread:message:updated', threadId: 'thread-1', payload: { id: 'tmsg-1', channel_id: 'ch-1', author_id: 'user-1', username: 'alice', content: 'Edited content', type: 'text', thread_id: 'thread-1', edited_at: '2025-01-01T12:30:00Z', deleted: false, created_at: '2025-01-01T11:00:00Z', reactions: [] } },
+    { event: 'thread:message:deleted', threadId: 'thread-1', payload: { message_id: 'tmsg-1', thread_id: 'thread-1' } },
+    { event: 'thread:message:new', threadId: 'other-thread', payload: { id: 'tmsg-other', channel_id: 'ch-1', author_id: 'user-2', username: 'bob', content: 'Other', type: 'text', thread_id: 'other-thread', edited_at: null, deleted: false, created_at: '2025-01-01T12:00:00Z', reactions: [] } },
+    { event: 'thread:message:updated', threadId: 'other-thread', payload: { id: 'tmsg-1', channel_id: 'ch-1', author_id: 'user-1', username: 'alice', content: 'Edited', type: 'text', thread_id: 'other-thread', edited_at: '2025-01-01T12:30:00Z', deleted: false, created_at: '2025-01-01T11:00:00Z', reactions: [] } },
+    { event: 'thread:message:deleted', threadId: 'other-thread', payload: { message_id: 'tmsg-1', thread_id: 'other-thread' } },
+  ])('processes $event for thread=$threadId without error', async ({ event, payload }) => {
     const { ws } = await import('../../services/websocket');
     renderThreadPanel();
     const handler = getWsHandler(vi.mocked(ws.on), event);
@@ -298,7 +290,7 @@ describe('ThreadPanel', () => {
   it('edit button sets editing state and save edit calls ws.editThreadMessage', async () => {
     const { ws } = await import('../../services/websocket');
     renderThreadPanel();
-    fireEvent.click(screen.getByTestId('EditPencil').closest('button')!);
+    fireEvent.click(screen.getByTestId('EditPencil').closest('button') as HTMLElement);
     expect(screen.getByTestId('editing-indicator')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('save-edit'));
     await vi.waitFor(() => {
@@ -341,7 +333,7 @@ describe('ThreadPanel', () => {
     useAuthStore.setState({ teams: new Map([['team-1', { token: 't', user: { id: 'user-1', username: 'alice' }, teamInfo: null, baseUrl: '' }]]), derivedKey: 'test-derived-key' });
     const { ws } = await import('../../services/websocket');
     renderThreadPanel();
-    fireEvent.click(screen.getByTestId('EditPencil').closest('button')!);
+    fireEvent.click(screen.getByTestId('EditPencil').closest('button') as HTMLElement);
     fireEvent.click(screen.getByTestId('save-edit'));
     await vi.waitFor(() => {
       expect(ws.editThreadMessage).toHaveBeenCalledWith('team-1', 'thread-1', 'tmsg-1', expect.any(String));
