@@ -92,7 +92,7 @@ describe('FederationStatus', () => {
   it('shows no peers message when empty', async () => {
     vi.useRealTimers();
     const { api } = await import('../../services/api');
-    (api.getFederationStatus as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    vi.mocked(api.getFederationStatus).mockResolvedValueOnce({
       node_name: 'solo-node',
       peers: [],
       lamport_ts: 0,
@@ -108,7 +108,7 @@ describe('FederationStatus', () => {
   it('shows error when fetch fails', async () => {
     vi.useRealTimers();
     const { api } = await import('../../services/api');
-    (api.getFederationStatus as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network error'));
+    vi.mocked(api.getFederationStatus).mockRejectedValueOnce(new Error('Network error'));
 
     render(<FederationStatus teamId="team-1" />);
 
@@ -133,7 +133,7 @@ describe('FederationStatus', () => {
   it('displays syncing status label', async () => {
     vi.useRealTimers();
     const { api } = await import('../../services/api');
-    (api.getFederationStatus as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    vi.mocked(api.getFederationStatus).mockResolvedValueOnce({
       node_name: 'node-sync',
       peers: [{ name: 'node-sync', address: 'sync.io:8443', status: 'syncing', last_seen: '2025-01-01T12:00:00Z' }],
       lamport_ts: 10,
@@ -169,7 +169,7 @@ describe('FederationStatus', () => {
     const { api } = await import('../../services/api');
     let resolveToken: (v: unknown) => void;
     const tokenPromise = new Promise(r => { resolveToken = r; });
-    (api.generateJoinToken as ReturnType<typeof vi.fn>).mockReturnValueOnce(tokenPromise);
+    vi.mocked(api.generateJoinToken).mockReturnValueOnce(tokenPromise);
 
     render(<FederationStatus teamId="team-1" />);
     fireEvent.click(screen.getByText('federation.generateJoinToken'));
@@ -185,7 +185,7 @@ describe('FederationStatus', () => {
   it('shows error when token generation fails', async () => {
     vi.useRealTimers();
     const { api } = await import('../../services/api');
-    (api.generateJoinToken as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Token generation failed'));
+    vi.mocked(api.generateJoinToken).mockRejectedValueOnce(new Error('Token generation failed'));
 
     render(<FederationStatus teamId="team-1" />);
     fireEvent.click(screen.getByText('federation.generateJoinToken'));
@@ -223,7 +223,7 @@ describe('FederationStatus', () => {
   it('uses fallback copy when clipboard API fails', async () => {
     vi.useRealTimers();
     Object.assign(navigator, { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('not supported')) } });
-    document.execCommand = vi.fn();
+    Object.defineProperty(document, 'execCommand', { value: vi.fn().mockReturnValue(true), configurable: true });
 
     render(<FederationStatus teamId="team-1" />);
     fireEvent.click(screen.getByText('federation.generateJoinToken'));
@@ -261,7 +261,7 @@ describe('FederationStatus', () => {
   it('handles invalid date gracefully in formatLastSeen', async () => {
     vi.useRealTimers();
     const { api } = await import('../../services/api');
-    (api.getFederationStatus as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    vi.mocked(api.getFederationStatus).mockResolvedValueOnce({
       node_name: 'node-test',
       peers: [{ name: 'peer-1', address: 'addr:8443', status: 'connected', last_seen: 'invalid-date' }],
       lamport_ts: 5,
@@ -296,10 +296,9 @@ describe('FederationStatus', () => {
     vi.useRealTimers();
     const { api } = await import('../../services/api');
     // Mock toLocaleString to throw, triggering the catch block
-    const origToLocaleString = Date.prototype.toLocaleString;
-    Date.prototype.toLocaleString = () => { throw new Error('locale error'); };
+    const spy = vi.spyOn(Date.prototype, 'toLocaleString').mockImplementation(() => { throw new Error('locale error'); });
 
-    (api.getFederationStatus as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    vi.mocked(api.getFederationStatus).mockResolvedValueOnce({
       node_name: 'node-fallback',
       peers: [{ name: 'peer-err', address: 'err:8443', status: 'connected', last_seen: 'raw-fallback-string' }],
       lamport_ts: 1,
@@ -310,6 +309,6 @@ describe('FederationStatus', () => {
       expect(screen.getByText('raw-fallback-string')).toBeInTheDocument();
     });
 
-    Date.prototype.toLocaleString = origToLocaleString;
+    spy.mockRestore();
   });
 });

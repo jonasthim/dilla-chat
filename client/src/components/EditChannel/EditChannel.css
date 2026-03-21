@@ -1,3 +1,11 @@
+dialog.edit-channel-overlay {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: none;
+  max-height: none;
+}
+
 .edit-channel-overlay {
   position: fixed;
   inset: 0;

@@ -56,13 +56,12 @@ vi.mock('../components/PasskeyManager/PasskeyManager', () => ({
 }));
 
 vi.mock('../components/SettingsLayout/SettingsLayout', () => ({
-  default: ({ children, sections, activeId: _activeId, onSelect, onClose }: {
+  default: ({ children, sections, onSelect, onClose }: Readonly<{
     children: React.ReactNode;
     sections: Array<{ label?: string; items: Array<{ id: string; label: string; danger?: boolean }> }>;
-    activeId: string;
     onSelect: (id: string) => void;
     onClose: () => void;
-  }) => (
+  }>) => (
     <div data-testid="settings-layout">
       <nav data-testid="settings-nav">
         {sections.flatMap((s) =>
@@ -118,8 +117,8 @@ describe('UserSettings', () => {
       selectedInputDevice: 'default',
       selectedOutputDevice: 'default',
       inputThreshold: 0.15,
-      inputVolume: 1.0,
-      outputVolume: 1.0,
+      inputVolume: 1,
+      outputVolume: 1,
       desktopNotifications: true,
       soundNotifications: true,
       theme: 'dark',

@@ -69,9 +69,8 @@ describe('FilePreview', () => {
   it('opens lightbox when clicking an image', () => {
     render(<FilePreview attachments={[imageAttachment]} teamId="team-1" />);
     fireEvent.click(screen.getByAltText('photo.png'));
-    // After click, lightbox should appear with a second img
-    const images = screen.getAllByAltText('photo.png');
-    expect(images.length).toBe(2);
+    // After click, lightbox should appear
+    expect(document.querySelector('.file-preview-lightbox')).toBeInTheDocument();
   });
 
   it('renders video files with video tag', () => {
@@ -118,14 +117,12 @@ describe('FilePreview', () => {
     render(<FilePreview attachments={[imageAttachment]} teamId="team-1" />);
     fireEvent.click(screen.getByAltText('photo.png'));
     // Lightbox should be open
-    const images = screen.getAllByAltText('photo.png');
-    expect(images.length).toBe(2);
+    expect(document.querySelector('.file-preview-lightbox')).toBeInTheDocument();
     // Click the lightbox overlay to close
     const lightbox = document.querySelector('.file-preview-lightbox')!;
     fireEvent.click(lightbox);
-    // Should be back to just one image
-    const imagesAfter = screen.getAllByAltText('photo.png');
-    expect(imagesAfter.length).toBe(1);
+    // Lightbox should be gone
+    expect(document.querySelector('.file-preview-lightbox')).not.toBeInTheDocument();
   });
 
   it('formats file sizes correctly', () => {

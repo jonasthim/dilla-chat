@@ -13,7 +13,7 @@ function mockFetchResponse(body: unknown, status = 200, ok = true) {
 }
 
 function lastFetchCall(): { url: string; init: RequestInit } {
-  const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+  const calls = vi.mocked(globalThis.fetch).mock.calls;
   const last = calls[calls.length - 1];
   return { url: last[0], init: last[1] };
 }
@@ -21,16 +21,16 @@ function lastFetchCall(): { url: string; init: RequestInit } {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('ApiService', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     // Reset internal state by removing all teams
     // We re-add as needed per test
-    global.fetch = mockFetchResponse({});
+    globalThis.fetch = mockFetchResponse({});
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
   });
 
   // ── Connection management ─────────────────────────────────────────────────
@@ -40,7 +40,7 @@ describe('ApiService', () => {
       api.addTeam('t1', 'https://example.com');
       api.setToken('t1', 'tok-abc');
 
-      global.fetch = mockFetchResponse({ channels: [] });
+      globalThis.fetch = mockFetchResponse({ channels: [] });
       const result = await api.getChannels('t1');
 
       expect(result).toEqual([]);
@@ -62,7 +62,7 @@ describe('ApiService', () => {
       api.addTeam('t-tok', 'https://s.io');
       api.setToken('t-tok', 'my-jwt');
 
-      global.fetch = mockFetchResponse({ channels: [] });
+      globalThis.fetch = mockFetchResponse({ channels: [] });
       await api.getChannels('t-tok');
 
       const { init } = lastFetchCall();
@@ -99,7 +99,7 @@ describe('ApiService', () => {
       api.setAuthErrorHandler(handler);
       api.addTeam('t-auth', 'https://auth.io');
 
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
         text: () => Promise.resolve('Unauthorized'),
@@ -114,7 +114,7 @@ describe('ApiService', () => {
       api.setAuthErrorHandler(handler);
       api.addTeam('t-500', 'https://err.io');
 
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
         text: () => Promise.resolve('Internal Server Error'),
@@ -130,7 +130,7 @@ describe('ApiService', () => {
   describe('request construction', () => {
     it('sends Content-Type application/json', async () => {
       api.addTeam('t-ct', 'https://ct.io');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.getTeam('t-ct');
 
@@ -141,7 +141,7 @@ describe('ApiService', () => {
     it('sends no Authorization header when token is null', async () => {
       api.addTeam('t-noauth', 'https://no.io');
       // Don't set token
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       // Use requestChallenge which doesn't use conn.token
       await api.requestChallenge('t-noauth', 'pub-key');
@@ -156,7 +156,7 @@ describe('ApiService', () => {
   describe('error response handling', () => {
     it('extracts error field from JSON error body', async () => {
       api.addTeam('t-err', 'https://err.io');
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 400,
         text: () => Promise.resolve(JSON.stringify({ error: 'Bad request: missing field' })),
@@ -167,7 +167,7 @@ describe('ApiService', () => {
 
     it('uses raw text when body is not JSON', async () => {
       api.addTeam('t-raw', 'https://raw.io');
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 502,
         text: () => Promise.resolve('Bad Gateway'),
@@ -178,7 +178,7 @@ describe('ApiService', () => {
 
     it('falls back to status code when body is empty', async () => {
       api.addTeam('t-empty', 'https://empty.io');
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 503,
         text: () => Promise.resolve(''),
@@ -193,7 +193,7 @@ describe('ApiService', () => {
   describe('unwrapArray (via getChannels)', () => {
     it('unwraps {channels: [...]} to array', async () => {
       api.addTeam('t-ua', 'https://ua.io');
-      global.fetch = mockFetchResponse({ channels: [{ id: 'c1' }, { id: 'c2' }] });
+      globalThis.fetch = mockFetchResponse({ channels: [{ id: 'c1' }, { id: 'c2' }] });
 
       const result = await api.getChannels('t-ua');
       expect(result).toEqual([{ id: 'c1' }, { id: 'c2' }]);
@@ -201,7 +201,7 @@ describe('ApiService', () => {
 
     it('returns array directly if response is already an array', async () => {
       api.addTeam('t-arr', 'https://arr.io');
-      global.fetch = mockFetchResponse([{ id: 'c1' }]);
+      globalThis.fetch = mockFetchResponse([{ id: 'c1' }]);
 
       const result = await api.getChannels('t-arr');
       expect(result).toEqual([{ id: 'c1' }]);
@@ -209,7 +209,7 @@ describe('ApiService', () => {
 
     it('returns empty array for mismatched key', async () => {
       api.addTeam('t-mm', 'https://mm.io');
-      global.fetch = mockFetchResponse({ wrong_key: [1, 2, 3] });
+      globalThis.fetch = mockFetchResponse({ wrong_key: [1, 2, 3] });
 
       const result = await api.getChannels('t-mm');
       expect(result).toEqual([]);
@@ -218,14 +218,14 @@ describe('ApiService', () => {
 
   describe('unwrapObject (via getMe)', () => {
     it('unwraps {user: {...}} to object', async () => {
-      global.fetch = mockFetchResponse({ user: { id: 'u1', name: 'Alice' } });
+      globalThis.fetch = mockFetchResponse({ user: { id: 'u1', name: 'Alice' } });
 
       const result = await api.getMe('https://me.io', 'tok');
       expect(result).toEqual({ id: 'u1', name: 'Alice' });
     });
 
     it('returns data as-is when key not present', async () => {
-      global.fetch = mockFetchResponse({ id: 'u1', name: 'Alice' });
+      globalThis.fetch = mockFetchResponse({ id: 'u1', name: 'Alice' });
 
       const result = await api.getMe('https://me.io', 'tok');
       expect(result).toEqual({ id: 'u1', name: 'Alice' });
@@ -237,7 +237,7 @@ describe('ApiService', () => {
   describe('requestChallenge', () => {
     it('posts public_key to /api/v1/auth/challenge', async () => {
       api.addTeam('t-ch', 'https://ch.io');
-      global.fetch = mockFetchResponse({ challenge_id: 'abc', nonce: '123' });
+      globalThis.fetch = mockFetchResponse({ challenge_id: 'abc', nonce: '123' });
 
       const result = await api.requestChallenge('t-ch', 'pub-key-hex');
 
@@ -252,7 +252,7 @@ describe('ApiService', () => {
   describe('verifyChallenge', () => {
     it('posts challenge verification data', async () => {
       api.addTeam('t-vc', 'https://vc.io');
-      global.fetch = mockFetchResponse({ token: 'jwt', user: { id: 'u1' } });
+      globalThis.fetch = mockFetchResponse({ token: 'jwt', user: { id: 'u1' } });
 
       const result = await api.verifyChallenge('t-vc', 'cid', 'pk', 'sig');
 
@@ -265,7 +265,7 @@ describe('ApiService', () => {
   describe('register', () => {
     it('posts registration data', async () => {
       api.addTeam('t-reg', 'https://reg.io');
-      global.fetch = mockFetchResponse({ user: {}, token: 'tok' });
+      globalThis.fetch = mockFetchResponse({ user: {}, token: 'tok' });
 
       await api.register('t-reg', 'alice', 'Alice', 'pk', 'inv-token');
 
@@ -285,7 +285,7 @@ describe('ApiService', () => {
     it('sends POST with channel data', async () => {
       api.addTeam('t-cc', 'https://cc.io');
       api.setToken('t-cc', 'tok');
-      global.fetch = mockFetchResponse({ id: 'ch1', name: 'general' });
+      globalThis.fetch = mockFetchResponse({ id: 'ch1', name: 'general' });
 
       await api.createChannel('t-cc', { name: 'general', type: 'text', topic: 'hi' });
 
@@ -300,7 +300,7 @@ describe('ApiService', () => {
     it('sends DELETE request', async () => {
       api.addTeam('t-dc', 'https://dc.io');
       api.setToken('t-dc', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.deleteChannel('t-dc', 'ch1');
 
@@ -316,7 +316,7 @@ describe('ApiService', () => {
     it('constructs correct URL with query params', async () => {
       api.addTeam('t-msg', 'https://msg.io');
       api.setToken('t-msg', 'tok');
-      global.fetch = mockFetchResponse({ messages: [{ id: 'm1' }] });
+      globalThis.fetch = mockFetchResponse({ messages: [{ id: 'm1' }] });
 
       const result = await api.getMessages('t-msg', 'ch1', 50, 'before-id');
 
@@ -330,7 +330,7 @@ describe('ApiService', () => {
     it('omits query params when not provided', async () => {
       api.addTeam('t-msg2', 'https://msg2.io');
       api.setToken('t-msg2', 'tok');
-      global.fetch = mockFetchResponse({ messages: [] });
+      globalThis.fetch = mockFetchResponse({ messages: [] });
 
       await api.getMessages('t-msg2', 'ch1');
 
@@ -345,7 +345,7 @@ describe('ApiService', () => {
     it('unwraps members array', async () => {
       api.addTeam('t-mem', 'https://mem.io');
       api.setToken('t-mem', 'tok');
-      global.fetch = mockFetchResponse({ members: [{ id: 'u1' }] });
+      globalThis.fetch = mockFetchResponse({ members: [{ id: 'u1' }] });
 
       const result = await api.getMembers('t-mem');
       expect(result).toEqual([{ id: 'u1' }]);
@@ -356,7 +356,7 @@ describe('ApiService', () => {
     it('sends DELETE to member endpoint', async () => {
       api.addTeam('t-kick', 'https://kick.io');
       api.setToken('t-kick', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.kickMember('t-kick', 'u1');
 
@@ -370,7 +370,7 @@ describe('ApiService', () => {
     it('banMember sends POST to ban endpoint', async () => {
       api.addTeam('t-ban', 'https://ban.io');
       api.setToken('t-ban', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.banMember('t-ban', 'u1');
 
@@ -382,7 +382,7 @@ describe('ApiService', () => {
     it('unbanMember sends DELETE to ban endpoint', async () => {
       api.addTeam('t-unban', 'https://unban.io');
       api.setToken('t-unban', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.unbanMember('t-unban', 'u1');
 
@@ -396,7 +396,7 @@ describe('ApiService', () => {
     it('getRoles unwraps roles array', async () => {
       api.addTeam('t-role', 'https://role.io');
       api.setToken('t-role', 'tok');
-      global.fetch = mockFetchResponse({ roles: [{ id: 'r1', name: 'Admin' }] });
+      globalThis.fetch = mockFetchResponse({ roles: [{ id: 'r1', name: 'Admin' }] });
 
       const roles = await api.getRoles('t-role');
       expect(roles).toEqual([{ id: 'r1', name: 'Admin' }]);
@@ -405,7 +405,7 @@ describe('ApiService', () => {
     it('createRole sends POST with role data', async () => {
       api.addTeam('t-cr', 'https://cr.io');
       api.setToken('t-cr', 'tok');
-      global.fetch = mockFetchResponse({ id: 'r1' });
+      globalThis.fetch = mockFetchResponse({ id: 'r1' });
 
       await api.createRole('t-cr', { name: 'Mod', color: '#ff0', permissions: 7 });
 
@@ -420,7 +420,7 @@ describe('ApiService', () => {
     it('posts member_ids to DM endpoint', async () => {
       api.addTeam('t-dm', 'https://dm.io');
       api.setToken('t-dm', 'tok');
-      global.fetch = mockFetchResponse({ id: 'dm1' });
+      globalThis.fetch = mockFetchResponse({ id: 'dm1' });
 
       await api.createDM('t-dm', ['u1', 'u2']);
 
@@ -433,7 +433,7 @@ describe('ApiService', () => {
     it('constructs URL with pagination params', async () => {
       api.addTeam('t-dmm', 'https://dmm.io');
       api.setToken('t-dmm', 'tok');
-      global.fetch = mockFetchResponse({ messages: [] });
+      globalThis.fetch = mockFetchResponse({ messages: [] });
 
       await api.getDMMessages('t-dmm', 'dm1', 'before-id', 25);
 
@@ -449,7 +449,7 @@ describe('ApiService', () => {
     it('posts thread creation data', async () => {
       api.addTeam('t-th', 'https://th.io');
       api.setToken('t-th', 'tok');
-      global.fetch = mockFetchResponse({ id: 'th1' });
+      globalThis.fetch = mockFetchResponse({ id: 'th1' });
 
       await api.createThread('t-th', 'ch1', 'msg1', 'Discussion');
 
@@ -464,7 +464,7 @@ describe('ApiService', () => {
     it('addReaction sends PUT with encoded emoji', async () => {
       api.addTeam('t-react', 'https://react.io');
       api.setToken('t-react', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.addReaction('t-react', 'ch1', 'msg1', '👍');
 
@@ -476,7 +476,7 @@ describe('ApiService', () => {
     it('removeReaction sends DELETE', async () => {
       api.addTeam('t-rr', 'https://rr.io');
       api.setToken('t-rr', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.removeReaction('t-rr', 'ch1', 'msg1', '🎉');
       expect(lastFetchCall().init.method).toBe('DELETE');
@@ -490,7 +490,7 @@ describe('ApiService', () => {
       api.addTeam('t-up', 'https://up.io');
       api.setToken('t-up', 'my-token');
 
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
         json: () => Promise.resolve({ id: 'att1', filename: 'test.png' }),
@@ -522,7 +522,7 @@ describe('ApiService', () => {
     it('transforms presences array to record', async () => {
       api.addTeam('t-pres', 'https://pres.io');
       api.setToken('t-pres', 'tok');
-      global.fetch = mockFetchResponse({
+      globalThis.fetch = mockFetchResponse({
         presences: [
           { user_id: 'u1', status_type: 'online', custom_status: 'Working', last_active: '2024-01-01' },
           { user_id: 'u2', status_type: 'idle' },
@@ -544,13 +544,13 @@ describe('ApiService', () => {
 
   describe('checkHealth', () => {
     it('returns true on success', async () => {
-      global.fetch = mockFetchResponse({ status: 'ok' });
+      globalThis.fetch = mockFetchResponse({ status: 'ok' });
       const ok = await api.checkHealth('https://h.io');
       expect(ok).toBe(true);
     });
 
     it('returns false on error', async () => {
-      global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
       const ok = await api.checkHealth('https://h.io');
       expect(ok).toBe(false);
     });
@@ -558,7 +558,7 @@ describe('ApiService', () => {
 
   describe('checkHealthWithLatency', () => {
     it('returns ok, latency, and uptime', async () => {
-      global.fetch = mockFetchResponse({ uptime: '2h30m' });
+      globalThis.fetch = mockFetchResponse({ uptime: '2h30m' });
       const result = await api.checkHealthWithLatency('https://h.io');
       expect(result.ok).toBe(true);
       expect(result.latency).toBeGreaterThanOrEqual(0);
@@ -566,7 +566,7 @@ describe('ApiService', () => {
     });
 
     it('returns ok=false on failure', async () => {
-      global.fetch = vi.fn().mockRejectedValue(new Error('down'));
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('down'));
       const result = await api.checkHealthWithLatency('https://h.io');
       expect(result.ok).toBe(false);
       expect(result.latency).toBe(0);
@@ -579,7 +579,7 @@ describe('ApiService', () => {
     it('createInvite posts to team invites endpoint', async () => {
       api.addTeam('t-inv', 'https://inv.io');
       api.setToken('t-inv', 'tok');
-      global.fetch = mockFetchResponse({ code: 'abc123' });
+      globalThis.fetch = mockFetchResponse({ code: 'abc123' });
 
       await api.createInvite('t-inv', 5, 24);
 
@@ -593,7 +593,7 @@ describe('ApiService', () => {
     it('listInvites unwraps invites array', async () => {
       api.addTeam('t-li', 'https://li.io');
       api.setToken('t-li', 'tok');
-      global.fetch = mockFetchResponse({ invites: [{ id: 'i1' }] });
+      globalThis.fetch = mockFetchResponse({ invites: [{ id: 'i1' }] });
 
       const result = await api.listInvites('t-li');
       expect(result).toEqual([{ id: 'i1' }]);
@@ -602,7 +602,7 @@ describe('ApiService', () => {
     it('revokeInvite sends DELETE', async () => {
       api.addTeam('t-ri', 'https://ri.io');
       api.setToken('t-ri', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.revokeInvite('t-ri', 'inv1');
 
@@ -618,7 +618,7 @@ describe('ApiService', () => {
     it('getFederationStatus returns status object', async () => {
       api.addTeam('t-fed', 'https://fed.io');
       api.setToken('t-fed', 'tok');
-      global.fetch = mockFetchResponse({ node_name: 'node1', peers: [], lamport_ts: 42 });
+      globalThis.fetch = mockFetchResponse({ node_name: 'node1', peers: [], lamport_ts: 42 });
 
       const result = await api.getFederationStatus('t-fed');
       expect(result.node_name).toBe('node1');
@@ -639,7 +639,7 @@ describe('ApiService', () => {
   describe('bootstrap', () => {
     it('posts bootstrap data with team_name', async () => {
       api.addTeam('t-boot', 'https://boot.io');
-      global.fetch = mockFetchResponse({ user: {}, token: 'tok', team: {} });
+      globalThis.fetch = mockFetchResponse({ user: {}, token: 'tok', team: {} });
 
       await api.bootstrap('t-boot', 'alice', 'Alice', 'pk', 'btoken', 'My Team');
 
@@ -655,7 +655,7 @@ describe('ApiService', () => {
 
     it('omits team_name when not provided', async () => {
       api.addTeam('t-boot2', 'https://boot2.io');
-      global.fetch = mockFetchResponse({ user: {}, token: 'tok', team: {} });
+      globalThis.fetch = mockFetchResponse({ user: {}, token: 'tok', team: {} });
 
       await api.bootstrap('t-boot2', 'alice', 'Alice', 'pk', 'btoken');
 
@@ -668,7 +668,7 @@ describe('ApiService', () => {
 
   describe('updateMe', () => {
     it('sends PATCH with user updates', async () => {
-      global.fetch = mockFetchResponse({ user: { id: 'u1', display_name: 'Updated' } });
+      globalThis.fetch = mockFetchResponse({ user: { id: 'u1', display_name: 'Updated' } });
       const result = await api.updateMe('https://me.io', 'tok', { display_name: 'Updated' });
 
       expect(result).toEqual({ id: 'u1', display_name: 'Updated' });
@@ -683,7 +683,7 @@ describe('ApiService', () => {
     it('sends PATCH with channel updates', async () => {
       api.addTeam('t-uc', 'https://uc.io');
       api.setToken('t-uc', 'tok');
-      global.fetch = mockFetchResponse({ id: 'ch1', name: 'renamed' });
+      globalThis.fetch = mockFetchResponse({ id: 'ch1', name: 'renamed' });
 
       await api.updateChannel('t-uc', 'ch1', { name: 'renamed' });
 
@@ -699,7 +699,7 @@ describe('ApiService', () => {
     it('sends PATCH to team endpoint', async () => {
       api.addTeam('t-ut', 'https://ut.io');
       api.setToken('t-ut', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.updateTeam('t-ut', { name: 'New Name' });
 
@@ -714,7 +714,7 @@ describe('ApiService', () => {
     it('sends PATCH to member endpoint', async () => {
       api.addTeam('t-um', 'https://um.io');
       api.setToken('t-um', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.updateMember('t-um', 'u1', { nickname: 'nick' });
 
@@ -730,7 +730,7 @@ describe('ApiService', () => {
     it('unwraps threads array', async () => {
       api.addTeam('t-gct', 'https://gct.io');
       api.setToken('t-gct', 'tok');
-      global.fetch = mockFetchResponse({ threads: [{ id: 'th1' }] });
+      globalThis.fetch = mockFetchResponse({ threads: [{ id: 'th1' }] });
 
       const result = await api.getChannelThreads('t-gct', 'ch1');
       expect(result).toEqual([{ id: 'th1' }]);
@@ -741,7 +741,7 @@ describe('ApiService', () => {
     it('unwraps thread object', async () => {
       api.addTeam('t-gt', 'https://gt.io');
       api.setToken('t-gt', 'tok');
-      global.fetch = mockFetchResponse({ thread: { id: 'th1', title: 'Test' } });
+      globalThis.fetch = mockFetchResponse({ thread: { id: 'th1', title: 'Test' } });
 
       const result = await api.getThread('t-gt', 'th1');
       expect(result).toEqual({ id: 'th1', title: 'Test' });
@@ -752,7 +752,7 @@ describe('ApiService', () => {
     it('constructs URL with params', async () => {
       api.addTeam('t-gtm', 'https://gtm.io');
       api.setToken('t-gtm', 'tok');
-      global.fetch = mockFetchResponse({ messages: [{ id: 'm1' }] });
+      globalThis.fetch = mockFetchResponse({ messages: [{ id: 'm1' }] });
 
       const result = await api.getThreadMessages('t-gtm', 'th1', 'before-id', 25);
       expect(result).toEqual([{ id: 'm1' }]);
@@ -768,7 +768,7 @@ describe('ApiService', () => {
     it('unwraps channel object', async () => {
       api.addTeam('t-gdc', 'https://gdc.io');
       api.setToken('t-gdc', 'tok');
-      global.fetch = mockFetchResponse({ channel: { id: 'dm1' } });
+      globalThis.fetch = mockFetchResponse({ channel: { id: 'dm1' } });
 
       const result = await api.getDMChannel('t-gdc', 'dm1');
       expect(result).toEqual({ id: 'dm1' });
@@ -779,7 +779,7 @@ describe('ApiService', () => {
     it('posts content', async () => {
       api.addTeam('t-sdm', 'https://sdm.io');
       api.setToken('t-sdm', 'tok');
-      global.fetch = mockFetchResponse({ id: 'm1' });
+      globalThis.fetch = mockFetchResponse({ id: 'm1' });
 
       await api.sendDMMessage('t-sdm', 'dm1', 'Hello');
 
@@ -792,7 +792,7 @@ describe('ApiService', () => {
     it('sends PUT', async () => {
       api.addTeam('t-edm', 'https://edm.io');
       api.setToken('t-edm', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.editDMMessage('t-edm', 'dm1', 'm1', 'Updated');
       expect(lastFetchCall().init.method).toBe('PUT');
@@ -803,7 +803,7 @@ describe('ApiService', () => {
     it('sends DELETE', async () => {
       api.addTeam('t-ddm', 'https://ddm.io');
       api.setToken('t-ddm', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.deleteDMMessage('t-ddm', 'dm1', 'm1');
       expect(lastFetchCall().init.method).toBe('DELETE');
@@ -814,7 +814,7 @@ describe('ApiService', () => {
     it('posts user_ids', async () => {
       api.addTeam('t-adm', 'https://adm.io');
       api.setToken('t-adm', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.addDMMembers('t-adm', 'dm1', ['u1', 'u2']);
       const body = JSON.parse(lastFetchCall().init.body as string);
@@ -826,7 +826,7 @@ describe('ApiService', () => {
     it('sends DELETE to member endpoint', async () => {
       api.addTeam('t-rdm', 'https://rdm.io');
       api.setToken('t-rdm', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.removeDMMember('t-rdm', 'dm1', 'u1');
       expect(lastFetchCall().init.method).toBe('DELETE');
@@ -839,7 +839,7 @@ describe('ApiService', () => {
     it('sends PATCH', async () => {
       api.addTeam('t-ur', 'https://ur.io');
       api.setToken('t-ur', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.updateRole('t-ur', 'r1', { name: 'Renamed' });
       expect(lastFetchCall().init.method).toBe('PATCH');
@@ -850,7 +850,7 @@ describe('ApiService', () => {
     it('sends DELETE', async () => {
       api.addTeam('t-dr', 'https://dr.io');
       api.setToken('t-dr', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.deleteRole('t-dr', 'r1');
       expect(lastFetchCall().init.method).toBe('DELETE');
@@ -863,7 +863,7 @@ describe('ApiService', () => {
     it('fetches user presence', async () => {
       api.addTeam('t-gup', 'https://gup.io');
       api.setToken('t-gup', 'tok');
-      global.fetch = mockFetchResponse({ user_id: 'u1', status: 'online' });
+      globalThis.fetch = mockFetchResponse({ user_id: 'u1', status: 'online' });
 
       const result = await api.getUserPresence('t-gup', 'u1');
       expect(result.user_id).toBe('u1');
@@ -874,7 +874,7 @@ describe('ApiService', () => {
     it('sends PUT with status', async () => {
       api.addTeam('t-upres', 'https://upres.io');
       api.setToken('t-upres', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.updatePresence('t-upres', 'online', 'Working');
 
@@ -889,7 +889,7 @@ describe('ApiService', () => {
     it('handles presence key', async () => {
       api.addTeam('t-pres2', 'https://pres2.io');
       api.setToken('t-pres2', 'tok');
-      global.fetch = mockFetchResponse({
+      globalThis.fetch = mockFetchResponse({
         presence: [{ user_id: 'u1', status: 'online' }],
       });
 
@@ -900,7 +900,7 @@ describe('ApiService', () => {
     it('handles direct array response', async () => {
       api.addTeam('t-pres3', 'https://pres3.io');
       api.setToken('t-pres3', 'tok');
-      global.fetch = mockFetchResponse([{ user_id: 'u1', status_type: 'idle' }]);
+      globalThis.fetch = mockFetchResponse([{ user_id: 'u1', status_type: 'idle' }]);
 
       const result = await api.getPresences('t-pres3');
       expect(result['u1'].status).toBe('idle');
@@ -913,7 +913,7 @@ describe('ApiService', () => {
     it('sends DELETE', async () => {
       api.addTeam('t-da', 'https://da.io');
       api.setToken('t-da', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.deleteAttachment('t-da', 'att1');
       expect(lastFetchCall().init.method).toBe('DELETE');
@@ -927,7 +927,7 @@ describe('ApiService', () => {
       api.addTeam('t-ufe', 'https://ufe.io');
       api.setToken('t-ufe', 'tok');
 
-      global.fetch = vi.fn().mockResolvedValue({
+      globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 413,
         text: () => Promise.resolve('File too large'),
@@ -942,7 +942,7 @@ describe('ApiService', () => {
 
   describe('getInviteInfo', () => {
     it('fetches invite info by token', async () => {
-      global.fetch = mockFetchResponse({ team_name: 'Cool Team' });
+      globalThis.fetch = mockFetchResponse({ team_name: 'Cool Team' });
       const result = await api.getInviteInfo('https://inv.io', 'abc123') as Record<string, unknown>;
       expect(result.team_name).toBe('Cool Team');
       const { url } = lastFetchCall();
@@ -954,7 +954,7 @@ describe('ApiService', () => {
 
   describe('listTeams', () => {
     it('unwraps teams array', async () => {
-      global.fetch = mockFetchResponse({ teams: [{ id: 't1' }] });
+      globalThis.fetch = mockFetchResponse({ teams: [{ id: 't1' }] });
       const result = await api.listTeams('https://lt.io', 'tok');
       expect(result).toEqual([{ id: 't1' }]);
     });
@@ -962,7 +962,7 @@ describe('ApiService', () => {
 
   describe('createTeam', () => {
     it('unwraps team object', async () => {
-      global.fetch = mockFetchResponse({ team: { id: 't1', name: 'New' } });
+      globalThis.fetch = mockFetchResponse({ team: { id: 't1', name: 'New' } });
       const result = await api.createTeam('https://ct.io', 'tok', 'New', 'desc');
       expect(result).toEqual({ id: 't1', name: 'New' });
     });
@@ -974,7 +974,7 @@ describe('ApiService', () => {
     it('posts to join-token endpoint', async () => {
       api.addTeam('t-jt', 'https://jt.io');
       api.setToken('t-jt', 'tok');
-      global.fetch = mockFetchResponse({ token: 'abc', join_command: 'dilla join abc' });
+      globalThis.fetch = mockFetchResponse({ token: 'abc', join_command: 'dilla join abc' });
 
       const result = await api.generateJoinToken('t-jt');
       expect(result.token).toBe('abc');
@@ -991,7 +991,7 @@ describe('ApiService', () => {
     it('unwraps channels array', async () => {
       api.addTeam('t-gdmc', 'https://gdmc.io');
       api.setToken('t-gdmc', 'tok');
-      global.fetch = mockFetchResponse({ channels: [{ id: 'dm1' }, { id: 'dm2' }] });
+      globalThis.fetch = mockFetchResponse({ channels: [{ id: 'dm1' }, { id: 'dm2' }] });
 
       const result = await api.getDMChannels('t-gdmc');
       expect(result).toEqual([{ id: 'dm1' }, { id: 'dm2' }]);
@@ -1004,7 +1004,7 @@ describe('ApiService', () => {
     it('posts bundle to prekeys endpoint', async () => {
       api.addTeam('t-upk', 'https://upk.io');
       api.setToken('t-upk', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.uploadPrekeyBundle('t-upk', {
         identity_key: 'ik',
@@ -1027,7 +1027,7 @@ describe('ApiService', () => {
     it('fetches prekey bundle for user', async () => {
       api.addTeam('t-gpk', 'https://gpk.io');
       api.setToken('t-gpk', 'tok');
-      global.fetch = mockFetchResponse({
+      globalThis.fetch = mockFetchResponse({
         identity_key: 'ik',
         signed_prekey: 'spk',
         signed_prekey_signature: 'sig',
@@ -1048,7 +1048,7 @@ describe('ApiService', () => {
     it('returns peers array', async () => {
       api.addTeam('t-fp', 'https://fp.io');
       api.setToken('t-fp', 'tok');
-      global.fetch = mockFetchResponse([{ name: 'node1' }]);
+      globalThis.fetch = mockFetchResponse([{ name: 'node1' }]);
 
       const result = await api.getFederationPeers('t-fp');
       expect(result).toEqual([{ name: 'node1' }]);
@@ -1061,7 +1061,7 @@ describe('ApiService', () => {
     it('fetches voice state', async () => {
       api.addTeam('t-vs', 'https://vs.io');
       api.setToken('t-vs', 'tok');
-      global.fetch = mockFetchResponse({ channel_id: 'ch1', peers: [] });
+      globalThis.fetch = mockFetchResponse({ channel_id: 'ch1', peers: [] });
 
       const result = await api.getVoiceState('t-vs', 'ch1');
       expect(result.channel_id).toBe('ch1');
@@ -1072,7 +1072,7 @@ describe('ApiService', () => {
     it('fetches TURN credentials', async () => {
       api.addTeam('t-turn', 'https://turn.io');
       api.setToken('t-turn', 'tok');
-      global.fetch = mockFetchResponse({ iceServers: [{ urls: 'turn:turn.io' }] });
+      globalThis.fetch = mockFetchResponse({ iceServers: [{ urls: 'turn:turn.io' }] });
 
       const result = await api.getTURNCredentials('t-turn');
       expect(result.iceServers).toHaveLength(1);
@@ -1085,7 +1085,7 @@ describe('ApiService', () => {
     it('fetches reactions', async () => {
       api.addTeam('t-gr', 'https://gr.io');
       api.setToken('t-gr', 'tok');
-      global.fetch = mockFetchResponse([{ emoji: '👍', count: 1, users: ['u1'], me: true }]);
+      globalThis.fetch = mockFetchResponse([{ emoji: '👍', count: 1, users: ['u1'], me: true }]);
 
       const result = await api.getReactions('t-gr', 'ch1', 'msg1');
       expect(result[0].emoji).toBe('👍');
@@ -1098,7 +1098,7 @@ describe('ApiService', () => {
     it('sends PUT with title', async () => {
       api.addTeam('t-uth', 'https://uth.io');
       api.setToken('t-uth', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.updateThread('t-uth', 'th1', 'New Title');
       expect(lastFetchCall().init.method).toBe('PUT');
@@ -1109,7 +1109,7 @@ describe('ApiService', () => {
     it('sends DELETE', async () => {
       api.addTeam('t-dth', 'https://dth.io');
       api.setToken('t-dth', 'tok');
-      global.fetch = mockFetchResponse({});
+      globalThis.fetch = mockFetchResponse({});
 
       await api.deleteThread('t-dth', 'th1');
       expect(lastFetchCall().init.method).toBe('DELETE');

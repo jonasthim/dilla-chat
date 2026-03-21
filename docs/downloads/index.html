@@ -201,7 +201,7 @@
     <div id="pr-builds"><p class="loading">Loading recent PRs...</p></div>
   </div>
 
-  <script>
+  <script type="module">
     const REPO = 'dilla-chat/dilla-chat';
     const API = 'https://api.github.com';
 
@@ -255,6 +255,7 @@
           </div>
         `).join('');
       } catch (e) {
+        console.warn('Failed to load releases:', e);
         el.innerHTML = '<p class="empty">Failed to load releases. <a href="https://github.com/' + REPO + '/releases">View on GitHub</a></p>';
       }
     }
@@ -280,12 +281,12 @@
           </div>
         `).join('');
       } catch (e) {
+        console.warn('Failed to load PRs:', e);
         el.innerHTML = '<p class="empty">Failed to load PRs. <a href="https://github.com/' + REPO + '/pulls">View on GitHub</a></p>';
       }
     }
 
-    loadReleases();
-    loadPRBuilds();
+    await Promise.all([loadReleases(), loadPRBuilds()]);
   </script>
 </body>
 </html>

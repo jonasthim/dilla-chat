@@ -9,7 +9,7 @@ vi.mock('../../services/crypto', () => ({
   },
 }));
 
-const mockGetSafetyNumber = cryptoService.getSafetyNumber as ReturnType<typeof vi.fn>;
+const mockGetSafetyNumber = vi.mocked(cryptoService.getSafetyNumber);
 
 describe('SafetyNumber', () => {
   it('shows loading state initially', () => {

@@ -22,8 +22,9 @@ export default function ShortcutsModal({ onClose }: Props) {
   const { t } = useTranslation();
 
   return (
-    <div className="shortcuts-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
-      <div className="shortcuts-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+    <dialog className="shortcuts-overlay" open aria-labelledby="shortcuts-title">
+      <button type="button" className="dialog-backdrop" onClick={onClose} aria-label="Close" />
+      <div className="shortcuts-modal">
         <div className="shortcuts-header">
           <h2 id="shortcuts-title">{t('shortcuts.title', 'Keyboard Shortcuts')}</h2>
           <button className="shortcuts-close" onClick={onClose}><Xmark width={20} height={20} strokeWidth={2} /></button>
@@ -37,6 +38,6 @@ export default function ShortcutsModal({ onClose }: Props) {
           ))}
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

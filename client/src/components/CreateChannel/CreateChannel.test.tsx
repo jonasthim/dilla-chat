@@ -72,7 +72,7 @@ describe('CreateChannel', () => {
   it('calls onClose when overlay is clicked', () => {
     const onClose = vi.fn();
     const { container } = render(<CreateChannel onClose={onClose} />);
-    const overlay = container.querySelector('.create-channel-overlay')!;
+    const overlay = container.querySelector('.dialog-backdrop')!;
     fireEvent.click(overlay);
     expect(onClose).toHaveBeenCalledTimes(1);
   });

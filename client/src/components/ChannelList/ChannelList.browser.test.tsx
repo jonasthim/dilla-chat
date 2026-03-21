@@ -44,7 +44,7 @@ describe('ChannelList category arrow', () => {
       <div className="channel-category-name">
         <span className="category-arrow collapsed" data-testid="arrow">
           ▶
-        </span>
+        </span>{' '}
         General
       </div>,
     );

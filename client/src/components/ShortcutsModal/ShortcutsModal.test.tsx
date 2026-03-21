@@ -39,7 +39,7 @@ describe('ShortcutsModal', () => {
   it('calls onClose when overlay is clicked', () => {
     const onClose = vi.fn();
     const { container } = render(<ShortcutsModal onClose={onClose} />);
-    const overlay = container.querySelector('.shortcuts-overlay')!;
+    const overlay = container.querySelector('.dialog-backdrop')!;
     fireEvent.click(overlay);
     expect(onClose).toHaveBeenCalledTimes(1);
   });

@@ -80,8 +80,8 @@ describe('ConnectionStatus', () => {
 
   it('shows connected state and latency after successful ping', async () => {
     const { ws } = await import('../../services/websocket');
-    (ws.isConnected as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (ws.ping as ReturnType<typeof vi.fn>).mockResolvedValue(50);
+    vi.mocked(ws.isConnected).mockReturnValue(true);
+    vi.mocked(ws.ping).mockResolvedValue(50);
 
     const { container } = render(<ConnectionStatus />);
 
@@ -99,8 +99,8 @@ describe('ConnectionStatus', () => {
 
   it('shows excellent quality for low latency', async () => {
     const { ws } = await import('../../services/websocket');
-    (ws.isConnected as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (ws.ping as ReturnType<typeof vi.fn>).mockResolvedValue(30);
+    vi.mocked(ws.isConnected).mockReturnValue(true);
+    vi.mocked(ws.ping).mockResolvedValue(30);
 
     const { container } = render(<ConnectionStatus />);
 
@@ -114,8 +114,8 @@ describe('ConnectionStatus', () => {
 
   it('shows good quality for moderate latency', async () => {
     const { ws } = await import('../../services/websocket');
-    (ws.isConnected as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (ws.ping as ReturnType<typeof vi.fn>).mockResolvedValue(150);
+    vi.mocked(ws.isConnected).mockReturnValue(true);
+    vi.mocked(ws.ping).mockResolvedValue(150);
 
     const { container } = render(<ConnectionStatus />);
 
@@ -126,8 +126,8 @@ describe('ConnectionStatus', () => {
 
   it('shows poor quality for high latency', async () => {
     const { ws } = await import('../../services/websocket');
-    (ws.isConnected as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (ws.ping as ReturnType<typeof vi.fn>).mockResolvedValue(300);
+    vi.mocked(ws.isConnected).mockReturnValue(true);
+    vi.mocked(ws.ping).mockResolvedValue(300);
 
     const { container } = render(<ConnectionStatus />);
 
@@ -138,8 +138,8 @@ describe('ConnectionStatus', () => {
 
   it('handles ping failure gracefully', async () => {
     const { ws } = await import('../../services/websocket');
-    (ws.isConnected as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (ws.ping as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('timeout'));
+    vi.mocked(ws.isConnected).mockReturnValue(true);
+    vi.mocked(ws.ping).mockRejectedValue(new Error('timeout'));
 
     const { container } = render(<ConnectionStatus />);
 
@@ -151,8 +151,8 @@ describe('ConnectionStatus', () => {
 
   it('shows correct number of active bars for excellent quality', async () => {
     const { ws } = await import('../../services/websocket');
-    (ws.isConnected as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (ws.ping as ReturnType<typeof vi.fn>).mockResolvedValue(30);
+    vi.mocked(ws.isConnected).mockReturnValue(true);
+    vi.mocked(ws.ping).mockResolvedValue(30);
 
     const { container } = render(<ConnectionStatus />);
 

@@ -44,16 +44,16 @@ export default function ResizeHandle({ onResize, onResizeEnd }: ResizeHandleProp
   }, [dragging, onResize, onResizeEnd]);
 
   return (
-    <div
+    <button
+      type="button"
       className={`resize-handle ${dragging ? 'dragging' : ''}`}
-      role="separator"
-      aria-orientation="vertical"
-      tabIndex={0}
+      aria-label="Resize panel"
       onMouseDown={handleMouseDown}
       onKeyDown={(e) => {
         if (e.key === 'ArrowLeft') onResize(-10);
         else if (e.key === 'ArrowRight') onResize(10);
       }}
+      data-testid="resize-handle"
     />
   );
 }

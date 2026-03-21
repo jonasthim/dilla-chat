@@ -75,7 +75,7 @@ export default function RecoverFromServer() {
       const identity = await unlockWithRecovery(recoveryBytes);
       await initCrypto(identity, recoveryKeyB64);
 
-      const pubKeyB64 = btoa(String.fromCharCode(...identity.publicKeyBytes));
+      const pubKeyB64 = btoa(String.fromCodePoint(...identity.publicKeyBytes));
 
       setPublicKey(pubKeyB64);
       setDerivedKey(recoveryKeyB64);

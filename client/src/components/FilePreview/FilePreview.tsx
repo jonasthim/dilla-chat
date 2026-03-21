@@ -43,10 +43,10 @@ function ImagePreview({ attachment }: { attachment: Attachment }) {
         </button>
       </div>
       {expanded && (
-        <div className="file-preview-lightbox" role="presentation" onClick={() => setExpanded(false)}>
+        <div className="file-preview-lightbox" aria-hidden="true" onClick={() => setExpanded(false)}>
           <img
             src={attachment.url}
-            alt={attachment.filename}
+            alt=""
             className="file-preview-lightbox-image"
           />
         </div>
@@ -63,7 +63,9 @@ function VideoPreview({ attachment }: { attachment: Attachment }) {
         controls
         className="file-preview-video"
         preload="metadata"
-      />
+      >
+        <track kind="captions" />
+      </video>
     </div>
   );
 }
@@ -75,7 +77,9 @@ function AudioPreview({ attachment }: { attachment: Attachment }) {
         <span className="file-preview-audio-icon"><MusicNote width={20} height={20} /></span>
         <span className="file-preview-audio-name">{attachment.filename}</span>
       </div>
-      <audio src={attachment.url} controls className="file-preview-audio" preload="metadata" />
+      <audio src={attachment.url} controls className="file-preview-audio" preload="metadata">
+        <track kind="captions" />
+      </audio>
     </div>
   );
 }

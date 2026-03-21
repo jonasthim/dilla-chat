@@ -113,7 +113,7 @@ describe('NewDMModal', () => {
   it('calls onClose when overlay is clicked', () => {
     const onClose = vi.fn();
     const { container } = render(<NewDMModal currentUserId="user-1" onClose={onClose} onDMCreated={vi.fn()} />);
-    const overlay = container.querySelector('.new-dm-overlay')!;
+    const overlay = container.querySelector('.dialog-backdrop')!;
     fireEvent.click(overlay);
     expect(onClose).toHaveBeenCalled();
   });

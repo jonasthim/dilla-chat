@@ -168,7 +168,7 @@ vi.mock('./ChannelView', () => ({
 import AppLayout from './AppLayout';
 
 function setMobile(isMobile: boolean) {
-  vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+  vi.mocked(globalThis.matchMedia).mockImplementation((query: string) => ({
     matches: isMobile && query === '(max-width: 767px)',
     media: query,
     onchange: null,
@@ -188,13 +188,13 @@ describe('AppLayout responsive', () => {
   it('renders left-panels and resize-handle on desktop', async () => {
     render(<AppLayout />);
     expect(await screen.findByTestId('resize-handle')).toBeInTheDocument();
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
   });
 
   it('renders MobileTabBar when mobile', async () => {
     setMobile(true);
     render(<AppLayout />);
-    expect(await screen.findByRole('tablist')).toBeInTheDocument();
+    expect(await screen.findByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();
     expect(screen.queryByTestId('resize-handle')).not.toBeInTheDocument();
   });
 
@@ -207,9 +207,9 @@ describe('AppLayout responsive', () => {
   it('switches to teams tab on mobile', async () => {
     setMobile(true);
     render(<AppLayout />);
-    await screen.findByRole('tablist');
-    const teamsTab = screen.getAllByRole('tab').find((t) => t.textContent?.includes('Teams'));
-    await userEvent.click(teamsTab!);
+    await screen.findByRole('navigation', { name: 'Main navigation' });
+    const teamsTab = screen.getByText('Teams').closest('button')!;
+    await userEvent.click(teamsTab);
     await waitFor(() => {
       expect(screen.getByTestId('team-sidebar')).toBeInTheDocument();
       expect(screen.queryByTestId('channel-view')).not.toBeInTheDocument();
@@ -219,9 +219,9 @@ describe('AppLayout responsive', () => {
   it('switches to members tab on mobile', async () => {
     setMobile(true);
     render(<AppLayout />);
-    await screen.findByRole('tablist');
-    const membersTab = screen.getAllByRole('tab').find((t) => t.textContent?.includes('Members'));
-    await userEvent.click(membersTab!);
+    await screen.findByRole('navigation', { name: 'Main navigation' });
+    const membersTab = screen.getByText('Members').closest('button')!;
+    await userEvent.click(membersTab);
     await waitFor(() => {
       expect(screen.getByTestId('member-list')).toBeInTheDocument();
     });

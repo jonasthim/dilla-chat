@@ -988,7 +988,7 @@ describe('AppLayout behavioral', () => {
     render(<AppLayout />);
     await waitFor(() => { expect(screen.getByTestId('channel-view')).toBeInTheDocument(); });
     // Trigger Ctrl+/ keyboard shortcut
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', ctrlKey: true, bubbles: true }));
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: '/', ctrlKey: true, bubbles: true }));
     await waitFor(() => {
       expect(screen.getByTestId('shortcuts-modal')).toBeInTheDocument();
     });
@@ -1003,10 +1003,10 @@ describe('AppLayout behavioral', () => {
     render(<AppLayout />);
     await waitFor(() => { expect(screen.getByTestId('channel-view')).toBeInTheDocument(); });
     // Open shortcuts modal
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', ctrlKey: true, bubbles: true }));
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: '/', ctrlKey: true, bubbles: true }));
     await waitFor(() => { expect(screen.getByTestId('shortcuts-modal')).toBeInTheDocument(); });
     // Close via Escape
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await waitFor(() => {
       expect(screen.queryByTestId('shortcuts-modal')).not.toBeInTheDocument();
     });
@@ -1033,7 +1033,7 @@ describe('AppLayout behavioral', () => {
     render(<AppLayout />);
     await waitFor(() => { expect(screen.getByTestId('channel-view')).toBeInTheDocument(); });
     // Navigate down
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true }));
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true }));
     await waitFor(() => {
       expect(useTeamStore.getState().setActiveChannel).toHaveBeenCalledWith('ch2');
     });
@@ -1051,7 +1051,7 @@ describe('AppLayout behavioral', () => {
     render(<AppLayout />);
     await waitFor(() => { expect(screen.getByTestId('channel-view')).toBeInTheDocument(); });
     // Navigate up from first channel wraps to last
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
     await waitFor(() => {
       expect(useTeamStore.getState().setActiveChannel).toHaveBeenCalledWith('ch2');
     });
@@ -1106,7 +1106,7 @@ describe('AppLayout behavioral', () => {
     render(<AppLayout />);
     await waitFor(() => { expect(screen.getByTestId('channel-view')).toBeInTheDocument(); });
     // Trigger Ctrl+K - will call document.querySelector for search input
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
     // No crash expected - search input may not exist in mocked DOM
   });
 
@@ -1120,7 +1120,7 @@ describe('AppLayout behavioral', () => {
     render(<AppLayout />);
     await waitFor(() => { expect(screen.getByTestId('thread-panel')).toBeInTheDocument(); });
     // Press Escape to close thread panel
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await waitFor(() => {
       expect(useThreadStore.getState().setActiveThread).toHaveBeenCalledWith(null);
       expect(useThreadStore.getState().setThreadPanelOpen).toHaveBeenCalledWith(false);

@@ -394,8 +394,9 @@ export default function MessageInput({
   };
 
   return (
-    <div
+    <section
       className={`message-input-wrapper ${dragging ? 'message-input-dragging' : ''}`}
+      aria-label="Message composition"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -541,6 +542,6 @@ export default function MessageInput({
       </div>
 
       {uploading && <div className="message-input-uploading">{t('upload.uploading', 'Uploading...')}</div>}
-    </div>
+    </section>
   );
 }

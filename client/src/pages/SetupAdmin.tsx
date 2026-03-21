@@ -69,7 +69,7 @@ export default function SetupAdmin() {
         setError('No identity found. Please create an identity first.');
         return;
       }
-      pubKey = btoa(String.fromCharCode(...stored));
+      pubKey = btoa(String.fromCodePoint(...stored));
       setPublicKey(pubKey);
     }
 
@@ -109,7 +109,7 @@ export default function SetupAdmin() {
       if (derivedKey) {
         try {
           const bundle = await cryptoService.generatePrekeyBundle(derivedKey);
-          const toB64 = (arr: number[]) => btoa(String.fromCharCode(...arr));
+          const toB64 = (arr: number[]) => btoa(String.fromCodePoint(...arr));
           await api.uploadPrekeyBundle(realTeamId, {
             identity_key: toB64(bundle.identity_key),
             signed_prekey: toB64(bundle.signed_prekey),

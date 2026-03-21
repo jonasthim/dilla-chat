@@ -72,8 +72,9 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Prop
   }, [onClose]);
 
   return (
-    <div className="new-dm-overlay" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
-      <div className="new-dm-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="new-dm-title">
+    <dialog className="new-dm-overlay" open aria-labelledby="new-dm-title">
+      <button type="button" className="dialog-backdrop" onClick={onClose} aria-label="Close" />
+      <div className="new-dm-modal">
         <div className="new-dm-header">
           <h3 id="new-dm-title">{t('dm.newDM', 'New Message')}</h3>
           <button className="new-dm-close" onClick={onClose}><Xmark width={20} height={20} strokeWidth={2} /></button>
@@ -142,6 +143,6 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Prop
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
