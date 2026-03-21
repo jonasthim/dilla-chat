@@ -254,6 +254,12 @@ export default function Login() {
     navigate('/create-identity');
   };
 
+  const passkeyButtonLabel = loading
+    ? (countdown > 0
+        ? `${t('login.openingBrowser', 'Waiting for browser...')} (${countdown}s)`
+        : t('login.openingBrowser', 'Waiting for browser...'))
+    : t('login.unlockWithPasskey');
+
   return (
     <PublicShell>
       <h1>{t('login.title')}</h1>
@@ -314,11 +320,7 @@ export default function Login() {
       {!needsLoginPassphrase && mode === 'passkey' && keyVersion >= 2 && (
         <div className="form">
           <button className="btn-primary" onClick={handlePasskeyUnlock} disabled={loading}>
-            {loading
-              ? (countdown > 0
-                  ? `${t('login.openingBrowser', 'Waiting for browser...')} (${countdown}s)`
-                  : t('login.openingBrowser', 'Waiting for browser...'))
-              : t('login.unlockWithPasskey')}
+            {passkeyButtonLabel}
           </button>
           {loading && (
             <button className="btn-secondary" onClick={handleCancel} style={{ marginTop: 8 }}>

@@ -234,8 +234,8 @@
   </div>
 </div>
 
-<script>
-  const params = new URLSearchParams(window.location.search);
+<script type="module">
+  const params = new URLSearchParams(globalThis.location.search);
   const mode = params.get('mode'); // 'register' or 'login'
   const nonce = params.get('nonce');
   const port = params.get('port');
@@ -402,7 +402,7 @@
       await sendResult(result);
       showState('stateSuccess');
       // Try to auto-close after a moment
-      setTimeout(() => { try { window.close(); } catch(e) {} }, 2000);
+      setTimeout(() => { try { globalThis.close(); } catch(e) { console.warn('Could not auto-close window:', e); } }, 2000);
     } catch (err) {
       document.getElementById('errorDetail').textContent = err.message || String(err);
       showState('stateError');
@@ -413,7 +413,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ error: err.message || String(err) }),
         });
-      } catch (_) { /* server may already be gone */ }
+      } catch (notifyErr) { console.warn('Could not notify server of error:', notifyErr); }
     }
   }
 
@@ -423,7 +423,7 @@
   }
 
   // Start the ceremony
-  run();
+  await run();
 </script>
 </body>
 </html>

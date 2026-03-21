@@ -28,6 +28,17 @@ const TYPING_EXPIRY_MS = 5_000;
 
 type FormatType = 'bold' | 'italic' | 'strikethrough' | 'code' | 'code-block' | 'ordered-list' | 'unordered-list' | 'blockquote' | 'link';
 
+const FORMAT_KEY_MAP: Record<string, FormatType> = {
+  b: 'bold',
+  i: 'italic',
+  e: 'code',
+};
+
+function getFormatTypeForKey(key: string, shiftKey: boolean): FormatType | null {
+  if (shiftKey && key === 'x') return 'strikethrough';
+  return FORMAT_KEY_MAP[key] ?? null;
+}
+
 function applyFormatting(textarea: HTMLTextAreaElement, format: FormatType, setValue: (fn: (prev: string) => string) => void) {
   const { selectionStart: start, selectionEnd: end, value } = textarea;
   const selected = value.slice(start, end);
@@ -315,24 +326,10 @@ export default function MessageInput({
       // Formatting keyboard shortcuts
       const mod = e.metaKey || e.ctrlKey;
       if (mod && textareaRef.current) {
-        if (e.key === 'b') {
+        const formatKey = getFormatTypeForKey(e.key, e.shiftKey);
+        if (formatKey) {
           e.preventDefault();
-          applyFormatting(textareaRef.current, 'bold', setValue);
-          return;
-        }
-        if (e.key === 'i') {
-          e.preventDefault();
-          applyFormatting(textareaRef.current, 'italic', setValue);
-          return;
-        }
-        if (e.key === 'e') {
-          e.preventDefault();
-          applyFormatting(textareaRef.current, 'code', setValue);
-          return;
-        }
-        if (e.shiftKey && e.key === 'x') {
-          e.preventDefault();
-          applyFormatting(textareaRef.current, 'strikethrough', setValue);
+          applyFormatting(textareaRef.current, formatKey, setValue);
           return;
         }
       }

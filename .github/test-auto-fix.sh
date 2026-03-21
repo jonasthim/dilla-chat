@@ -4,9 +4,11 @@
 
 set -e
 
-echo "================================"
+SEPARATOR="================================"
+
+echo "$SEPARATOR"
 echo "Auto-Fix Workflow Test Script"
-echo "================================"
+echo "$SEPARATOR"
 echo
 
 # Function to run client lint check
@@ -112,6 +114,6 @@ case $choice in
 esac
 
 echo
-echo "================================"
+echo "$SEPARATOR"
 echo "Test complete!"
-echo "================================"
+echo "$SEPARATOR"

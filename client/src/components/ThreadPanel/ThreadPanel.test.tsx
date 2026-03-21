@@ -321,7 +321,7 @@ describe('ThreadPanel', () => {
     const calls = vi.mocked(ws.on).mock.calls;
     const newHandler = calls.find(c => c[0] === 'thread:message:new');
     if (newHandler) {
-      await (newHandler[1] as (...args: unknown[]) => void)({
+      await (newHandler[1] as (...args: unknown[]) => Promise<void>)({
         id: 'tmsg-new', channel_id: 'ch-1', author_id: 'user-2', username: 'bob',
         content: 'New thread msg', type: 'text', thread_id: 'thread-1',
         edited_at: null, deleted: false, created_at: '2025-01-01T12:00:00Z', reactions: [],
@@ -335,7 +335,7 @@ describe('ThreadPanel', () => {
     const calls = vi.mocked(ws.on).mock.calls;
     const newHandler = calls.find(c => c[0] === 'thread:message:new');
     if (newHandler) {
-      await (newHandler[1] as (...args: unknown[]) => void)({
+      await (newHandler[1] as (...args: unknown[]) => Promise<void>)({
         id: 'tmsg-other', channel_id: 'ch-1', author_id: 'user-2', username: 'bob',
         content: 'Other', type: 'text', thread_id: 'other-thread',
         edited_at: null, deleted: false, created_at: '2025-01-01T12:00:00Z', reactions: [],
@@ -349,7 +349,7 @@ describe('ThreadPanel', () => {
     const calls = vi.mocked(ws.on).mock.calls;
     const editHandler = calls.find(c => c[0] === 'thread:message:updated');
     if (editHandler) {
-      await (editHandler[1] as (...args: unknown[]) => void)({
+      await (editHandler[1] as (...args: unknown[]) => Promise<void>)({
         id: 'tmsg-1', channel_id: 'ch-1', author_id: 'user-1', username: 'alice',
         content: 'Edited content', type: 'text', thread_id: 'thread-1',
         edited_at: '2025-01-01T12:30:00Z', deleted: false, created_at: '2025-01-01T11:00:00Z', reactions: [],
@@ -363,7 +363,7 @@ describe('ThreadPanel', () => {
     const calls = vi.mocked(ws.on).mock.calls;
     const deleteHandler = calls.find(c => c[0] === 'thread:message:deleted');
     if (deleteHandler) {
-      (deleteHandler[1] as (...args: unknown[]) => void)({ message_id: 'tmsg-1', thread_id: 'thread-1' });
+      (deleteHandler[1] as (...args: unknown[]) => Promise<void>)({ message_id: 'tmsg-1', thread_id: 'thread-1' });
     }
   });
 
@@ -612,7 +612,7 @@ describe('ThreadPanel', () => {
     const calls = vi.mocked(ws.on).mock.calls;
     const editHandler = calls.find(c => c[0] === 'thread:message:updated');
     if (editHandler) {
-      await (editHandler[1] as (...args: unknown[]) => void)({
+      await (editHandler[1] as (...args: unknown[]) => Promise<void>)({
         id: 'tmsg-1', channel_id: 'ch-1', author_id: 'user-1', username: 'alice',
         content: 'Edited', type: 'text', thread_id: 'other-thread',
         edited_at: '2025-01-01T12:30:00Z', deleted: false, created_at: '2025-01-01T11:00:00Z', reactions: [],
@@ -627,7 +627,7 @@ describe('ThreadPanel', () => {
     const calls = vi.mocked(ws.on).mock.calls;
     const deleteHandler = calls.find(c => c[0] === 'thread:message:deleted');
     if (deleteHandler) {
-      (deleteHandler[1] as (...args: unknown[]) => void)({ message_id: 'tmsg-1', thread_id: 'other-thread' });
+      (deleteHandler[1] as (...args: unknown[]) => Promise<void>)({ message_id: 'tmsg-1', thread_id: 'other-thread' });
     }
   });
 
@@ -936,7 +936,7 @@ describe('ThreadPanel', () => {
     const newHandlers = calls.filter(c => c[0] === 'thread:message:new');
     const newHandler = newHandlers[newHandlers.length - 1];
     expect(newHandler).toBeDefined();
-    await (newHandler[1] as (...args: unknown[]) => void)({
+    await (newHandler[1] as (...args: unknown[]) => Promise<void>)({
       id: 'tmsg-decrypt-new', channel_id: 'ch-1', author_id: 'user-2', username: 'bob',
       content: 'encrypted-content', type: 'text', thread_id: 'thread-1',
       edited_at: null, deleted: false, created_at: '2025-01-01T13:00:00Z', reactions: [],
@@ -961,7 +961,7 @@ describe('ThreadPanel', () => {
     const editHandlers = calls.filter(c => c[0] === 'thread:message:updated');
     const editHandler = editHandlers[editHandlers.length - 1];
     expect(editHandler).toBeDefined();
-    await (editHandler[1] as (...args: unknown[]) => void)({
+    await (editHandler[1] as (...args: unknown[]) => Promise<void>)({
       id: 'tmsg-1', channel_id: 'ch-1', author_id: 'user-1', username: 'alice',
       content: 'encrypted-edit', type: 'text', thread_id: 'thread-1',
       edited_at: '2025-01-01T12:30:00Z', deleted: false, created_at: '2025-01-01T11:00:00Z', reactions: [],
@@ -983,7 +983,7 @@ describe('ThreadPanel', () => {
     const calls = vi.mocked(ws.on).mock.calls;
     const newHandler = calls.find(c => c[0] === 'thread:message:new');
     if (newHandler) {
-      await (newHandler[1] as (...args: unknown[]) => void)({
+      await (newHandler[1] as (...args: unknown[]) => Promise<void>)({
         id: 'tmsg-cached-new', channel_id: 'ch-1', author_id: 'user-2', username: 'bob',
         content: 'encrypted-content', type: 'text', thread_id: 'thread-1',
         edited_at: null, deleted: false, created_at: '2025-01-01T13:00:00Z', reactions: [],
