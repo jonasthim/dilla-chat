@@ -148,3 +148,329 @@ fn validate_invite_token(
     }
     Ok(invite)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::{self, Database};
+
+    fn test_db() -> (Database, tempfile::TempDir) {
+        let tmp = tempfile::tempdir().unwrap();
+        let db = Database::open(tmp.path().to_str().unwrap(), "").unwrap();
+        db.with_conn(|c| c.execute_batch("PRAGMA foreign_keys = OFF;")).unwrap();
+        db.run_migrations().unwrap();
+        (db, tmp)
+    }
+
+    fn seed_team(db: &Database) {
+        let now = db::now_str();
+        db.with_conn(|conn| {
+            db::create_user(conn, &db::User {
+                id: "u1".into(),
+                username: "alice".into(),
+                display_name: "Alice".into(),
+                public_key: vec![1u8; 32],
+                avatar_url: String::new(),
+                status_text: String::new(),
+                status_type: "online".into(),
+                is_admin: false,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })?;
+            db::create_team(conn, &db::Team {
+                id: "t1".into(),
+                name: "Team".into(),
+                description: String::new(),
+                icon_url: String::new(),
+                created_by: "u1".into(),
+                max_file_size: 25 * 1024 * 1024,
+                allow_member_invites: true,
+                created_at: now.clone(),
+                updated_at: now,
+            })
+        })
+        .unwrap();
+    }
+
+    // ── validate_invite_token tests ─────────────────────────────────────
+
+    #[test]
+    fn validate_invite_token_success() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "valid-token".into(),
+                max_uses: None,
+                uses: 0,
+                expires_at: None,
+                revoked: false,
+                created_at: db::now_str(),
+            })?;
+            let invite = validate_invite_token(conn, "valid-token")?;
+            assert_eq!(invite.token, "valid-token");
+            assert_eq!(invite.team_id, "t1");
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn validate_invite_token_not_found() {
+        let (db, _tmp) = test_db();
+        let result = db.with_conn(|conn| validate_invite_token(conn, "nonexistent"));
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            rusqlite::Error::QueryReturnedNoRows => {}
+            other => panic!("expected QueryReturnedNoRows, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn validate_invite_token_revoked() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        let result = db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "revoked".into(),
+                max_uses: None,
+                uses: 0,
+                expires_at: None,
+                revoked: true,
+                created_at: db::now_str(),
+            })?;
+            validate_invite_token(conn, "revoked")
+        });
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            rusqlite::Error::InvalidParameterName(msg) => assert!(msg.contains("revoked")),
+            other => panic!("expected InvalidParameterName, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn validate_invite_token_max_uses_reached() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        let result = db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "maxed".into(),
+                max_uses: Some(3),
+                uses: 3,
+                expires_at: None,
+                revoked: false,
+                created_at: db::now_str(),
+            })?;
+            validate_invite_token(conn, "maxed")
+        });
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            rusqlite::Error::InvalidParameterName(msg) => assert!(msg.contains("max uses")),
+            other => panic!("expected InvalidParameterName, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn validate_invite_token_uses_below_max_ok() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "under-max".into(),
+                max_uses: Some(5),
+                uses: 4,
+                expires_at: None,
+                revoked: false,
+                created_at: db::now_str(),
+            })?;
+            let invite = validate_invite_token(conn, "under-max")?;
+            assert_eq!(invite.uses, 4);
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn validate_invite_token_expired() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        let result = db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "expired".into(),
+                max_uses: None,
+                uses: 0,
+                expires_at: Some("2000-01-01 00:00:00".into()),
+                revoked: false,
+                created_at: db::now_str(),
+            })?;
+            validate_invite_token(conn, "expired")
+        });
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            rusqlite::Error::InvalidParameterName(msg) => assert!(msg.contains("expired")),
+            other => panic!("expected InvalidParameterName, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn validate_invite_token_not_yet_expired_ok() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "future".into(),
+                max_uses: None,
+                uses: 0,
+                expires_at: Some("2099-12-31 23:59:59".into()),
+                revoked: false,
+                created_at: db::now_str(),
+            })?;
+            let invite = validate_invite_token(conn, "future")?;
+            assert_eq!(invite.token, "future");
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn validate_invite_token_no_max_uses_unlimited() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "unlimited".into(),
+                max_uses: None,
+                uses: 9999,
+                expires_at: None,
+                revoked: false,
+                created_at: db::now_str(),
+            })?;
+            let invite = validate_invite_token(conn, "unlimited")?;
+            assert_eq!(invite.uses, 9999);
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn validate_invite_token_max_uses_zero_reached() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        let result = db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "zero-max".into(),
+                max_uses: Some(0),
+                uses: 0,
+                expires_at: None,
+                revoked: false,
+                created_at: db::now_str(),
+            })?;
+            validate_invite_token(conn, "zero-max")
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_invite_revoked_and_expired_checks_revoked_first() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        let result = db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "both-bad".into(),
+                max_uses: None,
+                uses: 0,
+                expires_at: Some("2000-01-01 00:00:00".into()),
+                revoked: true,
+                created_at: db::now_str(),
+            })?;
+            validate_invite_token(conn, "both-bad")
+        });
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            rusqlite::Error::InvalidParameterName(msg) => assert!(msg.contains("revoked")),
+            other => panic!("expected revoked error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn validate_invite_token_uses_exactly_at_max() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        let result = db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "exact-max".into(),
+                max_uses: Some(5),
+                uses: 5,
+                expires_at: None,
+                revoked: false,
+                created_at: db::now_str(),
+            })?;
+            validate_invite_token(conn, "exact-max")
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_invite_token_uses_one_below_max() {
+        let (db, _tmp) = test_db();
+        seed_team(&db);
+
+        db.with_conn(|conn| {
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "one-below".into(),
+                max_uses: Some(5),
+                uses: 4,
+                expires_at: None,
+                revoked: false,
+                created_at: db::now_str(),
+            })?;
+            let invite = validate_invite_token(conn, "one-below")?;
+            assert_eq!(invite.uses, 4);
+            Ok(())
+        })
+        .unwrap();
+    }
+}

@@ -404,3 +404,447 @@ fn create_bootstrap_defaults(
     db::create_channel(conn, &channel)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::{self, Database};
+
+    fn test_db() -> (Database, tempfile::TempDir) {
+        let tmp = tempfile::tempdir().unwrap();
+        let db = Database::open(tmp.path().to_str().unwrap(), "").unwrap();
+        db.with_conn(|c| c.execute_batch("PRAGMA foreign_keys = OFF;")).unwrap();
+        db.run_migrations().unwrap();
+        (db, tmp)
+    }
+
+    // ── resolve_team_name tests ─────────────────────────────────────────
+
+    #[test]
+    fn resolve_team_name_uses_body_name() {
+        assert_eq!(resolve_team_name("My Custom Team", "Config Team"), "My Custom Team");
+    }
+
+    #[test]
+    fn resolve_team_name_falls_back_to_config() {
+        assert_eq!(resolve_team_name("", "Config Team"), "Config Team");
+    }
+
+    #[test]
+    fn resolve_team_name_falls_back_to_default() {
+        assert_eq!(resolve_team_name("", ""), "My Team");
+    }
+
+    // ── check_username_and_key_available tests ──────────────────────────
+
+    #[test]
+    fn check_username_and_key_available_success() {
+        let (db, _tmp) = test_db();
+        db.with_conn(|conn| {
+            check_username_and_key_available(conn, "newuser", &[42u8; 32])
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn check_username_and_key_available_username_taken() {
+        let (db, _tmp) = test_db();
+        let now = db::now_str();
+        db.with_conn(|conn| {
+            db::create_user(conn, &db::User {
+                id: "u1".into(),
+                username: "alice".into(),
+                display_name: "Alice".into(),
+                public_key: vec![1u8; 32],
+                avatar_url: String::new(),
+                status_text: String::new(),
+                status_type: "online".into(),
+                is_admin: false,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+        })
+        .unwrap();
+
+        let result = db.with_conn(|conn| {
+            check_username_and_key_available(conn, "alice", &[42u8; 32])
+        });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn check_username_and_key_available_key_taken() {
+        let (db, _tmp) = test_db();
+        let now = db::now_str();
+        let pk = vec![1u8; 32];
+        db.with_conn(|conn| {
+            db::create_user(conn, &db::User {
+                id: "u1".into(),
+                username: "alice".into(),
+                display_name: "Alice".into(),
+                public_key: pk.clone(),
+                avatar_url: String::new(),
+                status_text: String::new(),
+                status_type: "online".into(),
+                is_admin: false,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+        })
+        .unwrap();
+
+        let result = db.with_conn(|conn| {
+            check_username_and_key_available(conn, "newuser", &pk)
+        });
+        assert!(result.is_err());
+    }
+
+    // ── validate_invite tests ───────────────────────────────────────────
+
+    #[test]
+    fn validate_invite_success() {
+        let (db, _tmp) = test_db();
+        let now = db::now_str();
+        db.with_conn(|conn| {
+            db::create_user(conn, &db::User {
+                id: "u1".into(),
+                username: "alice".into(),
+                display_name: "Alice".into(),
+                public_key: vec![1u8; 32],
+                avatar_url: String::new(),
+                status_text: String::new(),
+                status_type: "online".into(),
+                is_admin: false,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })?;
+            db::create_team(conn, &db::Team {
+                id: "t1".into(),
+                name: "Team".into(),
+                description: String::new(),
+                icon_url: String::new(),
+                created_by: "u1".into(),
+                max_file_size: 25 * 1024 * 1024,
+                allow_member_invites: true,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })?;
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "test-token".into(),
+                max_uses: None,
+                uses: 0,
+                expires_at: None,
+                revoked: false,
+                created_at: now.clone(),
+            })?;
+            let invite = validate_invite(conn, "test-token")?;
+            assert_eq!(invite.token, "test-token");
+            assert_eq!(invite.team_id, "t1");
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn validate_invite_not_found() {
+        let (db, _tmp) = test_db();
+        let result = db.with_conn(|conn| validate_invite(conn, "nonexistent"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_invite_revoked() {
+        let (db, _tmp) = test_db();
+        let now = db::now_str();
+        let result = db.with_conn(|conn| {
+            db::create_user(conn, &db::User {
+                id: "u1".into(),
+                username: "alice".into(),
+                display_name: "Alice".into(),
+                public_key: vec![1u8; 32],
+                avatar_url: String::new(),
+                status_text: String::new(),
+                status_type: "online".into(),
+                is_admin: false,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })?;
+            db::create_team(conn, &db::Team {
+                id: "t1".into(),
+                name: "Team".into(),
+                description: String::new(),
+                icon_url: String::new(),
+                created_by: "u1".into(),
+                max_file_size: 25 * 1024 * 1024,
+                allow_member_invites: true,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })?;
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "revoked-token".into(),
+                max_uses: None,
+                uses: 0,
+                expires_at: None,
+                revoked: true,
+                created_at: now.clone(),
+            })?;
+            validate_invite(conn, "revoked-token")
+        });
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            rusqlite::Error::InvalidParameterName(msg) => {
+                assert!(msg.contains("revoked"));
+            }
+            other => panic!("expected InvalidParameterName, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn validate_invite_max_uses_reached() {
+        let (db, _tmp) = test_db();
+        let now = db::now_str();
+        let result = db.with_conn(|conn| {
+            db::create_user(conn, &db::User {
+                id: "u1".into(),
+                username: "alice".into(),
+                display_name: "Alice".into(),
+                public_key: vec![1u8; 32],
+                avatar_url: String::new(),
+                status_text: String::new(),
+                status_type: "online".into(),
+                is_admin: false,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })?;
+            db::create_team(conn, &db::Team {
+                id: "t1".into(),
+                name: "Team".into(),
+                description: String::new(),
+                icon_url: String::new(),
+                created_by: "u1".into(),
+                max_file_size: 25 * 1024 * 1024,
+                allow_member_invites: true,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })?;
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "maxed-token".into(),
+                max_uses: Some(5),
+                uses: 5,
+                expires_at: None,
+                revoked: false,
+                created_at: now.clone(),
+            })?;
+            validate_invite(conn, "maxed-token")
+        });
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            rusqlite::Error::InvalidParameterName(msg) => {
+                assert!(msg.contains("max uses"));
+            }
+            other => panic!("expected InvalidParameterName, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn validate_invite_expired() {
+        let (db, _tmp) = test_db();
+        let now = db::now_str();
+        let result = db.with_conn(|conn| {
+            db::create_user(conn, &db::User {
+                id: "u1".into(),
+                username: "alice".into(),
+                display_name: "Alice".into(),
+                public_key: vec![1u8; 32],
+                avatar_url: String::new(),
+                status_text: String::new(),
+                status_type: "online".into(),
+                is_admin: false,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })?;
+            db::create_team(conn, &db::Team {
+                id: "t1".into(),
+                name: "Team".into(),
+                description: String::new(),
+                icon_url: String::new(),
+                created_by: "u1".into(),
+                max_file_size: 25 * 1024 * 1024,
+                allow_member_invites: true,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })?;
+            db::create_invite(conn, &db::Invite {
+                id: "inv1".into(),
+                team_id: "t1".into(),
+                created_by: "u1".into(),
+                token: "expired-token".into(),
+                max_uses: None,
+                uses: 0,
+                expires_at: Some("2000-01-01 00:00:00".into()),
+                revoked: false,
+                created_at: now.clone(),
+            })?;
+            validate_invite(conn, "expired-token")
+        });
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            rusqlite::Error::InvalidParameterName(msg) => {
+                assert!(msg.contains("expired"));
+            }
+            other => panic!("expected InvalidParameterName, got {:?}", other),
+        }
+    }
+
+    // ── validate_bootstrap_token tests ──────────────────────────────────
+
+    #[test]
+    fn validate_bootstrap_token_success() {
+        let (db, _tmp) = test_db();
+        db.with_conn(|conn| {
+            conn.execute(
+                "INSERT INTO bootstrap_tokens (token, used, created_at) VALUES (?1, 0, ?2)",
+                rusqlite::params!["boot-token", db::now_str()],
+            )?;
+            validate_bootstrap_token(conn, "boot-token")
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn validate_bootstrap_token_already_used() {
+        let (db, _tmp) = test_db();
+        let result = db.with_conn(|conn| {
+            conn.execute(
+                "INSERT INTO bootstrap_tokens (token, used, created_at) VALUES (?1, 1, ?2)",
+                rusqlite::params!["used-token", db::now_str()],
+            )?;
+            validate_bootstrap_token(conn, "used-token")
+        });
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            rusqlite::Error::InvalidParameterName(msg) => {
+                assert!(msg.contains("already used"));
+            }
+            other => panic!("expected InvalidParameterName, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn validate_bootstrap_token_not_found() {
+        let (db, _tmp) = test_db();
+        let result = db.with_conn(|conn| validate_bootstrap_token(conn, "nonexistent"));
+        assert!(result.is_err());
+    }
+
+    // ── create_user_and_member tests ────────────────────────────────────
+
+    #[test]
+    fn create_user_and_member_basic() {
+        let (db, _tmp) = test_db();
+        let (user, member) = db
+            .with_conn(|conn| {
+                Ok(create_user_and_member(conn, "testuser", &[42u8; 32], "t1", "inviter", false))
+            })
+            .unwrap();
+
+        assert_eq!(user.username, "testuser");
+        assert_eq!(user.display_name, "testuser");
+        assert_eq!(user.public_key, vec![42u8; 32]);
+        assert!(!user.is_admin);
+        assert_eq!(member.team_id, "t1");
+        assert_eq!(member.invited_by, "inviter");
+    }
+
+    #[test]
+    fn create_user_and_member_admin() {
+        let (db, _tmp) = test_db();
+        let (user, _member) = db
+            .with_conn(|conn| {
+                Ok(create_user_and_member(conn, "admin", &[1u8; 32], "t1", "", true))
+            })
+            .unwrap();
+
+        assert!(user.is_admin);
+    }
+
+    // ── create_bootstrap_team tests ─────────────────────────────────────
+
+    #[test]
+    fn create_bootstrap_team_creates_team() {
+        let (db, _tmp) = test_db();
+        let now = db::now_str();
+        db.with_conn(|conn| {
+            db::create_user(conn, &db::User {
+                id: "u1".into(),
+                username: "alice".into(),
+                display_name: "Alice".into(),
+                public_key: vec![1u8; 32],
+                avatar_url: String::new(),
+                status_text: String::new(),
+                status_type: "online".into(),
+                is_admin: true,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+        })
+        .unwrap();
+
+        let team_id = db
+            .with_conn(|conn| create_bootstrap_team(conn, "My Server", "u1"))
+            .unwrap();
+
+        let team = db
+            .with_conn(|conn| db::get_team(conn, &team_id))
+            .unwrap()
+            .unwrap();
+        assert_eq!(team.name, "My Server");
+        assert_eq!(team.created_by, "u1");
+    }
+
+    // ── create_bootstrap_defaults tests ─────────────────────────────────
+
+    #[test]
+    fn create_bootstrap_defaults_creates_role_and_channel() {
+        let (db, _tmp) = test_db();
+        let now = db::now_str();
+        db.with_conn(|conn| {
+            db::create_user(conn, &db::User {
+                id: "u1".into(),
+                username: "alice".into(),
+                display_name: "Alice".into(),
+                public_key: vec![1u8; 32],
+                avatar_url: String::new(),
+                status_text: String::new(),
+                status_type: "online".into(),
+                is_admin: true,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })?;
+            let team_id = create_bootstrap_team(conn, "Server", "u1")?;
+            create_bootstrap_defaults(conn, &team_id, "u1")?;
+
+            let roles = db::get_roles_by_team(conn, &team_id)?;
+            assert!(!roles.is_empty());
+            let default_role = roles.iter().find(|r| r.is_default);
+            assert!(default_role.is_some());
+            assert_eq!(default_role.unwrap().name, "everyone");
+
+            let channels = db::get_channels_by_team(conn, &team_id)?;
+            assert!(!channels.is_empty());
+            assert_eq!(channels[0].name, "general");
+
+            Ok(())
+        })
+        .unwrap();
+    }
+}

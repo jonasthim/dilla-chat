@@ -101,7 +101,7 @@ pub async fn handle_ws_connection(
     hub.unregister(&client_id).await;
 }
 
-async fn handle_event(
+pub(crate) async fn handle_event(
     hub: &Hub,
     client_id: &str,
     user_id: &str,
@@ -161,7 +161,7 @@ async fn handle_event(
     }
 }
 
-async fn handle_channel_event(hub: &Hub, client_id: &str, event_type: &str, payload: serde_json::Value) {
+pub(crate) async fn handle_channel_event(hub: &Hub, client_id: &str, event_type: &str, payload: serde_json::Value) {
     match serde_json::from_value::<ChannelJoinPayload>(payload) {
         Ok(p) => {
             if event_type == EVENT_CHANNEL_JOIN {
@@ -174,7 +174,7 @@ async fn handle_channel_event(hub: &Hub, client_id: &str, event_type: &str, payl
     }
 }
 
-fn handle_presence_update(hub: &Hub, user_id: &str, payload: serde_json::Value) {
+pub(crate) fn handle_presence_update(hub: &Hub, user_id: &str, payload: serde_json::Value) {
     if let Ok(p) = serde_json::from_value::<PresenceUpdatePayload>(payload) {
         hub.emit_event(super::hub::HubEvent::PresenceUpdate {
             user_id: user_id.to_string(),
@@ -184,7 +184,7 @@ fn handle_presence_update(hub: &Hub, user_id: &str, payload: serde_json::Value) 
     }
 }
 
-async fn handle_ping(hub: &Hub, user_id: &str) {
+pub(crate) async fn handle_ping(hub: &Hub, user_id: &str) {
     let pong = Event::new(EVENT_PONG, serde_json::json!({}));
     if let Ok(evt) = pong {
         if let Ok(data) = evt.to_bytes() {
@@ -193,7 +193,7 @@ async fn handle_ping(hub: &Hub, user_id: &str) {
     }
 }
 
-async fn handle_reaction_event(hub: &Hub, user_id: &str, event_type: &str, payload: serde_json::Value) {
+pub(crate) async fn handle_reaction_event(hub: &Hub, user_id: &str, event_type: &str, payload: serde_json::Value) {
     if let Ok(p) = serde_json::from_value::<ReactionPayload>(payload) {
         if event_type == EVENT_REACTION_ADD {
             handle_reaction_add(hub, user_id, p).await;
@@ -203,7 +203,7 @@ async fn handle_reaction_event(hub: &Hub, user_id: &str, event_type: &str, paylo
     }
 }
 
-async fn handle_thread_event(hub: &Hub, user_id: &str, event_type: &str, payload: serde_json::Value) {
+pub(crate) async fn handle_thread_event(hub: &Hub, user_id: &str, event_type: &str, payload: serde_json::Value) {
     match event_type {
         EVENT_THREAD_MESSAGE_SEND => {
             if let Ok(p) = serde_json::from_value::<ThreadMessageSendPayload>(payload) {
@@ -224,7 +224,7 @@ async fn handle_thread_event(hub: &Hub, user_id: &str, event_type: &str, payload
     }
 }
 
-async fn handle_voice_event(
+pub(crate) async fn handle_voice_event(
     hub: &Hub,
     client_id: &str,
     user_id: &str,
@@ -251,7 +251,7 @@ async fn handle_voice_event(
     }
 }
 
-async fn handle_voice_join_leave(
+pub(crate) async fn handle_voice_join_leave(
     hub: &Hub, client_id: &str, user_id: &str, username: &str, team_id: &str,
     event_type: &str, payload: serde_json::Value,
 ) {
@@ -264,7 +264,7 @@ async fn handle_voice_join_leave(
     }
 }
 
-async fn handle_voice_signaling(hub: &Hub, user_id: &str, event_type: &str, payload: serde_json::Value) {
+pub(crate) async fn handle_voice_signaling(hub: &Hub, user_id: &str, event_type: &str, payload: serde_json::Value) {
     match event_type {
         EVENT_VOICE_ANSWER => { if let Ok(p) = serde_json::from_value(payload) { handle_voice_answer(hub, user_id, p).await; } }
         EVENT_VOICE_ICE_CANDIDATE => { if let Ok(p) = serde_json::from_value(payload) { handle_voice_ice_candidate(hub, user_id, p).await; } }
@@ -274,7 +274,7 @@ async fn handle_voice_signaling(hub: &Hub, user_id: &str, event_type: &str, payl
     }
 }
 
-async fn handle_voice_media(hub: &Hub, user_id: &str, event_type: &str, payload: serde_json::Value) {
+pub(crate) async fn handle_voice_media(hub: &Hub, user_id: &str, event_type: &str, payload: serde_json::Value) {
     if let Ok(p) = serde_json::from_value::<VoiceScreenPayload>(payload) {
         match event_type {
             EVENT_VOICE_SCREEN_START => handle_voice_screen_start(hub, user_id, p).await,
@@ -286,7 +286,7 @@ async fn handle_voice_media(hub: &Hub, user_id: &str, event_type: &str, payload:
     }
 }
 
-async fn handle_voice_key_distribute(hub: &Hub, client_id: &str, user_id: &str, payload: serde_json::Value) {
+pub(crate) async fn handle_voice_key_distribute(hub: &Hub, client_id: &str, user_id: &str, payload: serde_json::Value) {
     if let Ok(mut p) = serde_json::from_value::<VoiceKeyDistributePayload>(payload) {
         p.sender_id = user_id.to_string();
         let evt = Event::new(EVENT_VOICE_KEY_DISTRIBUTE, &p);
@@ -299,7 +299,7 @@ async fn handle_voice_key_distribute(hub: &Hub, client_id: &str, user_id: &str, 
     }
 }
 
-async fn handle_dm_message_event(hub: &Hub, user_id: &str, username: &str, event_type: &str, payload: serde_json::Value) {
+pub(crate) async fn handle_dm_message_event(hub: &Hub, user_id: &str, username: &str, event_type: &str, payload: serde_json::Value) {
     match event_type {
         EVENT_DM_MESSAGE_SEND => {
             match serde_json::from_value::<DMMessageSendPayload>(payload) {
@@ -323,7 +323,7 @@ async fn handle_dm_message_event(hub: &Hub, user_id: &str, username: &str, event
     }
 }
 
-async fn handle_dm_typing(hub: &Hub, user_id: &str, username: &str, payload: serde_json::Value) {
+pub(crate) async fn handle_dm_typing(hub: &Hub, user_id: &str, username: &str, payload: serde_json::Value) {
     let p = match serde_json::from_value::<DMTypingPayload>(payload) {
         Ok(p) => p,
         Err(_) => return,
