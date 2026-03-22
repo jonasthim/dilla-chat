@@ -3,8 +3,9 @@ use axum::{
     Extension, Json,
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 
+use crate::api::helpers::{json_ok, json_ok_true, require_permission, require_team_member, spawn_db};
 use crate::api::AppState;
 use crate::auth::UserId;
 use crate::db;
@@ -38,29 +39,13 @@ pub async fn list(
     State(state): State<AppState>,
     Path(team_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let uid = user_id.clone();
-
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            let member = db::get_member_by_user_and_team(conn, &uid, &tid)?;
-            if member.is_none() {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "not a member of this team".into(),
-                ));
-            }
-            db::get_channels_by_team(conn, &tid)
-        })
+    let channels = spawn_db(state.db.clone(), move |conn| {
+        require_team_member(conn, &user_id, &team_id)?;
+        db::get_channels_by_team(conn, &team_id)
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .await?;
 
-    match result {
-        Ok(channels) => Ok(Json(json!(channels))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok(channels)
 }
 
 pub async fn create(
@@ -73,43 +58,28 @@ pub async fn create(
         return Err(AppError::BadRequest("name is required".into()));
     }
 
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let uid = user_id.clone();
+    let channel = spawn_db(state.db.clone(), move |conn| {
+        require_permission(conn, &user_id, &team_id, db::PERM_MANAGE_CHANNELS)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::user_has_permission(conn, &uid, &tid, db::PERM_MANAGE_CHANNELS)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "insufficient permissions".into(),
-                ));
-            }
-
-            let now = db::now_str();
-            let channel = db::Channel {
-                id: db::new_id(),
-                team_id: tid.clone(),
-                name: body.name.clone(),
-                topic: body.topic.clone(),
-                channel_type: body.channel_type.clone(),
-                position: 0,
-                category: body.category.clone(),
-                created_by: uid.clone(),
-                created_at: now.clone(),
-                updated_at: now.clone(),
-            };
-            db::create_channel(conn, &channel)?;
-            Ok(channel)
-        })
+        let now = db::now_str();
+        let channel = db::Channel {
+            id: db::new_id(),
+            team_id: team_id.clone(),
+            name: body.name.clone(),
+            topic: body.topic.clone(),
+            channel_type: body.channel_type.clone(),
+            position: 0,
+            category: body.category.clone(),
+            created_by: user_id.clone(),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+        };
+        db::create_channel(conn, &channel)?;
+        Ok(channel)
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .await?;
 
-    match result {
-        Ok(channel) => Ok(Json(json!(channel))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok(channel)
 }
 
 pub async fn get_channel(
@@ -117,41 +87,17 @@ pub async fn get_channel(
     State(state): State<AppState>,
     Path((team_id, channel_id)): Path<(String, String)>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let cid = channel_id.clone();
-    let uid = user_id.clone();
-
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            let member = db::get_member_by_user_and_team(conn, &uid, &tid)?;
-            if member.is_none() {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "not a member of this team".into(),
-                ));
-            }
-
-            let channel = db::get_channel_by_id(conn, &cid)?;
-            match channel {
-                Some(ch) if ch.team_id == tid => Ok(ch),
-                Some(_) => Err(rusqlite::Error::InvalidParameterName(
-                    "channel does not belong to this team".into(),
-                )),
-                None => Err(rusqlite::Error::QueryReturnedNoRows),
-            }
-        })
+    let channel = spawn_db(state.db.clone(), move |conn| {
+        require_team_member(conn, &user_id, &team_id)?;
+        get_channel_for_team(conn, &channel_id, &team_id)
     })
     .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .map_err(|e| match e {
+        AppError::NotFound(_) => AppError::NotFound("channel not found".into()),
+        other => other,
+    })?;
 
-    match result {
-        Ok(channel) => Ok(Json(json!(channel))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            Err(AppError::NotFound("channel not found".into()))
-        }
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok(channel)
 }
 
 pub async fn update(
@@ -160,36 +106,21 @@ pub async fn update(
     Path((team_id, channel_id)): Path<(String, String)>,
     Json(body): Json<UpdateChannelRequest>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let cid = channel_id.clone();
-    let uid = user_id.clone();
+    let channel = spawn_db(state.db.clone(), move |conn| {
+        require_permission(conn, &user_id, &team_id, db::PERM_MANAGE_CHANNELS)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::user_has_permission(conn, &uid, &tid, db::PERM_MANAGE_CHANNELS)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "insufficient permissions".into(),
-                ));
-            }
-
-            let mut channel = get_channel_for_team(conn, &cid, &tid)?;
-            apply_channel_updates(&mut channel, &body);
-            db::update_channel(conn, &channel)?;
-            Ok(channel)
-        })
+        let mut channel = get_channel_for_team(conn, &channel_id, &team_id)?;
+        apply_channel_updates(&mut channel, &body);
+        db::update_channel(conn, &channel)?;
+        Ok(channel)
     })
     .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .map_err(|e| match e {
+        AppError::NotFound(_) => AppError::NotFound("channel not found".into()),
+        other => other,
+    })?;
 
-    match result {
-        Ok(channel) => Ok(Json(json!(channel))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            Err(AppError::NotFound("channel not found".into()))
-        }
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok(channel)
 }
 
 /// Fetch a channel by ID and verify it belongs to the given team.
@@ -230,41 +161,26 @@ pub async fn delete_channel(
     State(state): State<AppState>,
     Path((team_id, channel_id)): Path<(String, String)>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let cid = channel_id.clone();
-    let uid = user_id.clone();
+    spawn_db(state.db.clone(), move |conn| {
+        require_permission(conn, &user_id, &team_id, db::PERM_MANAGE_CHANNELS)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::user_has_permission(conn, &uid, &tid, db::PERM_MANAGE_CHANNELS)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "insufficient permissions".into(),
-                ));
+        let channel = db::get_channel_by_id(conn, &channel_id)?;
+        match channel {
+            Some(ch) if ch.team_id == team_id => {
+                db::delete_channel(conn, &channel_id)?;
+                Ok(())
             }
-
-            let channel = db::get_channel_by_id(conn, &cid)?;
-            match channel {
-                Some(ch) if ch.team_id == tid => {
-                    db::delete_channel(conn, &cid)?;
-                    Ok(())
-                }
-                Some(_) => Err(rusqlite::Error::InvalidParameterName(
-                    "channel does not belong to this team".into(),
-                )),
-                None => Err(rusqlite::Error::QueryReturnedNoRows),
-            }
-        })
+            Some(_) => Err(rusqlite::Error::InvalidParameterName(
+                "channel does not belong to this team".into(),
+            )),
+            None => Err(rusqlite::Error::QueryReturnedNoRows),
+        }
     })
     .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .map_err(|e| match e {
+        AppError::NotFound(_) => AppError::NotFound("channel not found".into()),
+        other => other,
+    })?;
 
-    match result {
-        Ok(()) => Ok(Json(json!({ "ok": true }))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            Err(AppError::NotFound("channel not found".into()))
-        }
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok_true()
 }

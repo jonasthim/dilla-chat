@@ -5,6 +5,7 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::api::helpers::{json_ok, json_ok_true, require_team_member, spawn_db};
 use crate::api::AppState;
 use crate::auth::UserId;
 use crate::db;
@@ -50,6 +51,20 @@ pub struct AddMembersRequest {
     pub user_ids: Vec<String>,
 }
 
+/// Verify that a user is a member of the given DM channel, returning `Err` if not.
+fn require_dm_member(
+    conn: &rusqlite::Connection,
+    dm_id: &str,
+    user_id: &str,
+) -> Result<(), rusqlite::Error> {
+    if !db::is_dm_member(conn, dm_id, user_id)? {
+        return Err(rusqlite::Error::InvalidParameterName(
+            "not a member of this DM".into(),
+        ));
+    }
+    Ok(())
+}
+
 pub async fn create_or_get(
     Extension(UserId(user_id)): Extension<UserId>,
     State(state): State<AppState>,
@@ -60,32 +75,21 @@ pub async fn create_or_get(
         return Err(AppError::BadRequest("user_ids is required".into()));
     }
 
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let uid = user_id.clone();
+    let dm = spawn_db(state.db.clone(), move |conn| {
+        require_team_member(conn, &user_id, &team_id)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            require_team_member(conn, &uid, &tid)?;
-
-            // For 1:1 DMs, check if one already exists.
-            if body.user_ids.len() == 1 {
-                if let Some(existing) = db::get_dm_channel_by_members(conn, &tid, &uid, &body.user_ids[0])? {
-                    return Ok(existing);
-                }
+        // For 1:1 DMs, check if one already exists.
+        if body.user_ids.len() == 1 {
+            if let Some(existing) = db::get_dm_channel_by_members(conn, &team_id, &user_id, &body.user_ids[0])? {
+                return Ok(existing);
             }
+        }
 
-            create_new_dm_channel(conn, &tid, &uid, &body)
-        })
+        create_new_dm_channel(conn, &team_id, &user_id, &body)
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .await?;
 
-    match result {
-        Ok(dm) => Ok(Json(json!(dm))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok(dm)
 }
 
 pub async fn list(
@@ -93,18 +97,12 @@ pub async fn list(
     State(state): State<AppState>,
     Path(team_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let uid = user_id.clone();
-
-    let dms = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| db::get_user_dm_channels(conn, &tid, &uid))
+    let dms = spawn_db(state.db.clone(), move |conn| {
+        db::get_user_dm_channels(conn, &team_id, &user_id)
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?
-    .map_err(|e| AppError::Internal(format!("db: {}", e)))?;
+    .await?;
 
-    Ok(Json(json!(dms)))
+    json_ok(dms)
 }
 
 pub async fn get_dm(
@@ -112,40 +110,26 @@ pub async fn get_dm(
     State(state): State<AppState>,
     Path((_team_id, dm_id)): Path<(String, String)>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let did = dm_id.clone();
-    let uid = user_id.clone();
+    let data = spawn_db(state.db.clone(), move |conn| {
+        require_dm_member(conn, &dm_id, &user_id)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::is_dm_member(conn, &did, &uid)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "not a member of this DM".into(),
-                ));
-            }
+        let dm = db::get_dm_channel(conn, &dm_id)?
+            .ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)?;
 
-            let dm = db::get_dm_channel(conn, &did)?
-                .ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)?;
+        let members = db::get_dm_members(conn, &dm_id)?;
 
-            let members = db::get_dm_members(conn, &did)?;
-
-            Ok(json!({
-                "channel": dm,
-                "members": members,
-            }))
-        })
+        Ok(json!({
+            "channel": dm,
+            "members": members,
+        }))
     })
     .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .map_err(|e| match e {
+        AppError::NotFound(_) => AppError::NotFound("DM channel not found".into()),
+        other => other,
+    })?;
 
-    match result {
-        Ok(data) => Ok(Json(data)),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            Err(AppError::NotFound("DM channel not found".into()))
-        }
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    Ok(Json(data))
 }
 
 pub async fn send_message(
@@ -158,61 +142,44 @@ pub async fn send_message(
         return Err(AppError::BadRequest("content is required".into()));
     }
 
-    let db = state.db.clone();
-    let did = dm_id.clone();
-    let uid = user_id.clone();
+    let (msg, member_ids) = spawn_db(state.db.clone(), move |conn| {
+        require_dm_member(conn, &dm_id, &user_id)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::is_dm_member(conn, &did, &uid)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "not a member of this DM".into(),
-                ));
-            }
+        let now = db::now_str();
+        let msg = db::Message {
+            id: db::new_id(),
+            channel_id: String::new(),
+            dm_channel_id: dm_id.clone(),
+            author_id: user_id.clone(),
+            content: body.content.clone(),
+            msg_type: body.msg_type.clone(),
+            thread_id: String::new(),
+            edited_at: None,
+            deleted: false,
+            lamport_ts: 0,
+            created_at: now,
+        };
+        db::create_dm_message(conn, &msg)?;
 
-            let now = db::now_str();
-            let msg = db::Message {
-                id: db::new_id(),
-                channel_id: String::new(),
-                dm_channel_id: did.clone(),
-                author_id: uid.clone(),
-                content: body.content.clone(),
-                msg_type: body.msg_type.clone(),
-                thread_id: String::new(),
-                edited_at: None,
-                deleted: false,
-                lamport_ts: 0,
-                created_at: now,
-            };
-            db::create_dm_message(conn, &msg)?;
+        // Get members to notify.
+        let members = db::get_dm_members(conn, &dm_id)?;
+        let member_ids: Vec<String> = members.into_iter().map(|m| m.user_id).collect();
 
-            // Get members to notify.
-            let members = db::get_dm_members(conn, &did)?;
-            let member_ids: Vec<String> = members.into_iter().map(|m| m.user_id).collect();
-
-            Ok((msg, member_ids))
-        })
+        Ok((msg, member_ids))
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .await?;
 
-    match result {
-        Ok((msg, member_ids)) => {
-            // Notify all DM members via WebSocket.
-            let event_data = serde_json::to_vec(&json!({
-                "type": "dm:message:new",
-                "payload": msg,
-            }))
-            .unwrap_or_default();
-            for member_id in &member_ids {
-                state.hub.send_to_user(member_id, event_data.clone()).await;
-            }
-
-            Ok(Json(json!(msg)))
-        }
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
+    // Notify all DM members via WebSocket.
+    let event_data = serde_json::to_vec(&json!({
+        "type": "dm:message:new",
+        "payload": msg,
+    }))
+    .unwrap_or_default();
+    for member_id in &member_ids {
+        state.hub.send_to_user(member_id, event_data.clone()).await;
     }
+
+    json_ok(&msg)
 }
 
 pub async fn list_messages(
@@ -221,29 +188,15 @@ pub async fn list_messages(
     Path((_team_id, dm_id)): Path<(String, String)>,
     Query(query): Query<ListMessagesQuery>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let did = dm_id.clone();
-    let uid = user_id.clone();
     let limit = query.limit.clamp(1, 100);
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::is_dm_member(conn, &did, &uid)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "not a member of this DM".into(),
-                ));
-            }
-            db::get_dm_messages(conn, &did, &query.before, limit)
-        })
+    let messages = spawn_db(state.db.clone(), move |conn| {
+        require_dm_member(conn, &dm_id, &user_id)?;
+        db::get_dm_messages(conn, &dm_id, &query.before, limit)
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .await?;
 
-    match result {
-        Ok(messages) => Ok(Json(json!(messages))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok(messages)
 }
 
 pub async fn edit_message(
@@ -256,67 +209,50 @@ pub async fn edit_message(
         return Err(AppError::BadRequest("content is required".into()));
     }
 
-    let db = state.db.clone();
-    let did = dm_id.clone();
-    let mid = message_id.clone();
-    let uid = user_id.clone();
+    let (msg, member_ids) = spawn_db(state.db.clone(), move |conn| {
+        require_dm_member(conn, &dm_id, &user_id)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::is_dm_member(conn, &did, &uid)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "not a member of this DM".into(),
-                ));
-            }
+        let msg = db::get_message_by_id(conn, &message_id)?
+            .ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)?;
 
-            let msg = db::get_message_by_id(conn, &mid)?
-                .ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)?;
+        if msg.author_id != user_id {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "can only edit your own messages".into(),
+            ));
+        }
 
-            if msg.author_id != uid {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "can only edit your own messages".into(),
-                ));
-            }
+        if msg.deleted {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "cannot edit a deleted message".into(),
+            ));
+        }
 
-            if msg.deleted {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "cannot edit a deleted message".into(),
-                ));
-            }
+        db::update_message_content(conn, &message_id, &body.content)?;
 
-            db::update_message_content(conn, &mid, &body.content)?;
+        let updated = db::get_message_by_id(conn, &message_id)?
+            .ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)?;
 
-            let updated = db::get_message_by_id(conn, &mid)?
-                .ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)?;
+        let members = db::get_dm_members(conn, &dm_id)?;
+        let member_ids: Vec<String> = members.into_iter().map(|m| m.user_id).collect();
 
-            let members = db::get_dm_members(conn, &did)?;
-            let member_ids: Vec<String> = members.into_iter().map(|m| m.user_id).collect();
-
-            Ok((updated, member_ids))
-        })
+        Ok((updated, member_ids))
     })
     .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .map_err(|e| match e {
+        AppError::NotFound(_) => AppError::NotFound("message not found".into()),
+        other => other,
+    })?;
 
-    match result {
-        Ok((msg, member_ids)) => {
-            let event_data = serde_json::to_vec(&json!({
-                "type": "dm:message:updated",
-                "payload": msg,
-            }))
-            .unwrap_or_default();
-            for member_id in &member_ids {
-                state.hub.send_to_user(member_id, event_data.clone()).await;
-            }
-
-            Ok(Json(json!(msg)))
-        }
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            Err(AppError::NotFound("message not found".into()))
-        }
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
+    let event_data = serde_json::to_vec(&json!({
+        "type": "dm:message:updated",
+        "payload": msg,
+    }))
+    .unwrap_or_default();
+    for member_id in &member_ids {
+        state.hub.send_to_user(member_id, event_data.clone()).await;
     }
+
+    json_ok(&msg)
 }
 
 pub async fn delete_message(
@@ -324,61 +260,48 @@ pub async fn delete_message(
     State(state): State<AppState>,
     Path((_team_id, dm_id, message_id)): Path<(String, String, String)>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let did = dm_id.clone();
-    let mid = message_id.clone();
-    let uid = user_id.clone();
+    let member_ids = spawn_db(state.db.clone(), {
+        let dm_id = dm_id.clone();
+        let message_id = message_id.clone();
+        move |conn| {
+            require_dm_member(conn, &dm_id, &user_id)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::is_dm_member(conn, &did, &uid)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "not a member of this DM".into(),
-                ));
-            }
-
-            let msg = db::get_message_by_id(conn, &mid)?
+            let msg = db::get_message_by_id(conn, &message_id)?
                 .ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)?;
 
-            if msg.author_id != uid {
+            if msg.author_id != user_id {
                 return Err(rusqlite::Error::InvalidParameterName(
                     "can only delete your own messages".into(),
                 ));
             }
 
-            db::soft_delete_message(conn, &mid)?;
+            db::soft_delete_message(conn, &message_id)?;
 
-            let members = db::get_dm_members(conn, &did)?;
+            let members = db::get_dm_members(conn, &dm_id)?;
             let member_ids: Vec<String> = members.into_iter().map(|m| m.user_id).collect();
 
             Ok(member_ids)
-        })
+        }
     })
     .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .map_err(|e| match e {
+        AppError::NotFound(_) => AppError::NotFound("message not found".into()),
+        other => other,
+    })?;
 
-    match result {
-        Ok(member_ids) => {
-            let event_data = serde_json::to_vec(&json!({
-                "type": "dm:message:deleted",
-                "payload": {
-                    "message_id": message_id,
-                    "dm_channel_id": dm_id,
-                },
-            }))
-            .unwrap_or_default();
-            for member_id in &member_ids {
-                state.hub.send_to_user(member_id, event_data.clone()).await;
-            }
-
-            Ok(Json(json!({ "ok": true })))
-        }
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            Err(AppError::NotFound("message not found".into()))
-        }
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
+    let event_data = serde_json::to_vec(&json!({
+        "type": "dm:message:deleted",
+        "payload": {
+            "message_id": message_id,
+            "dm_channel_id": dm_id,
+        },
+    }))
+    .unwrap_or_default();
+    for member_id in &member_ids {
+        state.hub.send_to_user(member_id, event_data.clone()).await;
     }
+
+    json_ok_true()
 }
 
 pub async fn add_members(
@@ -391,32 +314,17 @@ pub async fn add_members(
         return Err(AppError::BadRequest("user_ids is required".into()));
     }
 
-    let db = state.db.clone();
-    let did = dm_id.clone();
-    let uid = user_id.clone();
+    let members = spawn_db(state.db.clone(), move |conn| {
+        require_dm_member(conn, &dm_id, &user_id)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::is_dm_member(conn, &did, &uid)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "not a member of this DM".into(),
-                ));
-            }
+        db::add_dm_members(conn, &dm_id, &body.user_ids)?;
 
-            db::add_dm_members(conn, &did, &body.user_ids)?;
-
-            let members = db::get_dm_members(conn, &did)?;
-            Ok(members)
-        })
+        let members = db::get_dm_members(conn, &dm_id)?;
+        Ok(members)
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .await?;
 
-    match result {
-        Ok(members) => Ok(Json(json!(members))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok(members)
 }
 
 pub async fn remove_member(
@@ -424,46 +332,15 @@ pub async fn remove_member(
     State(state): State<AppState>,
     Path((_team_id, dm_id, target_user_id)): Path<(String, String, String)>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let did = dm_id.clone();
-    let uid = user_id.clone();
+    spawn_db(state.db.clone(), move |conn| {
+        require_dm_member(conn, &dm_id, &user_id)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::is_dm_member(conn, &did, &uid)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "not a member of this DM".into(),
-                ));
-            }
-
-            db::remove_dm_member(conn, &did, &target_user_id)?;
-            Ok(())
-        })
+        db::remove_dm_member(conn, &dm_id, &target_user_id)?;
+        Ok(())
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .await?;
 
-    match result {
-        Ok(()) => Ok(Json(json!({ "ok": true }))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
-}
-
-// --- Shared helpers ---
-
-/// Verify that a user is a member of the given team.
-fn require_team_member(
-    conn: &rusqlite::Connection,
-    user_id: &str,
-    team_id: &str,
-) -> Result<(), rusqlite::Error> {
-    if db::get_member_by_user_and_team(conn, user_id, team_id)?.is_none() {
-        return Err(rusqlite::Error::InvalidParameterName(
-            "not a member of this team".into(),
-        ));
-    }
-    Ok(())
+    json_ok_true()
 }
 
 /// Create a new DM channel and add all members.

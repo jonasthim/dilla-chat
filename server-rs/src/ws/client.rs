@@ -234,60 +234,55 @@ async fn handle_voice_event(
     payload: serde_json::Value,
 ) {
     match event_type {
-        EVENT_VOICE_JOIN => {
-            if let Ok(p) = serde_json::from_value::<VoiceJoinPayload>(payload) {
-                handle_voice_join(hub, client_id, user_id, username, team_id, p).await;
-            }
+        EVENT_VOICE_JOIN | EVENT_VOICE_LEAVE => {
+            handle_voice_join_leave(hub, client_id, user_id, username, team_id, event_type, payload).await;
         }
-        EVENT_VOICE_LEAVE => {
-            if let Ok(p) = serde_json::from_value::<VoiceJoinPayload>(payload) {
-                handle_voice_leave(hub, client_id, user_id, p).await;
-            }
+        EVENT_VOICE_ANSWER | EVENT_VOICE_ICE_CANDIDATE | EVENT_VOICE_MUTE | EVENT_VOICE_DEAFEN => {
+            handle_voice_signaling(hub, user_id, event_type, payload).await;
         }
-        EVENT_VOICE_ANSWER => {
-            if let Ok(p) = serde_json::from_value::<VoiceAnswerPayload>(payload) {
-                handle_voice_answer(hub, user_id, p).await;
-            }
-        }
-        EVENT_VOICE_ICE_CANDIDATE => {
-            if let Ok(p) = serde_json::from_value::<VoiceICECandidatePayload>(payload) {
-                handle_voice_ice_candidate(hub, user_id, p).await;
-            }
-        }
-        EVENT_VOICE_MUTE => {
-            if let Ok(p) = serde_json::from_value::<VoiceMutePayload>(payload) {
-                handle_voice_mute(hub, user_id, p).await;
-            }
-        }
-        EVENT_VOICE_DEAFEN => {
-            if let Ok(p) = serde_json::from_value::<VoiceDeafenPayload>(payload) {
-                handle_voice_deafen(hub, user_id, p).await;
-            }
-        }
-        EVENT_VOICE_SCREEN_START => {
-            if let Ok(p) = serde_json::from_value::<VoiceScreenPayload>(payload) {
-                handle_voice_screen_start(hub, user_id, p).await;
-            }
-        }
-        EVENT_VOICE_SCREEN_STOP => {
-            if let Ok(p) = serde_json::from_value::<VoiceScreenPayload>(payload) {
-                handle_voice_screen_stop(hub, user_id, p).await;
-            }
-        }
-        EVENT_VOICE_WEBCAM_START => {
-            if let Ok(p) = serde_json::from_value::<VoiceScreenPayload>(payload) {
-                handle_voice_webcam_start(hub, user_id, p).await;
-            }
-        }
-        EVENT_VOICE_WEBCAM_STOP => {
-            if let Ok(p) = serde_json::from_value::<VoiceScreenPayload>(payload) {
-                handle_voice_webcam_stop(hub, user_id, p).await;
-            }
+        EVENT_VOICE_SCREEN_START | EVENT_VOICE_SCREEN_STOP |
+        EVENT_VOICE_WEBCAM_START | EVENT_VOICE_WEBCAM_STOP => {
+            handle_voice_media(hub, user_id, event_type, payload).await;
         }
         EVENT_VOICE_KEY_DISTRIBUTE => {
             handle_voice_key_distribute(hub, client_id, user_id, payload).await;
         }
         _ => {}
+    }
+}
+
+async fn handle_voice_join_leave(
+    hub: &Hub, client_id: &str, user_id: &str, username: &str, team_id: &str,
+    event_type: &str, payload: serde_json::Value,
+) {
+    if let Ok(p) = serde_json::from_value::<VoiceJoinPayload>(payload) {
+        if event_type == EVENT_VOICE_JOIN {
+            handle_voice_join(hub, client_id, user_id, username, team_id, p).await;
+        } else {
+            handle_voice_leave(hub, client_id, user_id, p).await;
+        }
+    }
+}
+
+async fn handle_voice_signaling(hub: &Hub, user_id: &str, event_type: &str, payload: serde_json::Value) {
+    match event_type {
+        EVENT_VOICE_ANSWER => { if let Ok(p) = serde_json::from_value(payload) { handle_voice_answer(hub, user_id, p).await; } }
+        EVENT_VOICE_ICE_CANDIDATE => { if let Ok(p) = serde_json::from_value(payload) { handle_voice_ice_candidate(hub, user_id, p).await; } }
+        EVENT_VOICE_MUTE => { if let Ok(p) = serde_json::from_value(payload) { handle_voice_mute(hub, user_id, p).await; } }
+        EVENT_VOICE_DEAFEN => { if let Ok(p) = serde_json::from_value(payload) { handle_voice_deafen(hub, user_id, p).await; } }
+        _ => {}
+    }
+}
+
+async fn handle_voice_media(hub: &Hub, user_id: &str, event_type: &str, payload: serde_json::Value) {
+    if let Ok(p) = serde_json::from_value::<VoiceScreenPayload>(payload) {
+        match event_type {
+            EVENT_VOICE_SCREEN_START => handle_voice_screen_start(hub, user_id, p).await,
+            EVENT_VOICE_SCREEN_STOP => handle_voice_screen_stop(hub, user_id, p).await,
+            EVENT_VOICE_WEBCAM_START => handle_voice_webcam_start(hub, user_id, p).await,
+            EVENT_VOICE_WEBCAM_STOP => handle_voice_webcam_stop(hub, user_id, p).await,
+            _ => {}
+        }
     }
 }
 

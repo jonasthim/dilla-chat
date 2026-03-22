@@ -3,8 +3,9 @@ use axum::{
     Extension, Json,
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 
+use crate::api::helpers::{json_ok, json_ok_true, require_permission, require_team_member, spawn_db};
 use crate::api::AppState;
 use crate::auth::UserId;
 use crate::db;
@@ -41,25 +42,13 @@ pub async fn list(
     State(state): State<AppState>,
     Path(team_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let uid = user_id.clone();
-
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            let member = db::get_member_by_user_and_team(conn, &uid, &tid)?;
-            if member.is_none() {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "not a member of this team".into(),
-                ));
-            }
-            db::get_roles_by_team(conn, &tid)
-        })
+    let roles = spawn_db(state.db.clone(), move |conn| {
+        require_team_member(conn, &user_id, &team_id)?;
+        db::get_roles_by_team(conn, &team_id)
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .await?;
 
-    map_roles_result(result)
+    json_ok(roles)
 }
 
 pub async fn create(
@@ -72,45 +61,30 @@ pub async fn create(
         return Err(AppError::BadRequest("name is required".into()));
     }
 
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let uid = user_id.clone();
+    let role = spawn_db(state.db.clone(), move |conn| {
+        require_permission(conn, &user_id, &team_id, db::PERM_MANAGE_ROLES)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::user_has_permission(conn, &uid, &tid, db::PERM_MANAGE_ROLES)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "insufficient permissions".into(),
-                ));
-            }
+        // Get current max position.
+        let roles = db::get_roles_by_team(conn, &team_id)?;
+        let max_pos = roles.iter().map(|r| r.position).max().unwrap_or(0);
 
-            // Get current max position.
-            let roles = db::get_roles_by_team(conn, &tid)?;
-            let max_pos = roles.iter().map(|r| r.position).max().unwrap_or(0);
-
-            let role = db::Role {
-                id: db::new_id(),
-                team_id: tid.clone(),
-                name: body.name.clone(),
-                color: body.color.clone(),
-                position: max_pos + 1,
-                permissions: body.permissions,
-                is_default: false,
-                created_at: db::now_str(),
-                updated_at: String::new(),
-            };
-            db::create_role(conn, &role)?;
-            Ok(role)
-        })
+        let role = db::Role {
+            id: db::new_id(),
+            team_id: team_id.clone(),
+            name: body.name.clone(),
+            color: body.color.clone(),
+            position: max_pos + 1,
+            permissions: body.permissions,
+            is_default: false,
+            created_at: db::now_str(),
+            updated_at: String::new(),
+        };
+        db::create_role(conn, &role)?;
+        Ok(role)
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .await?;
 
-    match result {
-        Ok(role) => Ok(Json(json!(role))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok(role)
 }
 
 pub async fn update(
@@ -119,36 +93,21 @@ pub async fn update(
     Path((team_id, role_id)): Path<(String, String)>,
     Json(body): Json<UpdateRoleRequest>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let rid = role_id.clone();
-    let uid = user_id.clone();
+    let role = spawn_db(state.db.clone(), move |conn| {
+        require_permission(conn, &user_id, &team_id, db::PERM_MANAGE_ROLES)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::user_has_permission(conn, &uid, &tid, db::PERM_MANAGE_ROLES)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "insufficient permissions".into(),
-                ));
-            }
-
-            let mut role = get_role_for_team(conn, &rid, &tid)?;
-            apply_role_updates(&mut role, &body);
-            db::update_role(conn, &role)?;
-            Ok(role)
-        })
+        let mut role = get_role_for_team(conn, &role_id, &team_id)?;
+        apply_role_updates(&mut role, &body);
+        db::update_role(conn, &role)?;
+        Ok(role)
     })
     .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .map_err(|e| match e {
+        AppError::NotFound(_) => AppError::NotFound("role not found".into()),
+        other => other,
+    })?;
 
-    match result {
-        Ok(role) => Ok(Json(json!(role))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            Err(AppError::NotFound("role not found".into()))
-        }
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok(role)
 }
 
 pub async fn delete_role(
@@ -156,49 +115,34 @@ pub async fn delete_role(
     State(state): State<AppState>,
     Path((team_id, role_id)): Path<(String, String)>,
 ) -> Result<Json<Value>, AppError> {
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let rid = role_id.clone();
-    let uid = user_id.clone();
+    spawn_db(state.db.clone(), move |conn| {
+        require_permission(conn, &user_id, &team_id, db::PERM_MANAGE_ROLES)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::user_has_permission(conn, &uid, &tid, db::PERM_MANAGE_ROLES)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "insufficient permissions".into(),
-                ));
-            }
+        let role = db::get_role_by_id(conn, &role_id)?
+            .ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)?;
 
-            let role = db::get_role_by_id(conn, &rid)?
-                .ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)?;
+        if role.team_id != team_id {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "role does not belong to this team".into(),
+            ));
+        }
 
-            if role.team_id != tid {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "role does not belong to this team".into(),
-                ));
-            }
+        if role.is_default {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "cannot delete the default role".into(),
+            ));
+        }
 
-            if role.is_default {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "cannot delete the default role".into(),
-                ));
-            }
-
-            db::delete_role(conn, &rid)?;
-            Ok(())
-        })
+        db::delete_role(conn, &role_id)?;
+        Ok(())
     })
     .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .map_err(|e| match e {
+        AppError::NotFound(_) => AppError::NotFound("role not found".into()),
+        other => other,
+    })?;
 
-    match result {
-        Ok(()) => Ok(Json(json!({ "ok": true }))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            Err(AppError::NotFound("role not found".into()))
-        }
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok_true()
 }
 
 pub async fn reorder(
@@ -211,43 +155,23 @@ pub async fn reorder(
         return Err(AppError::BadRequest("role_ids is required".into()));
     }
 
-    let db = state.db.clone();
-    let tid = team_id.clone();
-    let uid = user_id.clone();
+    let roles = spawn_db(state.db.clone(), move |conn| {
+        require_permission(conn, &user_id, &team_id, db::PERM_MANAGE_ROLES)?;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            if !db::user_has_permission(conn, &uid, &tid, db::PERM_MANAGE_ROLES)? {
-                return Err(rusqlite::Error::InvalidParameterName(
-                    "insufficient permissions".into(),
-                ));
-            }
-
-            for (i, role_id) in body.role_ids.iter().enumerate() {
-                if let Some(mut role) = db::get_role_by_id(conn, role_id)? {
-                    if role.team_id == tid {
-                        role.position = i as i32;
-                        db::update_role(conn, &role)?;
-                    }
+        for (i, role_id) in body.role_ids.iter().enumerate() {
+            if let Some(mut role) = db::get_role_by_id(conn, role_id)? {
+                if role.team_id == team_id {
+                    role.position = i as i32;
+                    db::update_role(conn, &role)?;
                 }
             }
+        }
 
-            db::get_roles_by_team(conn, &tid)
-        })
+        db::get_roles_by_team(conn, &team_id)
     })
-    .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
+    .await?;
 
-    map_roles_result(result)
-}
-
-/// Map a rusqlite Result to the standard roles endpoint response.
-fn map_roles_result(result: Result<Vec<db::Role>, rusqlite::Error>) -> Result<Json<Value>, AppError> {
-    match result {
-        Ok(roles) => Ok(Json(json!(roles))),
-        Err(rusqlite::Error::InvalidParameterName(msg)) => Err(AppError::Forbidden(msg)),
-        Err(e) => Err(AppError::Internal(format!("db: {}", e))),
-    }
+    json_ok(roles)
 }
 
 /// Fetch a role by ID and verify it belongs to the given team.

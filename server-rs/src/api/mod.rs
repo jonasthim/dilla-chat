@@ -13,6 +13,7 @@ pub mod prekeys;
 pub mod presence;
 pub mod voice;
 pub mod federation;
+pub mod helpers;
 
 use crate::auth::{self, AuthService};
 use crate::config::Config;

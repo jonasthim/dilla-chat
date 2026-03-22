@@ -900,20 +900,24 @@ async fn remove_track_from_other_peers(
         if other_uid == user_id {
             continue;
         }
-        let senders = other_ps.pc.get_senders().await;
-        for sender in &senders {
-            if let Some(track) = sender.track().await {
-                if track.id() == track_id {
-                    if let Err(e) = other_ps.pc.remove_track(sender).await {
-                        tracing::error!(
-                            "voice: failed to remove {} track from peer: {} (other={})",
-                            kind, e, other_uid
-                        );
-                    }
-                    break;
-                }
-            }
+        remove_track_from_peer(other_ps, other_uid, track_id, kind).await;
+    }
+}
+
+async fn remove_track_from_peer(
+    peer: &PeerState,
+    peer_uid: &str,
+    track_id: &str,
+    kind: &str,
+) {
+    let senders = peer.pc.get_senders().await;
+    for sender in &senders {
+        let Some(track) = sender.track().await else { continue };
+        if track.id() != track_id { continue; }
+        if let Err(e) = peer.pc.remove_track(sender).await {
+            tracing::error!("voice: failed to remove {} track from peer: {} (other={})", kind, e, peer_uid);
         }
+        break;
     }
 }
 

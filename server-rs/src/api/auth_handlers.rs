@@ -3,6 +3,7 @@ use base64::Engine;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::api::helpers::spawn_db;
 use crate::api::AppState;
 use crate::db;
 use crate::error::AppError;
@@ -83,12 +84,11 @@ pub async fn verify(
     }
 
     // Look up user by public key.
-    let db = state.db.clone();
     let pk = pk_bytes.clone();
-    let user = tokio::task::spawn_blocking(move || db.with_conn(|conn| db::get_user_by_public_key(conn, &pk)))
-        .await
-        .map_err(|e| AppError::Internal(format!("task join: {}", e)))?
-        .map_err(|e| AppError::Internal(format!("db: {}", e)))?;
+    let user = spawn_db(state.db.clone(), move |conn| {
+        db::get_user_by_public_key(conn, &pk)
+    })
+    .await?;
 
     let user = user.ok_or_else(|| {
         AppError::Unauthorized("no account found for this public key — register first".into())
@@ -120,47 +120,33 @@ pub async fn register(
         return Err(AppError::BadRequest("invite_token is required".into()));
     }
 
-    let db = state.db.clone();
     let username = body.username.clone();
     let invite_token = body.invite_token.clone();
     let pk = pk_bytes;
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            check_username_and_key_available(conn, &username, &pk)?;
-            let invite = validate_invite(conn, &invite_token)?;
+    let (user, team_id) = spawn_db(state.db.clone(), move |conn| {
+        check_username_and_key_available(conn, &username, &pk)?;
+        let invite = validate_invite(conn, &invite_token)?;
 
-            let (user, member) = create_user_and_member(conn, &username, &pk, &invite.team_id, &invite.created_by, false);
-            db::create_user(conn, &user)?;
-            db::create_member(conn, &member)?;
+        let (user, member) = create_user_and_member(conn, &username, &pk, &invite.team_id, &invite.created_by, false);
+        db::create_user(conn, &user)?;
+        db::create_member(conn, &member)?;
 
-            if let Some(role) = db::get_default_role_for_team(conn, &invite.team_id)? {
-                db::assign_role_to_member(conn, &member.id, &role.id)?;
-            }
+        if let Some(role) = db::get_default_role_for_team(conn, &invite.team_id)? {
+            db::assign_role_to_member(conn, &member.id, &role.id)?;
+        }
 
-            db::increment_invite_uses(conn, &invite.id)?;
-            db::log_invite_use(conn, &invite.id, &user.id)?;
+        db::increment_invite_uses(conn, &invite.id)?;
+        db::log_invite_use(conn, &invite.id, &user.id)?;
 
-            Ok((user, invite.team_id))
-        })
+        Ok((user, invite.team_id))
     })
     .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
-
-    let (user, team_id) = match result {
-        Ok(v) => v,
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            return Err(AppError::Conflict(
-                "username or public key already registered".into(),
-            ));
-        }
-        Err(rusqlite::Error::InvalidParameterName(msg)) => {
-            return Err(AppError::BadRequest(msg));
-        }
-        Err(e) => {
-            return Err(AppError::Internal(format!("db: {}", e)));
-        }
-    };
+    .map_err(|e| match e {
+        AppError::NotFound(_) => AppError::Conflict("username or public key already registered".into()),
+        AppError::Forbidden(msg) => AppError::BadRequest(msg),
+        other => other,
+    })?;
 
     let token = state.auth.generate_jwt(&user.id)?;
     let refresh_token = state.auth.generate_refresh_token(&user.id)?;
@@ -189,49 +175,39 @@ pub async fn bootstrap(
         return Err(AppError::BadRequest("bootstrap_token is required".into()));
     }
 
-    let db = state.db.clone();
     let username = body.username.clone();
     let bootstrap_token = body.bootstrap_token.clone();
     let pk = pk_bytes;
     let team_name = resolve_team_name(&body.team_name, &state.config.team_name);
 
-    let result = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| {
-            validate_bootstrap_token(conn, &bootstrap_token)?;
+    let (user, team_id) = spawn_db(state.db.clone(), move |conn| {
+        validate_bootstrap_token(conn, &bootstrap_token)?;
 
-            let (user, _member) = create_user_and_member(conn, &username, &pk, "", "", true);
-            db::create_user(conn, &user)?;
+        let (user, _member) = create_user_and_member(conn, &username, &pk, "", "", true);
+        db::create_user(conn, &user)?;
 
-            let team_id = create_bootstrap_team(conn, &team_name, &user.id)?;
+        let team_id = create_bootstrap_team(conn, &team_name, &user.id)?;
 
-            let member = db::Member {
-                id: db::new_id(),
-                team_id: team_id.clone(),
-                user_id: user.id.clone(),
-                nickname: String::new(),
-                joined_at: db::now_str(),
-                invited_by: String::new(),
-                updated_at: String::new(),
-            };
-            db::create_member(conn, &member)?;
+        let member = db::Member {
+            id: db::new_id(),
+            team_id: team_id.clone(),
+            user_id: user.id.clone(),
+            nickname: String::new(),
+            joined_at: db::now_str(),
+            invited_by: String::new(),
+            updated_at: String::new(),
+        };
+        db::create_member(conn, &member)?;
 
-            create_bootstrap_defaults(conn, &team_id, &user.id)?;
+        create_bootstrap_defaults(conn, &team_id, &user.id)?;
 
-            Ok((user, team_id))
-        })
+        Ok((user, team_id))
     })
     .await
-    .map_err(|e| AppError::Internal(format!("task join: {}", e)))?;
-
-    let (user, team_id) = match result {
-        Ok(v) => v,
-        Err(rusqlite::Error::InvalidParameterName(msg)) => {
-            return Err(AppError::BadRequest(msg));
-        }
-        Err(e) => {
-            return Err(AppError::Internal(format!("db: {}", e)));
-        }
-    };
+    .map_err(|e| match e {
+        AppError::Forbidden(msg) => AppError::BadRequest(msg),
+        other => other,
+    })?;
 
     let token = state.auth.generate_jwt(&user.id)?;
     let refresh_token = state.auth.generate_refresh_token(&user.id)?;
