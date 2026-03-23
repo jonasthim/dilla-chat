@@ -1,0 +1,5 @@
+[target.aarch64-unknown-linux-gnu]
+dockerfile = "cross/aarch64.Dockerfile"
+
+[target.aarch64-unknown-linux-gnu.env]
+passthrough = ["OPENSSL_DIR=/usr/local/aarch64-ssl", "OPENSSL_STATIC=1"]
