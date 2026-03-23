@@ -111,10 +111,19 @@ jobs:
       - name: Install cross-compilation tools (aarch64-linux)
         if: matrix.cross
         run: |
+          sudo dpkg --add-architecture arm64
+          sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list.d/*.list /etc/apt/sources.list 2>/dev/null || true
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ $(lsb_release -cs) main restricted universe" | sudo tee /etc/apt/sources.list.d/arm64.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ $(lsb_release -cs)-updates main restricted universe" | sudo tee -a /etc/apt/sources.list.d/arm64.list
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu libssl-dev:arm64
           echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
           echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
+        env:
+          PKG_CONFIG_ALLOW_CROSS: 1
+          OPENSSL_DIR: /usr
+          OPENSSL_INCLUDE_DIR: /usr/include/aarch64-linux-gnu
+          OPENSSL_LIB_DIR: /usr/lib/aarch64-linux-gnu
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -124,6 +133,10 @@ jobs:
       - name: Build server (release)
         working-directory: server-rs
         run: cargo build --release --target ${{ matrix.target }}
+        env:
+          PKG_CONFIG_ALLOW_CROSS: ${{ matrix.cross && '1' || '' }}
+          OPENSSL_INCLUDE_DIR: ${{ matrix.cross && '/usr/include/aarch64-linux-gnu' || '' }}
+          OPENSSL_LIB_DIR: ${{ matrix.cross && '/usr/lib/aarch64-linux-gnu' || '' }}
 
       - name: Upload server binary
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
