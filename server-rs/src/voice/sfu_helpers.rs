@@ -10,12 +10,12 @@ use webrtc::track::track_local::track_local_static_rtp::TrackLocalStaticRTP;
 use webrtc::track::track_local::{TrackLocal, TrackLocalWriter};
 use webrtc::track::track_remote::TrackRemote;
 
-use super::signaling::{PeerState, SFUEvent};
+use super::signaling::{PeerState, SFUEvent, SfuEventCallback};
 
 /// Create a new offer for an existing peer and emit a Renegotiate event.
 pub(crate) async fn renegotiate_internal(
     rooms: &Arc<RwLock<HashMap<String, HashMap<String, PeerState>>>>,
-    on_event: &Arc<RwLock<Option<Box<dyn Fn(String, SFUEvent) + Send + Sync>>>>,
+    on_event: &SfuEventCallback,
     channel_id: &str,
     user_id: &str,
 ) -> Result<(), String> {
@@ -49,7 +49,7 @@ pub(crate) async fn renegotiate_internal(
             SFUEvent::Renegotiate {
                 channel_id: channel_id.to_string(),
                 user_id: user_id.to_string(),
-                offer,
+                offer: Box::new(offer),
             },
         );
     }
@@ -59,7 +59,7 @@ pub(crate) async fn renegotiate_internal(
 
 pub(crate) async fn renegotiate_all_internal(
     rooms: &Arc<RwLock<HashMap<String, HashMap<String, PeerState>>>>,
-    on_event: &Arc<RwLock<Option<Box<dyn Fn(String, SFUEvent) + Send + Sync>>>>,
+    on_event: &SfuEventCallback,
     channel_id: &str,
 ) {
     let user_ids: Vec<String> = {
@@ -84,7 +84,7 @@ pub(crate) async fn renegotiate_all_internal(
 
 pub(crate) async fn renegotiate_all_except_internal(
     rooms: &Arc<RwLock<HashMap<String, HashMap<String, PeerState>>>>,
-    on_event: &Arc<RwLock<Option<Box<dyn Fn(String, SFUEvent) + Send + Sync>>>>,
+    on_event: &SfuEventCallback,
     channel_id: &str,
     exclude_user_id: &str,
 ) {
@@ -114,7 +114,7 @@ pub(crate) async fn renegotiate_all_except_internal(
 
 pub(crate) async fn handle_leave_internal(
     rooms: &Arc<RwLock<HashMap<String, HashMap<String, PeerState>>>>,
-    on_event: &Arc<RwLock<Option<Box<dyn Fn(String, SFUEvent) + Send + Sync>>>>,
+    on_event: &SfuEventCallback,
     channel_id: &str,
     user_id: &str,
 ) {
@@ -353,7 +353,7 @@ fn spawn_rtp_forwarder(
 /// Set up the `on_ice_candidate` handler to forward ICE candidates via the event callback.
 pub(crate) fn setup_ice_candidate_handler(
     pc: &Arc<RTCPeerConnection>,
-    on_event: Arc<RwLock<Option<Box<dyn Fn(String, SFUEvent) + Send + Sync>>>>,
+    on_event: SfuEventCallback,
     channel_id: String,
     user_id: String,
 ) {
@@ -372,7 +372,7 @@ pub(crate) fn setup_ice_candidate_handler(
 
 /// Serialize and emit a single ICE candidate event.
 async fn emit_ice_candidate(
-    on_event: &Arc<RwLock<Option<Box<dyn Fn(String, SFUEvent) + Send + Sync>>>>,
+    on_event: &SfuEventCallback,
     candidate: RTCIceCandidate,
     channel_id: String,
     user_id: String,
@@ -392,7 +392,7 @@ async fn emit_ice_candidate(
             SFUEvent::ICECandidate {
                 channel_id,
                 user_id,
-                candidate: candidate_init,
+                candidate: Box::new(candidate_init),
             },
         );
     }
@@ -402,7 +402,7 @@ async fn emit_ice_candidate(
 pub(crate) fn setup_connection_state_handler(
     pc: &Arc<RTCPeerConnection>,
     rooms_ref: Arc<RwLock<HashMap<String, HashMap<String, PeerState>>>>,
-    on_event: Arc<RwLock<Option<Box<dyn Fn(String, SFUEvent) + Send + Sync>>>>,
+    on_event: SfuEventCallback,
     channel_id: String,
     user_id: String,
 ) {

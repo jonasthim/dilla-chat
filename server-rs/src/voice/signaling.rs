@@ -26,6 +26,9 @@ use super::sfu_helpers::{
 };
 use super::turn::TURNCredentialProvider;
 
+/// Type alias for the SFU event callback to reduce type complexity.
+pub(crate) type SfuEventCallback = Arc<RwLock<Option<Box<dyn Fn(String, SFUEvent) + Send + Sync>>>>;
+
 /// Events emitted by the SFU to be forwarded to clients via WebSocket.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -33,12 +36,12 @@ pub enum SFUEvent {
     ICECandidate {
         channel_id: String,
         user_id: String,
-        candidate: RTCIceCandidateInit,
+        candidate: Box<RTCIceCandidateInit>,
     },
     Renegotiate {
         channel_id: String,
         user_id: String,
-        offer: RTCSessionDescription,
+        offer: Box<RTCSessionDescription>,
     },
 }
 
@@ -51,11 +54,12 @@ pub(crate) struct PeerState {
 }
 
 /// The SFU (Selective Forwarding Unit) manages WebRTC peer connections for voice channels.
+#[allow(clippy::upper_case_acronyms)]
 pub struct SFU {
     /// channel_id -> user_id -> PeerState
     pub(crate) rooms: Arc<RwLock<HashMap<String, HashMap<String, PeerState>>>>,
     pub(crate) api: webrtc::api::API,
-    pub(crate) on_event: Arc<RwLock<Option<Box<dyn Fn(String, SFUEvent) + Send + Sync>>>>,
+    pub(crate) on_event: SfuEventCallback,
     pub(crate) turn_provider: Arc<RwLock<Option<Box<dyn TURNCredentialProvider>>>>,
 }
 
