@@ -2,24 +2,34 @@ use crate::db;
 use crate::ws::events::*;
 use crate::ws::hub::Hub;
 
+/// Verify that `user_id` is a member of the given DM channel.
+/// Returns `true` if the user is a member, `false` otherwise.
+async fn verify_dm_membership(hub: &Hub, dm_channel_id: &str, user_id: &str) -> bool {
+    let db = hub.db.clone();
+    let dm_id = dm_channel_id.to_string();
+    let uid = user_id.to_string();
+    tokio::task::spawn_blocking(move || {
+        db.with_conn(|conn| db::is_dm_member(conn, &dm_id, &uid))
+    })
+    .await
+    .unwrap_or(Ok(false))
+    .unwrap_or(false)
+}
+
+/// Send an event to all members of a DM channel.
+async fn broadcast_to_dm_members(hub: &Hub, members: &[db::DMMember], data: Vec<u8>) {
+    for member in members {
+        hub.send_to_user(&member.user_id, data.clone()).await;
+    }
+}
+
 pub(in crate::ws) async fn handle_dm_message_send(
     hub: &Hub,
     user_id: &str,
     username: &str,
     p: DMMessageSendPayload,
 ) {
-    // Verify the user is a member of the DM channel.
-    let db = hub.db.clone();
-    let dm_id_check = p.dm_channel_id.clone();
-    let uid_check = user_id.to_string();
-    let is_member = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| db::is_dm_member(conn, &dm_id_check, &uid_check))
-    })
-    .await
-    .unwrap_or(Ok(false))
-    .unwrap_or(false);
-
-    if !is_member {
+    if !verify_dm_membership(hub, &p.dm_channel_id, user_id).await {
         tracing::warn!(
             user_id = user_id,
             dm_channel_id = %p.dm_channel_id,
@@ -63,11 +73,12 @@ pub(in crate::ws) async fn handle_dm_message_send(
 
     match result {
         Ok((msg, members)) => {
+            let dm_cid = p.dm_channel_id.clone();
             let evt = Event::new(
                 EVENT_DM_MESSAGE_NEW,
                 DMMessageNewPayload {
                     id: msg.id,
-                    dm_channel_id: p.dm_channel_id,
+                    dm_channel_id: dm_cid,
                     author_id: msg.author_id.clone(),
                     username: username.to_string(),
                     content: msg.content,
@@ -77,9 +88,7 @@ pub(in crate::ws) async fn handle_dm_message_send(
             );
             if let Ok(evt) = evt {
                 if let Ok(data) = evt.to_bytes() {
-                    for member in members {
-                        hub.send_to_user(&member.user_id, data.clone()).await;
-                    }
+                    broadcast_to_dm_members(hub, &members, data).await;
                 }
             }
         }
@@ -90,18 +99,7 @@ pub(in crate::ws) async fn handle_dm_message_send(
 }
 
 pub(in crate::ws) async fn handle_dm_message_edit(hub: &Hub, user_id: &str, p: DMMessageEditPayload) {
-    // Verify the user is a member of the DM channel.
-    let db = hub.db.clone();
-    let dm_id_check = p.dm_channel_id.clone();
-    let uid_check = user_id.to_string();
-    let is_member = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| db::is_dm_member(conn, &dm_id_check, &uid_check))
-    })
-    .await
-    .unwrap_or(Ok(false))
-    .unwrap_or(false);
-
-    if !is_member {
+    if !verify_dm_membership(hub, &p.dm_channel_id, user_id).await {
         tracing::warn!(
             user_id = user_id,
             dm_channel_id = %p.dm_channel_id,
@@ -143,27 +141,14 @@ pub(in crate::ws) async fn handle_dm_message_edit(hub: &Hub, user_id: &str, p: D
         );
         if let Ok(evt) = evt {
             if let Ok(data) = evt.to_bytes() {
-                for member in members {
-                    hub.send_to_user(&member.user_id, data.clone()).await;
-                }
+                broadcast_to_dm_members(hub, &members, data).await;
             }
         }
     }
 }
 
 pub(in crate::ws) async fn handle_dm_message_delete(hub: &Hub, user_id: &str, p: DMMessageDeletePayload) {
-    // Verify the user is a member of the DM channel.
-    let db = hub.db.clone();
-    let dm_id_check = p.dm_channel_id.clone();
-    let uid_check = user_id.to_string();
-    let is_member = tokio::task::spawn_blocking(move || {
-        db.with_conn(|conn| db::is_dm_member(conn, &dm_id_check, &uid_check))
-    })
-    .await
-    .unwrap_or(Ok(false))
-    .unwrap_or(false);
-
-    if !is_member {
+    if !verify_dm_membership(hub, &p.dm_channel_id, user_id).await {
         tracing::warn!(
             user_id = user_id,
             dm_channel_id = %p.dm_channel_id,
@@ -202,9 +187,7 @@ pub(in crate::ws) async fn handle_dm_message_delete(hub: &Hub, user_id: &str, p:
         );
         if let Ok(evt) = evt {
             if let Ok(data) = evt.to_bytes() {
-                for member in members {
-                    hub.send_to_user(&member.user_id, data.clone()).await;
-                }
+                broadcast_to_dm_members(hub, &members, data).await;
             }
         }
     }

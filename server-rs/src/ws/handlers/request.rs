@@ -2,6 +2,25 @@ use crate::db;
 use crate::ws::events::*;
 use crate::ws::hub::Hub;
 
+/// Extract a string field from a JSON payload, defaulting to "".
+fn payload_str(payload: &serde_json::Value, key: &str) -> String {
+    payload
+        .get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
+}
+
+/// Extract pagination parameters (before cursor + limit) from a JSON payload.
+fn payload_pagination(payload: &serde_json::Value) -> (String, i32) {
+    let before = payload_str(payload, "before");
+    let limit = payload
+        .get("limit")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(50) as i32;
+    (before, limit)
+}
+
 pub(in crate::ws) async fn handle_request(hub: &Hub, user_id: &str, team_id: &str, req: RequestEvent) {
     let db = hub.db.clone();
     let uid = user_id.to_string();
@@ -36,23 +55,8 @@ pub(in crate::ws) async fn handle_request(hub: &Hub, user_id: &str, team_id: &st
             .unwrap()
         }
         ACTION_MESSAGE_LIST => {
-            let channel_id = req
-                .payload
-                .get("channel_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let before = req
-                .payload
-                .get("before")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let limit = req
-                .payload
-                .get("limit")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(50) as i32;
+            let channel_id = payload_str(&req.payload, "channel_id");
+            let (before, limit) = payload_pagination(&req.payload);
 
             tokio::task::spawn_blocking(move || {
                 db.with_conn(|conn| {
@@ -64,12 +68,7 @@ pub(in crate::ws) async fn handle_request(hub: &Hub, user_id: &str, team_id: &st
             .unwrap()
         }
         ACTION_THREAD_LIST => {
-            let channel_id = req
-                .payload
-                .get("channel_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+            let channel_id = payload_str(&req.payload, "channel_id");
 
             tokio::task::spawn_blocking(move || {
                 db.with_conn(|conn| {
@@ -81,23 +80,8 @@ pub(in crate::ws) async fn handle_request(hub: &Hub, user_id: &str, team_id: &st
             .unwrap()
         }
         ACTION_THREAD_MESSAGES => {
-            let thread_id = req
-                .payload
-                .get("thread_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let before = req
-                .payload
-                .get("before")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let limit = req
-                .payload
-                .get("limit")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(50) as i32;
+            let thread_id = payload_str(&req.payload, "thread_id");
+            let (before, limit) = payload_pagination(&req.payload);
 
             tokio::task::spawn_blocking(move || {
                 db.with_conn(|conn| {
@@ -135,23 +119,8 @@ pub(in crate::ws) async fn handle_request(hub: &Hub, user_id: &str, team_id: &st
             .unwrap()
         }
         ACTION_DM_MESSAGES => {
-            let dm_id = req
-                .payload
-                .get("dm_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let before = req
-                .payload
-                .get("before")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let limit = req
-                .payload
-                .get("limit")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(50) as i32;
+            let dm_id = payload_str(&req.payload, "dm_id");
+            let (before, limit) = payload_pagination(&req.payload);
 
             tokio::task::spawn_blocking(move || {
                 db.with_conn(|conn| {
