@@ -97,7 +97,7 @@ export default function MemberList() {
   }, [popup]);
 
   const getInitials = (m: Member) =>
-    (m.displayName || m.username)
+    (m.displayName || m.username || '?')
       .split(' ')
       .map((w) => w[0])
       .join('')

@@ -89,7 +89,9 @@ export default function SetupAdmin() {
       );
 
       // Extract real team ID from server response
-      const realTeamId = (result.team?.id as string) || tempId;
+      const realTeamId = (result as Record<string, unknown>).team_id as string
+        || (result.team?.id as string)
+        || tempId;
 
       // Re-register with real team ID if different
       if (realTeamId === tempId) {
@@ -100,7 +102,8 @@ export default function SetupAdmin() {
         api.setToken(realTeamId, result.token);
       }
 
-      addTeam(realTeamId, result.token, result.user, result.team, normalizedUrl);
+      const teamData = result.team ?? { id: realTeamId, name: teamName || 'My Team' };
+      addTeam(realTeamId, result.token, result.user, teamData, normalizedUrl);
 
       // Upload prekey bundle for E2E encryption
       if (derivedKey) {
