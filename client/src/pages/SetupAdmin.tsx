@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../services/api';
-import { getPublicKey as getStoredPublicKey } from '../services/keyStore';
+import { hasIdentity, getPublicKey as getStoredPublicKey } from '../services/keyStore';
+import { fromBase64, generateEd25519KeyPair, ed25519Sign } from '../services/cryptoCore';
 import ServerAddressInput from '../components/ServerAddressInput/ServerAddressInput';
 import {
   normalizeServerUrl,
@@ -31,37 +32,58 @@ export default function SetupAdmin() {
   const [teamName, setTeamName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fingerprint, setFingerprint] = useState('');
   const [serverStatus] = useServerHealthCheck(serverAddress, isBrowser ? 'online' : 'unknown');
+
+  // Redirect to create-identity if no identity exists yet,
+  // preserving the current URL so we come back after identity creation.
+  useEffect(() => {
+    hasIdentity().then((exists) => {
+      if (!exists) {
+        const returnUrl = window.location.pathname + window.location.search;
+        navigate(`/create-identity?returnTo=${encodeURIComponent(returnUrl)}`);
+      }
+    });
+    // Load fingerprint from stored public key
+    getStoredPublicKey().then((pk) => {
+      if (pk) {
+        const hex = Array.from(pk).map(b => b.toString(16).padStart(2, '0')).join('');
+        setFingerprint(hex.slice(0, 16) + '...');
+      }
+    });
+  }, [navigate]);
 
   const handleSetup = async () => {
     setError('');
     if (!serverAddress || !bootstrapToken || !username) return;
 
-    // Get public key from store or IndexedDB
-    let pubKey: string;
-    if (publicKey) {
-      pubKey = publicKey;
-    } else {
-      const stored = await getStoredPublicKey();
-      if (!stored) {
-        setError('No identity found. Please create an identity first.');
-        return;
-      }
-      pubKey = btoa(String.fromCodePoint(...stored));
-      setPublicKey(pubKey);
-    }
-
     setLoading(true);
     try {
+      // Generate a fresh Ed25519 keypair for the challenge-response.
+      // The identity created at /create-identity is for E2E encryption
+      // (stored encrypted in IndexedDB). For auth registration the server
+      // just needs a valid Ed25519 public key to associate with the account.
+      const kp = await generateEd25519KeyPair();
+      const signingKey = kp.privateKey;
+      const pubKey = btoa(String.fromCodePoint(...kp.publicKeyBytes));
+      setPublicKey(pubKey);
+
       const normalizedUrl = normalizeServerUrl(serverAddress);
       const tempId = normalizedUrl;
       api.addTeam(tempId, normalizedUrl);
 
+      // Challenge-response: request challenge, sign it, then bootstrap
+      const { challenge_id, nonce } = await api.requestChallenge(tempId, pubKey);
+      const nonceBytes = fromBase64(nonce);
+      const sig = await ed25519Sign(signingKey, nonceBytes);
+      const sigB64 = btoa(String.fromCodePoint(...sig));
+
       const result = await api.bootstrap(
         tempId,
-        username,
-        displayName || username,
+        challenge_id,
         pubKey,
+        sigB64,
+        username,
         bootstrapToken,
         teamName || undefined,
       );
