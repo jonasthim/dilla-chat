@@ -8,6 +8,8 @@ import { ws } from '../../services/websocket';
 import { usernameColor, getInitials } from '../../utils/colors';
 import './DMList.css';
 
+const EMPTY_DM_LIST: DMChannel[] = [];
+
 interface Props {
   currentUserId: string;
   onNewDM: () => void;
@@ -45,7 +47,7 @@ export default function DMList({ currentUserId, onNewDM }: Readonly<Props>) {
   const setActiveDM = useDMStore((state) => state.setActiveDM);
   const setDMChannels = useDMStore((state) => state.setDMChannels);
   const channels = useDMStore((state) =>
-    activeTeamId ? (state.dmChannels[activeTeamId] ?? []) : []
+    activeTeamId ? (state.dmChannels[activeTeamId] ?? EMPTY_DM_LIST) : EMPTY_DM_LIST
   );
   const [filter, setFilter] = useState('');
 
