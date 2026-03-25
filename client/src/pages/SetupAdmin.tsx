@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../services/api';
-import { getPublicKey as getStoredPublicKey, hasIdentity } from '../services/keyStore';
+import { hasIdentity } from '../services/keyStore';
 import { fromBase64, generateEd25519KeyPair, ed25519Sign } from '../services/cryptoCore';
 import ServerAddressInput from '../components/ServerAddressInput/ServerAddressInput';
 import {
@@ -51,24 +51,14 @@ export default function SetupAdmin() {
 
     setLoading(true);
     try {
-      // Get or generate an Ed25519 keypair for the challenge-response.
-      // On first-time setup the user may not have created an identity yet,
-      // so we generate an ephemeral keypair if needed.
-      let pubKey: string;
-      let signingKey: CryptoKey;
-
-      const { derivedKey: dk } = useAuthStore.getState();
-      if (dk) {
-        // Identity already unlocked — use existing key
-        signingKey = dk.signingKey;
-        pubKey = publicKey || btoa(String.fromCodePoint(...(await getStoredPublicKey() ?? [])));
-      } else {
-        // No identity yet — generate a fresh Ed25519 keypair for bootstrap
-        const kp = await generateEd25519KeyPair();
-        signingKey = kp.privateKey;
-        pubKey = btoa(String.fromCodePoint(...kp.publicKeyBytes));
-        setPublicKey(pubKey);
-      }
+      // Generate a fresh Ed25519 keypair for the challenge-response.
+      // The identity created at /create-identity is for E2E encryption
+      // (stored encrypted in IndexedDB). For auth registration the server
+      // just needs a valid Ed25519 public key to associate with the account.
+      const kp = await generateEd25519KeyPair();
+      const signingKey = kp.privateKey;
+      const pubKey = btoa(String.fromCodePoint(...kp.publicKeyBytes));
+      setPublicKey(pubKey);
 
       const normalizedUrl = normalizeServerUrl(serverAddress);
       const tempId = normalizedUrl;
