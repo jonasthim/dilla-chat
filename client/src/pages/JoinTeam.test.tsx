@@ -35,6 +35,7 @@ vi.mock('../services/crypto', () => ({
       one_time_prekeys: [[10, 11, 12]],
     }),
   },
+  getIdentityKeys: vi.fn(() => ({ signingKey: 'mock-signing-key' })),
 }));
 
 vi.mock('../services/keyStore', () => ({

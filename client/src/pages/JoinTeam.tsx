@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore, type User } from '../stores/authStore';
 import { api } from '../services/api';
 import { exportIdentityBlob, hasIdentity, signChallenge } from '../services/keyStore';
+import { getIdentityKeys } from '../services/crypto';
 import { fromBase64 } from '../services/cryptoCore';
 import ServerAddressInput from '../components/ServerAddressInput/ServerAddressInput';
 import {
@@ -103,7 +104,8 @@ export default function JoinTeam() {
       // Challenge-response: request challenge, sign it, then register
       const { challenge_id, nonce } = await api.requestChallenge(tempId, publicKey);
       const nonceBytes = fromBase64(nonce);
-      const sig = await signChallenge(derivedKey.signingKey, nonceBytes);
+      const keys = getIdentityKeys();
+      const sig = await signChallenge(keys.signingKey, nonceBytes);
       const sigB64 = btoa(String.fromCodePoint(...sig));
 
       const result = await api.register(tempId, challenge_id, publicKey, sigB64, username, inviteToken) as { user: User; token: string; team?: Record<string, unknown> | null };
