@@ -12,6 +12,14 @@ where
         .unwrap()
 }
 
+/// Look up a user's display name by their ID.
+fn lookup_username(conn: &rusqlite::Connection, author_id: &str) -> String {
+    db::get_user_by_id(conn, author_id)
+        .ok()
+        .flatten()
+        .map_or_else(String::new, |u| u.username)
+}
+
 /// Extract a string field from a JSON payload, defaulting to "".
 fn payload_str(payload: &serde_json::Value, key: &str) -> String {
     payload
@@ -71,13 +79,9 @@ pub(in crate::ws) async fn handle_request(hub: &Hub, user_id: &str, team_id: &st
                 let enriched: Vec<serde_json::Value> = messages
                     .into_iter()
                     .map(|msg| {
-                        let username = db::get_user_by_id(conn, &msg.author_id)
-                            .ok()
-                            .flatten()
-                            .map(|u| u.username)
-                            .unwrap_or_default();
+                        let name = lookup_username(conn, &msg.author_id);
                         let mut val = serde_json::to_value(&msg).unwrap();
-                        val.as_object_mut().unwrap().insert("username".to_string(), serde_json::json!(username));
+                        val.as_object_mut().unwrap().insert("username".to_string(), serde_json::json!(name));
                         val
                     })
                     .collect();
