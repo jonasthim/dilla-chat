@@ -83,6 +83,35 @@ describe('WebSocketService', () => {
     });
   });
 
+  describe('disconnectAll', () => {
+    it('disconnects every team stored in connectionParams', () => {
+      // Add a second connection params entry
+      const connParams = (service as unknown as { connectionParams: Map<string, unknown> })
+        .connectionParams;
+      connParams.set('t1', { url: 'ws://a', token: 'tok-a' });
+      connParams.set('t2', { url: 'ws://b', token: 'tok-b' });
+
+      // Also inject a mock socket for t2
+      const mockSocket2 = { send: vi.fn(), readyState: WebSocket.OPEN, close: vi.fn(), onclose: null as (() => void) | null };
+      (service as unknown as { connections: Map<string, unknown> }).connections.set('t2', mockSocket2);
+
+      service.disconnectAll();
+
+      expect(connParams.size).toBe(0);
+      expect(mockSocket.close).toHaveBeenCalled();
+      expect(mockSocket2.close).toHaveBeenCalled();
+    });
+
+    it('is a no-op when no teams are connected', () => {
+      // Clear everything
+      (service as unknown as { connectionParams: Map<string, unknown> }).connectionParams.clear();
+      (service as unknown as { connections: Map<string, unknown> }).connections.clear();
+
+      // Should not throw
+      service.disconnectAll();
+    });
+  });
+
   describe('event handlers', () => {
     it('on/off registers and removes handlers', () => {
       const handler = vi.fn();

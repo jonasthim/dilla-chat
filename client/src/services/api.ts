@@ -95,7 +95,10 @@ class ApiService {
     }
     const res = await fetch(`${baseUrl}${path}`, { ...options, headers });
     if (!res.ok) {
-      if (res.status === 401 && this.onAuthError) {
+      // Only trigger auth error for authenticated requests (bearer token was sent).
+      // Public endpoints like /auth/verify return 401 for bad credentials — that's
+      // not an expired-token situation and must NOT redirect to login.
+      if (res.status === 401 && this.onAuthError && token) {
         this.onAuthError();
       }
       const body = await res.text();
@@ -158,18 +161,20 @@ class ApiService {
 
   async register(
     teamId: string,
-    username: string,
-    displayName: string,
+    challengeId: string,
     publicKey: string,
+    signature: string,
+    username: string,
     inviteToken: string,
   ): Promise<{ user: User; token: string }> {
     const conn = this.getConnection(teamId);
     return this.request(conn.baseUrl, '/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify({
-        username,
-        display_name: displayName,
+        challenge_id: challengeId,
         public_key: publicKey,
+        signature,
+        username,
         invite_token: inviteToken,
       }),
     });
@@ -177,9 +182,10 @@ class ApiService {
 
   async bootstrap(
     teamId: string,
-    username: string,
-    displayName: string,
+    challengeId: string,
     publicKey: string,
+    signature: string,
+    username: string,
     bootstrapToken: string,
     teamName?: string,
   ): Promise<{ user: User; token: string; team: Record<string, unknown> }> {
@@ -187,9 +193,10 @@ class ApiService {
     return this.request(conn.baseUrl, '/api/v1/auth/bootstrap', {
       method: 'POST',
       body: JSON.stringify({
-        username,
-        display_name: displayName,
+        challenge_id: challengeId,
         public_key: publicKey,
+        signature,
+        username,
         bootstrap_token: bootstrapToken,
         team_name: teamName || undefined,
       }),

@@ -388,7 +388,7 @@ fn message_send_payload_defaults_type_and_thread() {
     let json = r#"{"channel_id":"ch1","content":"hello"}"#;
     let p: MessageSendPayload = serde_json::from_str(json).unwrap();
     assert_eq!(p.msg_type, "");
-    assert_eq!(p.thread_id, "");
+    assert_eq!(p.thread_id, None);
 }
 
 #[test]
@@ -2464,4 +2464,93 @@ async fn handle_voice_join_leave_invalid_payload_does_not_panic() {
 async fn handle_voice_signaling_invalid_payload_does_not_panic() {
     let hub = test_hub();
     super::client::handle_voice_signaling(&hub, "u1", EVENT_VOICE_ANSWER, serde_json::json!("invalid")).await;
+}
+
+// ── Telemetry dispatch tests ─────────────────────────────────────────────
+
+fn test_hub_with_telemetry() -> Arc<Hub> {
+    let mut hub = Hub::new(test_db());
+    hub.telemetry_relay = Some(Arc::new(crate::telemetry::TelemetryRelay::new(
+        None,
+        "test-node".into(),
+        "0.0.0-test".into(),
+        "test".into(),
+    )));
+    Arc::new(hub)
+}
+
+#[tokio::test]
+async fn dispatch_telemetry_error_forwards_to_relay() {
+    let hub = test_hub_with_telemetry();
+    let event = Event {
+        event_type: EVENT_TELEMETRY_ERROR.to_string(),
+        payload: serde_json::json!({
+            "level": "error",
+            "message": "test crash",
+            "stack": "",
+            "url": "",
+            "user_agent": "",
+            "viewport": "",
+            "breadcrumbs": [],
+            "extra": {}
+        }),
+    };
+    // Should not panic; relay is present but has no adapter so it drops silently.
+    super::client::handle_event(&hub, "c1", "u1", "alice", "t1", event).await;
+    settle().await;
+}
+
+#[tokio::test]
+async fn dispatch_telemetry_breadcrumb_forwards_to_relay() {
+    let hub = test_hub_with_telemetry();
+    let event = Event {
+        event_type: EVENT_TELEMETRY_BREADCRUMB.to_string(),
+        payload: serde_json::json!({
+            "type": "navigation",
+            "message": "/channels → /settings",
+            "timestamp": 1234567890
+        }),
+    };
+    super::client::handle_event(&hub, "c1", "u1", "alice", "t1", event).await;
+    settle().await;
+}
+
+#[tokio::test]
+async fn dispatch_telemetry_error_without_relay_does_not_panic() {
+    let hub = test_hub(); // no telemetry_relay
+    let event = Event {
+        event_type: EVENT_TELEMETRY_ERROR.to_string(),
+        payload: serde_json::json!({"level": "error", "message": "oops"}),
+    };
+    super::client::handle_event(&hub, "c1", "u1", "alice", "t1", event).await;
+}
+
+#[tokio::test]
+async fn dispatch_telemetry_breadcrumb_without_relay_does_not_panic() {
+    let hub = test_hub(); // no telemetry_relay
+    let event = Event {
+        event_type: EVENT_TELEMETRY_BREADCRUMB.to_string(),
+        payload: serde_json::json!({"type": "click", "message": "button"}),
+    };
+    super::client::handle_event(&hub, "c1", "u1", "alice", "t1", event).await;
+}
+
+#[tokio::test]
+async fn dispatch_telemetry_error_invalid_payload_does_not_panic() {
+    let hub = test_hub_with_telemetry();
+    let event = Event {
+        event_type: EVENT_TELEMETRY_ERROR.to_string(),
+        payload: serde_json::json!("invalid"),
+    };
+    super::client::handle_event(&hub, "c1", "u1", "alice", "t1", event).await;
+}
+
+#[tokio::test]
+async fn dispatch_telemetry_breadcrumb_invalid_payload_does_not_panic() {
+    let hub = test_hub_with_telemetry();
+    let event = Event {
+        event_type: EVENT_TELEMETRY_BREADCRUMB.to_string(),
+        payload: serde_json::json!(42),
+    };
+    super::client::handle_event(&hub, "c1", "u1", "alice", "t1", event).await;
 }

@@ -19,6 +19,7 @@ vi.mock('../services/api', () => ({
     addTeam: vi.fn(),
     removeTeam: vi.fn(),
     setToken: vi.fn(),
+    requestChallenge: vi.fn().mockResolvedValue({ challenge_id: 'ch-1', nonce: 'AAAA' }),
     register: vi.fn(),
     getInviteInfo: vi.fn(),
     uploadPrekeyBundle: vi.fn(),
@@ -34,11 +35,17 @@ vi.mock('../services/crypto', () => ({
       one_time_prekeys: [[10, 11, 12]],
     }),
   },
+  getIdentityKeys: vi.fn(() => ({ signingKey: 'mock-signing-key' })),
 }));
 
 vi.mock('../services/keyStore', () => ({
   exportIdentityBlob: vi.fn().mockResolvedValue(null),
   hasIdentity: vi.fn().mockResolvedValue(true),
+  signChallenge: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+}));
+
+vi.mock('../services/cryptoCore', () => ({
+  fromBase64: vi.fn().mockReturnValue(new Uint8Array([0])),
 }));
 
 vi.mock('./PublicShell', () => ({
@@ -61,7 +68,7 @@ describe('JoinTeam', () => {
     mockNavigate.mockClear();
     useAuthStore.setState({
       isAuthenticated: true,
-      derivedKey: 'test-key',
+      derivedKey: { signingKey: 'mock-signing-key' },
       publicKey: 'test-pub-key',
       teams: new Map(),
       addTeam: vi.fn(),
@@ -145,7 +152,7 @@ describe('JoinTeam', () => {
   });
 
   it('shows error on failed invite check', async () => {
-    vi.mocked(api.getInviteInfo).mockRejectedValueOnce(new Error('Invalid invite'));
+    vi.mocked(api.getInviteInfo).mockRejectedValueOnce(new Error('invite not found'));
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
 
     render(<JoinTeam />);
@@ -174,7 +181,7 @@ describe('JoinTeam', () => {
     fireEvent.click(joinBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Invalid invite/)).toBeInTheDocument();
+      expect(screen.getByText(/errors\.invalidInviteToken/)).toBeInTheDocument();
     });
   });
 
@@ -437,7 +444,7 @@ describe('JoinTeam', () => {
       team_name: 'Team',
       created_by: 'admin',
     });
-    vi.mocked(api.register).mockRejectedValueOnce(new Error('Registration failed'));
+    vi.mocked(api.register).mockRejectedValueOnce(new Error('username or public key already registered'));
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
 
     render(<JoinTeam />);
@@ -470,7 +477,7 @@ describe('JoinTeam', () => {
     fireEvent.click(screen.getByText('join.join'));
 
     await waitFor(() => {
-      expect(screen.getByText(/Registration failed/)).toBeInTheDocument();
+      expect(screen.getByText(/errors\.usernameAlreadyTaken/)).toBeInTheDocument();
     });
   });
 

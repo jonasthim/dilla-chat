@@ -22,6 +22,8 @@ vi.mock('../services/websocket', () => ({
   ws: {
     on: vi.fn(() => vi.fn()),
     connect: vi.fn(),
+    disconnect: vi.fn(),
+    disconnectAll: vi.fn(),
     isConnected: vi.fn(() => false),
     request: vi.fn().mockResolvedValue({}),
   },
@@ -33,6 +35,7 @@ vi.mock('../services/cryptoCore', () => ({ fromBase64: vi.fn() }));
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useLocation: () => ({ pathname: '/app' }),
 }));
 
 vi.mock('iconoir-react', () => ({

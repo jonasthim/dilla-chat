@@ -5,6 +5,7 @@ const mockNavigate = vi.fn();
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useSearchParams: () => [new URLSearchParams()],
 }));
 
 vi.mock('iconoir-react', () =>
@@ -135,7 +136,7 @@ describe('CreateIdentity', () => {
     fireEvent.click(screen.getByText('identity.createWithPasskey'));
 
     await waitFor(() => {
-      expect(screen.getByText(/Registration cancelled/)).toBeInTheDocument();
+      expect(screen.getByText(/errors\.unknown/)).toBeInTheDocument();
     });
   });
 
@@ -515,7 +516,7 @@ describe('CreateIdentity', () => {
     fireEvent.click(screen.getByText('identity.continue'));
 
     await waitFor(() => {
-      expect(screen.getByText(/Passphrase error/)).toBeInTheDocument();
+      expect(screen.getByText(/errors\.unknown/)).toBeInTheDocument();
     });
   });
 

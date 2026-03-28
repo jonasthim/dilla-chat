@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import {
   registerPasskey,
@@ -15,6 +15,7 @@ import {
 } from '../services/keyStore';
 import { fromBase64 } from '../services/cryptoCore';
 import type { PasskeyRegistrationResult } from '../services/webauthn';
+import { friendlyError } from '../utils/errorMessages';
 import PublicShell from './PublicShell';
 
 type Step = 'form' | 'passphrase' | 'recovery' | 'done';
@@ -33,6 +34,8 @@ function buildServerUrl(address: string): string {
 export default function CreateIdentity() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const { setDerivedKey, setPublicKey } = useAuthStore();
 
   const hasPendingInvite = !!sessionStorage.getItem('pendingInviteToken');
@@ -107,7 +110,7 @@ export default function CreateIdentity() {
       setRecoveryKey(encodeRecoveryKeyKS(recoveryKeyBytes));
       setStep('recovery');
     } catch (e) {
-      setError(String(e));
+      setError(friendlyError(e, t));
     } finally {
       setLoading(false);
     }
@@ -146,7 +149,7 @@ export default function CreateIdentity() {
       setRecoveryKey(encodeRecoveryKeyKS(recoveryKeyBytes));
       setStep('recovery');
     } catch (e) {
-      setError(String(e));
+      setError(friendlyError(e, t));
     } finally {
       setLoading(false);
     }
@@ -172,8 +175,14 @@ export default function CreateIdentity() {
         <p>{t('identity.publicKeyLabel')}:</p>
         <code>{publicKeyFingerprint}</code>
         <div className="form">
-          <button className="btn-primary" onClick={() => navigate(joinPath)}>{t('auth.joinTeam')}</button>
-          <button className="btn-secondary" onClick={() => navigate('/setup')}>{t('setup.title')}</button>
+          {returnTo ? (
+            <button className="btn-primary" onClick={() => navigate(returnTo)}>{t('common.continue', 'Continue')}</button>
+          ) : (
+            <>
+              <button className="btn-primary" onClick={() => navigate(joinPath)}>{t('auth.joinTeam')}</button>
+              <button className="btn-secondary" onClick={() => navigate('/setup')}>{t('setup.title')}</button>
+            </>
+          )}
           <button className="btn-link" onClick={() => navigate('/app')}>
             {t('common.skipForNow', 'Skip for now')}
           </button>
