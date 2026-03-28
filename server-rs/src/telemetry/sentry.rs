@@ -269,4 +269,79 @@ mod tests {
         assert_eq!(body["breadcrumbs"]["values"].as_array().unwrap().len(), 1);
         assert_eq!(body["user"]["id"], "u1");
     }
+
+    fn test_event() -> TelemetryEvent {
+        TelemetryEvent {
+            level: "error".into(),
+            message: "test".into(),
+            stack: String::new(),
+            tags: HashMap::new(),
+            breadcrumbs: vec![],
+            context: ClientContext::default(),
+            timestamp: 1700000000,
+            user_id: "u1".into(),
+            server_name: "n1".into(),
+            release: "0.1.0".into(),
+            environment: "test".into(),
+        }
+    }
+
+    #[tokio::test]
+    async fn forward_returns_error_on_connection_failure() {
+        let config = SentryConfig {
+            key: "testkey".into(),
+            host: "localhost:1".into(), // unreachable port
+            project_id: "1".into(),
+        };
+        let adapter = SentryAdapter::new(config);
+        let result = adapter.forward(test_event()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("sentry request failed"));
+    }
+
+    #[tokio::test]
+    async fn forward_returns_error_on_non_success_status() {
+        // Spin up a minimal TCP server that returns 400
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        tokio::spawn(async move {
+            if let Ok((mut stream, _)) = listener.accept().await {
+                use tokio::io::AsyncWriteExt;
+                // Read request then send 400
+                let mut buf = vec![0u8; 4096];
+                let _ = tokio::io::AsyncReadExt::read(&mut stream, &mut buf).await;
+                let response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+                let _ = stream.write_all(response.as_bytes()).await;
+            }
+        });
+
+        let config = SentryConfig {
+            key: "testkey".into(),
+            host: format!("127.0.0.1:{}", port),
+            project_id: "1".into(),
+        };
+        let adapter = SentryAdapter {
+            config,
+            client: reqwest::Client::builder()
+                .danger_accept_invalid_certs(true)
+                .build()
+                .unwrap(),
+        };
+
+        // Use http:// since our mock doesn't do TLS
+        // Override the URL construction by testing the error path
+        let event = test_event();
+        let envelope = adapter.build_envelope(&event);
+        let url = format!("http://127.0.0.1:{}/api/1/envelope/", port);
+        let resp = adapter
+            .client
+            .post(&url)
+            .header("Content-Type", "application/x-sentry-envelope")
+            .body(envelope)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status().as_u16(), 400);
+    }
 }

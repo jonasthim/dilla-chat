@@ -73,4 +73,13 @@ describe('TelemetryClient', () => {
     client.captureError('dropped');
     expect(ws.send).not.toHaveBeenCalled();
   });
+
+  it('setTeamId changes the team for subsequent events', () => {
+    vi.mocked(ws.isConnected).mockReturnValue(true);
+    vi.mocked(useTelemetryStore.getState).mockReturnValue({ enabled: true, setEnabled: vi.fn() });
+    client.setTeamId('team-2');
+    client.captureError('after switch');
+    const [teamId] = vi.mocked(ws.send).mock.calls[0];
+    expect(teamId).toBe('team-2');
+  });
 });
