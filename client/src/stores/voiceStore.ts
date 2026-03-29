@@ -32,7 +32,9 @@ interface VoiceStore {
   joinChannel(teamId: string, channelId: string): Promise<void>;
   leaveChannel(): void;
   toggleMute(): void;
+  setMuted(muted: boolean): void;
   toggleDeafen(): void;
+  setDeafened(deafened: boolean): void;
   setSpeaking(speaking: boolean): void;
   setScreenSharing(sharing: boolean): void;
   setScreenSharingUserId(userId: string | null): void;
@@ -187,6 +189,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
     set((state) => ({ muted: !state.muted }));
   },
 
+  setMuted: (muted: boolean) => set({ muted }),
+
   toggleDeafen: () => {
     set((state) => {
       const newDeafened = !state.deafened;
@@ -194,6 +198,8 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
       return { deafened: newDeafened, muted: newDeafened || state.muted };
     });
   },
+
+  setDeafened: (deafened: boolean) => set({ deafened, muted: deafened || get().muted }),
 
   setSpeaking: (speaking: boolean) => set({ speaking }),
   setScreenSharing: (sharing: boolean) => set({ screenSharing: sharing }),

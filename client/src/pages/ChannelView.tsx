@@ -71,17 +71,13 @@ async function tryEncrypt(
   derivedKey: string | null,
 ): Promise<string> {
   if (!derivedKey) return plaintext;
-  try {
-    const userId = getIdentityKeys().publicKeyBytes;
-    return await cryptoService.encryptChannel(
-      channelId,
-      toBase64(userId),
-      plaintext,
-      derivedKey,
-    );
-  } catch {
-    return plaintext;
-  }
+  const userId = getIdentityKeys().publicKeyBytes;
+  return await cryptoService.encryptChannel(
+    channelId,
+    toBase64(userId),
+    plaintext,
+    derivedKey,
+  );
 }
 
 /** Resolve display name from a member record — prefer displayName over username. */
@@ -347,9 +343,13 @@ export default function ChannelView({ channel }: Readonly<Props>) {
   const handleSend = useCallback(
     async (content: string) => {
       if (!activeTeamId) { console.warn('[ChannelView] no activeTeamId, dropping message'); return; }
-      console.log('[ChannelView] sending message', { activeTeamId, channelId: channel.id, content: content.slice(0, 20), wsConnected: ws.isConnected(activeTeamId) });
-      const encrypted = await tryEncrypt(content, channel.id, derivedKey);
-      ws.sendMessage(activeTeamId, channel.id, encrypted);
+      console.log('[ChannelView] sending message', { activeTeamId, channelId: channel.id, wsConnected: ws.isConnected(activeTeamId) });
+      try {
+        const encrypted = await tryEncrypt(content, channel.id, derivedKey);
+        ws.sendMessage(activeTeamId, channel.id, encrypted);
+      } catch (err) {
+        console.warn('[ChannelView] encryption failed, message not sent', err);
+      }
     },
     [activeTeamId, channel.id, derivedKey],
   );
@@ -357,9 +357,13 @@ export default function ChannelView({ channel }: Readonly<Props>) {
   const handleEdit = useCallback(
     async (messageId: string, content: string) => {
       if (!activeTeamId) return;
-      const encrypted = await tryEncrypt(content, channel.id, derivedKey);
-      ws.editMessage(activeTeamId, messageId, channel.id, encrypted);
-      setEditingMessage(null);
+      try {
+        const encrypted = await tryEncrypt(content, channel.id, derivedKey);
+        ws.editMessage(activeTeamId, messageId, channel.id, encrypted);
+        setEditingMessage(null);
+      } catch (err) {
+        console.warn('[ChannelView] encryption failed, edit not sent', err);
+      }
     },
     [activeTeamId, channel.id, derivedKey],
   );

@@ -73,11 +73,7 @@ export default function DMView({ dm, currentUserId, showMembers = false }: Reado
   const tryEncryptDM = useCallback(
     async (plaintext: string): Promise<string> => {
       if (!derivedKey || !activeTeamId || !peerId) return plaintext;
-      try {
-        return await cryptoService.encryptDM(activeTeamId, peerId, plaintext, dm.id, derivedKey);
-      } catch {
-        return plaintext;
-      }
+      return await cryptoService.encryptDM(activeTeamId, peerId, plaintext, dm.id, derivedKey);
     },
     [derivedKey, activeTeamId, peerId, dm.id],
   );
@@ -208,8 +204,12 @@ export default function DMView({ dm, currentUserId, showMembers = false }: Reado
   const handleSend = useCallback(
     async (content: string) => {
       if (!activeTeamId) return;
-      const encrypted = await tryEncryptDM(content);
-      ws.sendDMMessage(activeTeamId, dm.id, encrypted);
+      try {
+        const encrypted = await tryEncryptDM(content);
+        ws.sendDMMessage(activeTeamId, dm.id, encrypted);
+      } catch (err) {
+        console.warn('[DMView] encryption failed, message not sent', err);
+      }
     },
     [activeTeamId, dm.id, tryEncryptDM],
   );
@@ -217,9 +217,13 @@ export default function DMView({ dm, currentUserId, showMembers = false }: Reado
   const handleEdit = useCallback(
     async (messageId: string, content: string) => {
       if (!activeTeamId) return;
-      const encrypted = await tryEncryptDM(content);
-      ws.editDMMessage(activeTeamId, dm.id, messageId, encrypted);
-      setEditingMessage(null);
+      try {
+        const encrypted = await tryEncryptDM(content);
+        ws.editDMMessage(activeTeamId, dm.id, messageId, encrypted);
+        setEditingMessage(null);
+      } catch (err) {
+        console.warn('[DMView] encryption failed, edit not sent', err);
+      }
     },
     [activeTeamId, dm.id, tryEncryptDM],
   );

@@ -44,7 +44,8 @@ async function encryptFrame(
   controller: TransformStreamDefaultController,
 ): Promise<void> {
   if (!encryptKey) {
-    controller.enqueue(frame);
+    // Drop frame — do not enqueue unencrypted audio
+    return;
     return;
   }
 
@@ -63,10 +64,13 @@ async function encryptFrame(
     output.set(E2E_MAGIC, encrypted.length + IV_LENGTH + 1);
 
     frame.data = output.buffer;
+    controller.enqueue(frame);
   } catch {
-    // Encryption failed — pass through unencrypted
+    // Encryption failed — drop frame to prevent sending unencrypted audio
+    // Drop frame — do not enqueue unencrypted audio
+    return;
+    return;
   }
-  controller.enqueue(frame);
 }
 
 /** Extract the encrypted payload, IV, and keyId from a frame with a DILLA_MAGIC trailer. */

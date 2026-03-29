@@ -448,15 +448,16 @@ describe('ChannelView', () => {
     });
   });
 
-  it('tryEncrypt falls back to plaintext on encryption error', async () => {
+  it('tryEncrypt does not send message on encryption error', async () => {
     const { cryptoService } = await import('../services/crypto');
     vi.mocked(cryptoService.encryptChannel).mockRejectedValueOnce(new Error('encrypt fail'));
     useAuthStore.setState({ derivedKey: 'test-derived-key' });
     renderChannelView();
     fireEvent.click(screen.getByTestId('send-btn'));
     await waitFor(() => {
-      expect(ws.sendMessage).toHaveBeenCalled();
+      expect(cryptoService.encryptChannel).toHaveBeenCalled();
     });
+    expect(ws.sendMessage).not.toHaveBeenCalled();
   });
 
   it('handleLoadMore with REST decrypts messages using tryDecrypt', async () => {

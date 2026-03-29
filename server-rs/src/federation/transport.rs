@@ -67,9 +67,12 @@ impl Transport {
         }
 
         let url = if address.contains("://") {
+            if address.starts_with("ws://") {
+                tracing::warn!("Federation peer {} uses unencrypted ws:// — consider using wss://", address);
+            }
             address.to_string()
         } else {
-            format!("ws://{}/federation", address)
+            format!("wss://{}/federation", address)
         };
 
         let (ws_stream, _) = connect_async(&url)

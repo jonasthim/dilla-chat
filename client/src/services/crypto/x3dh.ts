@@ -49,7 +49,7 @@ export async function x3dhInitiate(
     otpkIndex = 0;
   }
 
-  const sharedSecret = await hkdfDerive(ikm, encoder.encode('DillaX3DH'), 32);
+  const sharedSecret = await hkdfDerive(ikm, encoder.encode('DillaX3DH'), 32, new Uint8Array(32));
   return { sharedSecret, ephemeralPublicKey: ephemeral.publicKeyBytes, oneTimePreKeyIndex: otpkIndex };
 }
 
@@ -77,5 +77,5 @@ export async function x3dhRespond(
     ikm = concatBytes(ikm, dh4);
   }
 
-  return hkdfDerive(ikm, encoder.encode('DillaX3DH'), 32);
+  return hkdfDerive(ikm, encoder.encode('DillaX3DH'), 32, new Uint8Array(32));
 }
