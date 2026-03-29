@@ -70,7 +70,7 @@ async function tryEncrypt(
   channelId: string,
   derivedKey: string | null,
 ): Promise<string> {
-  if (!derivedKey) return plaintext;
+  if (!derivedKey) throw new Error('Encryption key not available');
   const userId = getIdentityKeys().publicKeyBytes;
   return await cryptoService.encryptChannel(
     channelId,

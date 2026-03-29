@@ -24,7 +24,7 @@ vi.mock('../services/api', () => ({
 }));
 
 vi.mock('../services/crypto', () => ({
-  cryptoService: { decryptChannel: vi.fn(), encryptChannel: vi.fn() },
+  cryptoService: { decryptChannel: vi.fn(), encryptChannel: vi.fn().mockResolvedValue('encrypted-content') },
   getIdentityKeys: vi.fn(() => ({ publicKeyBytes: new Uint8Array(32) })),
 }));
 
@@ -223,6 +223,7 @@ describe('ChannelView', () => {
   });
 
   it('sends a message via WS when send button is clicked', async () => {
+    useAuthStore.setState({ derivedKey: 'test-key' });
     renderChannelView();
     fireEvent.click(screen.getByTestId('send-btn'));
     await waitFor(() => {
@@ -231,6 +232,7 @@ describe('ChannelView', () => {
   });
 
   it('edits a message via WS when edit button is clicked', async () => {
+    useAuthStore.setState({ derivedKey: 'test-key' });
     renderChannelView();
     fireEvent.click(screen.getByTestId('edit-msg'));
     fireEvent.click(screen.getByTestId('edit-btn'));

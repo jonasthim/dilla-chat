@@ -46,7 +46,6 @@ async function encryptFrame(
   if (!encryptKey) {
     // Drop frame — do not enqueue unencrypted audio
     return;
-    return;
   }
 
   try {
@@ -67,8 +66,6 @@ async function encryptFrame(
     controller.enqueue(frame);
   } catch {
     // Encryption failed — drop frame to prevent sending unencrypted audio
-    // Drop frame — do not enqueue unencrypted audio
-    return;
     return;
   }
 }

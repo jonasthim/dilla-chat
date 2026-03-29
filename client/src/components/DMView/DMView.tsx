@@ -72,7 +72,7 @@ export default function DMView({ dm, currentUserId, showMembers = false }: Reado
 
   const tryEncryptDM = useCallback(
     async (plaintext: string): Promise<string> => {
-      if (!derivedKey || !activeTeamId || !peerId) return plaintext;
+      if (!derivedKey || !activeTeamId || !peerId) throw new Error('Encryption prerequisites not met');
       return await cryptoService.encryptDM(activeTeamId, peerId, plaintext, dm.id, derivedKey);
     },
     [derivedKey, activeTeamId, peerId, dm.id],

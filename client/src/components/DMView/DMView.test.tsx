@@ -238,6 +238,7 @@ describe('DMView', () => {
   });
 
   it('sends a DM message via WS when send button is clicked', async () => {
+    useAuthStore.setState({ derivedKey: 'test-key' } as never);
     const { ws } = await renderWithWs();
     fireEvent.click(screen.getByTestId('send-btn'));
     await vi.waitFor(() => {
@@ -246,6 +247,7 @@ describe('DMView', () => {
   });
 
   it('edits a DM message via WS when save edit button is clicked', async () => {
+    useAuthStore.setState({ derivedKey: 'test-key' } as never);
     const { ws } = await renderWithWs();
     fireEvent.click(screen.getByTestId('edit-msg'));
     fireEvent.click(screen.getByTestId('edit-btn'));
