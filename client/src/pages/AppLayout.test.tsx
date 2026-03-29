@@ -824,6 +824,60 @@ describe('AppLayout behavioral', () => {
     });
   });
 
+  it('reconnects WebSocket when token changes for the active team', async () => {
+    vi.mocked(api.getConnectionInfo).mockReturnValue({ baseUrl: 'http://localhost:8080', token: 'tok' });
+    const { rerender } = render(<AppLayout />);
+    await waitFor(() => {
+      expect(ws.connect).toHaveBeenCalledWith('team1', 'ws://localhost:8080/ws', 'tok');
+    });
+
+    // Simulate token change (e.g. after auth refresh)
+    vi.mocked(ws.connect).mockClear();
+    vi.mocked(ws.isConnected).mockReturnValue(false);
+    vi.mocked(api.getConnectionInfo).mockReturnValue({ baseUrl: 'http://localhost:8080', token: 'new-tok' });
+
+    useAuthStore.setState({
+      teams: new Map([
+        [
+          'team1',
+          {
+            baseUrl: 'http://localhost:8080',
+            token: 'new-tok',
+            user: { id: 'u1', username: 'tester', display_name: 'Tester' },
+            teamInfo: {},
+          },
+        ],
+      ]),
+    });
+
+    rerender(<AppLayout />);
+    await waitFor(() => {
+      expect(ws.connect).toHaveBeenCalledWith('team1', 'ws://localhost:8080/ws', 'new-tok');
+    });
+  });
+
+  it('does not connect WS when activeToken is null', async () => {
+    useAuthStore.setState({
+      teams: new Map([
+        [
+          'team1',
+          {
+            baseUrl: 'http://localhost:8080',
+            token: '',
+            user: { id: 'u1', username: 'tester', display_name: 'Tester' },
+            teamInfo: {},
+          },
+        ],
+      ]),
+    });
+    vi.mocked(api.getConnectionInfo).mockReturnValue({ baseUrl: 'http://localhost:8080', token: '' });
+    render(<AppLayout />);
+    // WS should not connect when there's no token
+    await waitFor(() => {
+      expect(ws.connect).not.toHaveBeenCalled();
+    });
+  });
+
   it('handles WS connection with https URL', async () => {
     vi.mocked(api.getConnectionInfo).mockReturnValue({ baseUrl: 'https://example.com', token: 'tok' });
     render(<AppLayout />);

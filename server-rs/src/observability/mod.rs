@@ -526,4 +526,107 @@ mod tests {
         // Metrics::new() should not panic with noop global provider.
         let _m = Metrics::new();
     }
+
+    fn test_config() -> Config {
+        Config {
+            port: 8080,
+            data_dir: "/tmp".into(),
+            db_passphrase: "".into(),
+            tls_cert: "".into(),
+            tls_key: "".into(),
+            peers: vec![],
+            team_name: "".into(),
+            federation_port: 8081,
+            node_name: "".into(),
+            join_secret: "".into(),
+            fed_bind_addr: "".into(),
+            fed_advert_addr: "".into(),
+            fed_advert_port: 0,
+            max_upload_size: 0,
+            upload_dir: "".into(),
+            log_level: "warn".into(),
+            log_format: "text".into(),
+            rate_limit: 0.0,
+            rate_burst: 0,
+            domain: "".into(),
+            cf_turn_key_id: "".into(),
+            cf_turn_api_token: "".into(),
+            turn_mode: "".into(),
+            turn_shared_secret: "".into(),
+            turn_urls: "".into(),
+            turn_ttl: 0,
+            allowed_origins: vec![],
+            trusted_proxies: vec![],
+            insecure: false,
+            telemetry_adapter: "".into(),
+            sentry_dsn: "".into(),
+            environment: "test".into(),
+            otel_enabled: false,
+            otel_protocol: "".into(),
+            otel_endpoint: "".into(),
+            otel_http_endpoint: "".into(),
+            otel_insecure: false,
+            otel_service_name: "".into(),
+            otel_api_key: "".into(),
+            otel_api_header: "".into(),
+        }
+    }
+
+    #[test]
+    fn test_init_otel_disabled_returns_none_providers() {
+        let config = test_config();
+        let providers = init_otel(&config).expect("init_otel should succeed when disabled");
+        assert!(providers.tracer_provider.is_none());
+        assert!(providers.meter_provider.is_none());
+    }
+
+    #[test]
+    fn test_otel_providers_shutdown_with_none_does_not_panic() {
+        let providers = OtelProviders {
+            tracer_provider: None,
+            meter_provider: None,
+        };
+        // Should be a no-op without panicking
+        providers.shutdown();
+    }
+
+    #[test]
+    fn test_header_extractor_get_existing_key() {
+        let mut headers = header::HeaderMap::new();
+        headers.insert("traceparent", "00-abc-def-01".parse().unwrap());
+        let extractor = HeaderExtractor(&headers);
+        use opentelemetry::propagation::Extractor;
+        assert_eq!(extractor.get("traceparent"), Some("00-abc-def-01"));
+    }
+
+    #[test]
+    fn test_header_extractor_get_missing_key() {
+        let headers = header::HeaderMap::new();
+        let extractor = HeaderExtractor(&headers);
+        use opentelemetry::propagation::Extractor;
+        assert_eq!(extractor.get("traceparent"), None);
+    }
+
+    #[test]
+    fn test_header_extractor_keys() {
+        let mut headers = header::HeaderMap::new();
+        headers.insert("traceparent", "val".parse().unwrap());
+        headers.insert("tracestate", "val2".parse().unwrap());
+        let extractor = HeaderExtractor(&headers);
+        use opentelemetry::propagation::Extractor;
+        let keys = extractor.keys();
+        assert!(keys.contains(&"traceparent"));
+        assert!(keys.contains(&"tracestate"));
+    }
+
+    #[test]
+    fn test_sanitize_route_empty_path() {
+        assert_eq!(sanitize_route(""), "");
+    }
+
+    #[test]
+    fn test_sanitize_route_only_uuid() {
+        let input = "/550e8400-e29b-41d4-a716-446655440000";
+        assert_eq!(sanitize_route(input), "/{id}");
+    }
 }
