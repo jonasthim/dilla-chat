@@ -196,6 +196,7 @@ fn test_router(state: AppState) -> Router {
         .route("/api/v1/teams/{team_id}/presence", get(super::presence::get_all).put(super::presence::update_own))
         .route("/api/v1/teams/{team_id}/presence/{user_id}", get(super::presence::get_user))
         .route("/api/v1/teams/{team_id}/voice/{channel_id}", get(super::voice::get_room))
+        .route("/api/v1/auth/ws-ticket", post(super::ws_ticket))
         .route("/api/v1/federation/status", get(super::federation::get_status))
         .route("/api/v1/federation/peers", get(super::federation::get_peers))
         .route("/api/v1/federation/join-token", post(super::federation::create_join_token))
@@ -3085,4 +3086,35 @@ async fn api_route_without_auth_returns_unauthorized() {
         StatusCode::UNAUTHORIZED,
         "protected API routes should require auth"
     );
+}
+
+#[tokio::test]
+async fn ws_ticket_returns_ticket_for_authenticated_user() {
+    let (state, _tmp) = test_app_state();
+    let (user_id, _team_id, token) = bootstrap_user_and_team(&state);
+    let app = test_router(state.clone());
+
+    let resp = app
+        .oneshot(
+            Request::post("/api/v1/auth/ws-ticket")
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Content-Type", "application/json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap(),
+    )
+    .unwrap();
+    assert!(body["ticket"].is_string());
+    let ticket = body["ticket"].as_str().unwrap();
+    assert_eq!(ticket.len(), 64);
+
+    // Ticket should be valid and return the user ID
+    let uid = state.auth.validate_ws_ticket(ticket).unwrap();
+    assert_eq!(uid, user_id);
 }

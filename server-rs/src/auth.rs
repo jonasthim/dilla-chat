@@ -42,6 +42,13 @@ struct Challenge {
     created_at: Instant,
 }
 
+/// A short-lived, single-use WebSocket ticket.
+/// Used instead of passing JWT tokens in WebSocket URLs.
+struct WsTicket {
+    user_id: String,
+    created_at: Instant,
+}
+
 /// Derive the JWT signing secret from the DB passphrase using HKDF-SHA256.
 /// If no passphrase is set (insecure mode), generate a random ephemeral secret
 /// that is NOT persisted (lost on restart).
@@ -77,6 +84,7 @@ pub struct AuthService {
     db: Database,
     jwt_secret: Vec<u8>,
     challenges: Arc<RwLock<HashMap<String, Challenge>>>,
+    ws_tickets: Arc<RwLock<HashMap<String, WsTicket>>>,
 }
 
 impl AuthService {
@@ -87,6 +95,7 @@ impl AuthService {
             db: database,
             jwt_secret,
             challenges: Arc::new(RwLock::new(HashMap::new())),
+            ws_tickets: Arc::new(RwLock::new(HashMap::new())),
         };
 
         // Spawn background challenge cleanup.
@@ -256,6 +265,81 @@ impl AuthService {
         Ok(token)
     }
 
+    /// Generate a single-use WebSocket ticket for the given user.
+    /// Ticket expires in 30 seconds and is consumed on first use.
+    pub fn generate_ws_ticket(&self, user_id: &str) -> String {
+        let mut bytes = vec![0u8; 32];
+        rand::rng().fill_bytes(&mut bytes);
+        let ticket = hex::encode(&bytes);
+        self.ws_tickets.write().unwrap().insert(
+            ticket.clone(),
+            WsTicket {
+                user_id: user_id.to_string(),
+                created_at: Instant::now(),
+            },
+        );
+        ticket
+    }
+
+    /// Validate and consume a WebSocket ticket. Returns the user_id if valid.
+    /// Tickets are single-use (consumed on validation) and expire after 30 seconds.
+    pub fn validate_ws_ticket(&self, ticket: &str) -> Result<String, AppError> {
+        let ws_ticket = self
+            .ws_tickets
+            .write()
+            .unwrap()
+            .remove(ticket)
+            .ok_or_else(|| AppError::Unauthorized("invalid or expired ws ticket".into()))?;
+
+        if ws_ticket.created_at.elapsed() > Duration::from_secs(30) {
+            return Err(AppError::Unauthorized("ws ticket expired".into()));
+        }
+
+        Ok(ws_ticket.user_id)
+    }
+
+    /// Clean up expired WebSocket tickets (older than 30 seconds).
+    /// Call periodically from a background task.
+    pub fn cleanup_expired_ws_tickets(&self) -> usize {
+        let mut tickets = self.ws_tickets.write().unwrap();
+        let before = tickets.len();
+        tickets.retain(|_, t| t.created_at.elapsed() < Duration::from_secs(30));
+        before - tickets.len()
+    }
+
+    /// Get the number of pending WebSocket tickets.
+    pub fn ws_ticket_count(&self) -> usize {
+        self.ws_tickets.read().unwrap().len()
+    }
+
+    /// Check if a WS ticket is valid without consuming it (for diagnostics).
+    pub fn is_ws_ticket_valid(&self, ticket: &str) -> bool {
+        self.ws_tickets
+            .read()
+            .unwrap()
+            .get(ticket)
+            .map_or(false, |t| t.created_at.elapsed() < Duration::from_secs(30))
+    }
+
+    /// Generate a WS ticket and return it along with metadata for logging.
+    pub fn generate_ws_ticket_with_expiry(&self, user_id: &str) -> (String, u64) {
+        let ticket = self.generate_ws_ticket(user_id);
+        (ticket, 30) // 30 second expiry
+    }
+
+    /// Get the remaining validity of a WS ticket in seconds (0 if expired/missing).
+    pub fn ws_ticket_ttl(&self, ticket: &str) -> u64 {
+        self.ws_tickets
+            .read()
+            .unwrap()
+            .get(ticket)
+            .map(|t| {
+                let elapsed = t.created_at.elapsed().as_secs();
+                if elapsed >= 30 { 0 } else { 30 - elapsed }
+            })
+            .unwrap_or(0)
+    }
+
     pub fn generate_invite_token(&self) -> String {
         let mut bytes = vec![0u8; 16];
         rand::rng().fill_bytes(&mut bytes);
@@ -317,6 +401,7 @@ mod tests {
             db,
             jwt_secret: raw,
             challenges: Arc::new(RwLock::new(HashMap::new())),
+            ws_tickets: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -328,6 +413,7 @@ mod tests {
             db,
             jwt_secret,
             challenges: Arc::new(RwLock::new(HashMap::new())),
+            ws_tickets: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -730,6 +816,154 @@ mod tests {
         assert!(!has_users);
     }
 
+    // ── WebSocket ticket tests ──────────────────────────────────────────
+
+    #[test]
+    fn test_generate_ws_ticket() {
+        let auth = test_auth_service();
+        let ticket = auth.generate_ws_ticket("user-42");
+        assert_eq!(ticket.len(), 64); // 32 bytes hex
+        assert!(auth.ws_tickets.read().unwrap().contains_key(&ticket));
+    }
+
+    #[test]
+    fn test_validate_ws_ticket_success() {
+        let auth = test_auth_service();
+        let ticket = auth.generate_ws_ticket("user-42");
+        let user_id = auth.validate_ws_ticket(&ticket).unwrap();
+        assert_eq!(user_id, "user-42");
+        // Ticket is consumed — second use should fail
+        assert!(auth.validate_ws_ticket(&ticket).is_err());
+    }
+
+    #[test]
+    fn test_validate_ws_ticket_invalid() {
+        let auth = test_auth_service();
+        assert!(auth.validate_ws_ticket("nonexistent-ticket").is_err());
+    }
+
+    #[test]
+    fn test_validate_ws_ticket_expired() {
+        let auth = test_auth_service();
+        // Insert a ticket that's already expired
+        auth.ws_tickets.write().unwrap().insert(
+            "expired-ticket".to_string(),
+            WsTicket {
+                user_id: "user-1".to_string(),
+                created_at: Instant::now() - Duration::from_secs(60),
+            },
+        );
+        assert!(auth.validate_ws_ticket("expired-ticket").is_err());
+    }
+
+    #[test]
+    fn test_ws_ticket_count() {
+        let auth = test_auth_service();
+        assert_eq!(auth.ws_ticket_count(), 0);
+        auth.generate_ws_ticket("u1");
+        assert_eq!(auth.ws_ticket_count(), 1);
+        auth.generate_ws_ticket("u2");
+        assert_eq!(auth.ws_ticket_count(), 2);
+    }
+
+    #[test]
+    fn test_cleanup_expired_ws_tickets() {
+        let auth = test_auth_service();
+
+        // Insert a fresh ticket
+        auth.generate_ws_ticket("fresh-user");
+
+        // Insert an expired ticket manually
+        auth.ws_tickets.write().unwrap().insert(
+            "expired-1".to_string(),
+            WsTicket {
+                user_id: "expired-user".to_string(),
+                created_at: Instant::now() - Duration::from_secs(60),
+            },
+        );
+
+        assert_eq!(auth.ws_ticket_count(), 2);
+        let removed = auth.cleanup_expired_ws_tickets();
+        assert_eq!(removed, 1);
+        assert_eq!(auth.ws_ticket_count(), 1);
+    }
+
+    #[test]
+    fn test_cleanup_no_expired_tickets() {
+        let auth = test_auth_service();
+        auth.generate_ws_ticket("u1");
+        auth.generate_ws_ticket("u2");
+        let removed = auth.cleanup_expired_ws_tickets();
+        assert_eq!(removed, 0);
+        assert_eq!(auth.ws_ticket_count(), 2);
+    }
+
+    #[test]
+    fn test_is_ws_ticket_valid() {
+        let auth = test_auth_service();
+        let ticket = auth.generate_ws_ticket("u1");
+        assert!(auth.is_ws_ticket_valid(&ticket));
+        assert!(!auth.is_ws_ticket_valid("nonexistent"));
+    }
+
+    #[test]
+    fn test_ws_ticket_ttl_fresh() {
+        let auth = test_auth_service();
+        let ticket = auth.generate_ws_ticket("u1");
+        let ttl = auth.ws_ticket_ttl(&ticket);
+        assert!(ttl > 0 && ttl <= 30);
+    }
+
+    #[test]
+    fn test_ws_ticket_ttl_missing() {
+        let auth = test_auth_service();
+        assert_eq!(auth.ws_ticket_ttl("nonexistent"), 0);
+    }
+
+    #[test]
+    fn test_ws_ticket_ttl_expired() {
+        let auth = test_auth_service();
+        auth.ws_tickets.write().unwrap().insert(
+            "old".to_string(),
+            WsTicket {
+                user_id: "u1".to_string(),
+                created_at: Instant::now() - Duration::from_secs(60),
+            },
+        );
+        assert_eq!(auth.ws_ticket_ttl("old"), 0);
+    }
+
+    #[test]
+    fn test_generate_ws_ticket_with_expiry() {
+        let auth = test_auth_service();
+        let (ticket, expiry) = auth.generate_ws_ticket_with_expiry("u1");
+        assert_eq!(ticket.len(), 64);
+        assert_eq!(expiry, 30);
+        // Ticket should be valid
+        assert!(auth.is_ws_ticket_valid(&ticket));
+    }
+
+    #[test]
+    fn test_is_ws_ticket_valid_expired() {
+        let auth = test_auth_service();
+        auth.ws_tickets.write().unwrap().insert(
+            "old-ticket".to_string(),
+            WsTicket {
+                user_id: "u1".to_string(),
+                created_at: Instant::now() - Duration::from_secs(60),
+            },
+        );
+        assert!(!auth.is_ws_ticket_valid("old-ticket"));
+    }
+
+    #[test]
+    fn test_ws_ticket_unique() {
+        let auth = test_auth_service();
+        let t1 = auth.generate_ws_ticket("u1");
+        let t2 = auth.generate_ws_ticket("u1");
+        assert_ne!(t1, t2);
+    }
+
     // ── DILLA_JWT_SECRET env var override tests ─────────────────────────
 
     #[test]
@@ -810,11 +1044,13 @@ mod tests {
             db: db.clone(),
             jwt_secret: secret_a,
             challenges: Arc::new(RwLock::new(HashMap::new())),
+            ws_tickets: Arc::new(RwLock::new(HashMap::new())),
         };
         let auth2 = AuthService {
             db,
             jwt_secret: secret_b,
             challenges: Arc::new(RwLock::new(HashMap::new())),
+            ws_tickets: Arc::new(RwLock::new(HashMap::new())),
         };
         let token = auth1.generate_jwt("cross-user").unwrap();
         let user_id = auth2.validate_jwt(&token).unwrap();
