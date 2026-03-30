@@ -327,6 +327,19 @@ impl AuthService {
         (ticket, 30) // 30 second expiry
     }
 
+    /// Get the remaining validity of a WS ticket in seconds (0 if expired/missing).
+    pub fn ws_ticket_ttl(&self, ticket: &str) -> u64 {
+        self.ws_tickets
+            .read()
+            .unwrap()
+            .get(ticket)
+            .map(|t| {
+                let elapsed = t.created_at.elapsed().as_secs();
+                if elapsed >= 30 { 0 } else { 30 - elapsed }
+            })
+            .unwrap_or(0)
+    }
+
     pub fn generate_invite_token(&self) -> String {
         let mut bytes = vec![0u8; 16];
         rand::rng().fill_bytes(&mut bytes);
@@ -891,6 +904,33 @@ mod tests {
         let ticket = auth.generate_ws_ticket("u1");
         assert!(auth.is_ws_ticket_valid(&ticket));
         assert!(!auth.is_ws_ticket_valid("nonexistent"));
+    }
+
+    #[test]
+    fn test_ws_ticket_ttl_fresh() {
+        let auth = test_auth_service();
+        let ticket = auth.generate_ws_ticket("u1");
+        let ttl = auth.ws_ticket_ttl(&ticket);
+        assert!(ttl > 0 && ttl <= 30);
+    }
+
+    #[test]
+    fn test_ws_ticket_ttl_missing() {
+        let auth = test_auth_service();
+        assert_eq!(auth.ws_ticket_ttl("nonexistent"), 0);
+    }
+
+    #[test]
+    fn test_ws_ticket_ttl_expired() {
+        let auth = test_auth_service();
+        auth.ws_tickets.write().unwrap().insert(
+            "old".to_string(),
+            WsTicket {
+                user_id: "u1".to_string(),
+                created_at: Instant::now() - Duration::from_secs(60),
+            },
+        );
+        assert_eq!(auth.ws_ticket_ttl("old"), 0);
     }
 
     #[test]
