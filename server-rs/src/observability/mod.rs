@@ -631,6 +631,44 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_init_otel_enabled_creates_providers() {
+        use tokio::io::AsyncWriteExt;
+        use tokio::net::TcpListener;
+
+        // Start a local HTTP server that accepts OTLP requests
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        tokio::spawn(async move {
+            // Accept multiple connections (trace + metric exporters)
+            loop {
+                if let Ok((mut socket, _)) = listener.accept().await {
+                    tokio::spawn(async move {
+                        let mut buf = vec![0u8; 8192];
+                        let _ = tokio::io::AsyncReadExt::read(&mut socket, &mut buf).await;
+                        let response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+                        let _ = socket.write_all(response.as_bytes()).await;
+                        let _ = socket.shutdown().await;
+                    });
+                }
+            }
+        });
+
+        let mut config = test_config();
+        config.otel_enabled = true;
+        config.otel_http_endpoint = format!("127.0.0.1:{}", port);
+        config.otel_insecure = true;
+        config.otel_service_name = "test-service".into();
+        config.otel_api_key = "test-key".into();
+        config.otel_api_header = "Authorization".into();
+
+        let providers = init_otel(&config).expect("init_otel should succeed with local endpoint");
+        assert!(providers.tracer_provider.is_some());
+        assert!(providers.meter_provider.is_some());
+        providers.shutdown();
+    }
+
+    #[tokio::test]
     async fn test_tokio_http_client_send() {
         use opentelemetry_http::HttpClient;
         use tokio::io::AsyncWriteExt;
