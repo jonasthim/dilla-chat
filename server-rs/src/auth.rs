@@ -312,6 +312,21 @@ impl AuthService {
         self.ws_tickets.read().unwrap().len()
     }
 
+    /// Check if a WS ticket is valid without consuming it (for diagnostics).
+    pub fn is_ws_ticket_valid(&self, ticket: &str) -> bool {
+        self.ws_tickets
+            .read()
+            .unwrap()
+            .get(ticket)
+            .map_or(false, |t| t.created_at.elapsed() < Duration::from_secs(30))
+    }
+
+    /// Generate a WS ticket and return it along with metadata for logging.
+    pub fn generate_ws_ticket_with_expiry(&self, user_id: &str) -> (String, u64) {
+        let ticket = self.generate_ws_ticket(user_id);
+        (ticket, 30) // 30 second expiry
+    }
+
     pub fn generate_invite_token(&self) -> String {
         let mut bytes = vec![0u8; 16];
         rand::rng().fill_bytes(&mut bytes);
@@ -868,6 +883,37 @@ mod tests {
         let removed = auth.cleanup_expired_ws_tickets();
         assert_eq!(removed, 0);
         assert_eq!(auth.ws_ticket_count(), 2);
+    }
+
+    #[test]
+    fn test_is_ws_ticket_valid() {
+        let auth = test_auth_service();
+        let ticket = auth.generate_ws_ticket("u1");
+        assert!(auth.is_ws_ticket_valid(&ticket));
+        assert!(!auth.is_ws_ticket_valid("nonexistent"));
+    }
+
+    #[test]
+    fn test_generate_ws_ticket_with_expiry() {
+        let auth = test_auth_service();
+        let (ticket, expiry) = auth.generate_ws_ticket_with_expiry("u1");
+        assert_eq!(ticket.len(), 64);
+        assert_eq!(expiry, 30);
+        // Ticket should be valid
+        assert!(auth.is_ws_ticket_valid(&ticket));
+    }
+
+    #[test]
+    fn test_is_ws_ticket_valid_expired() {
+        let auth = test_auth_service();
+        auth.ws_tickets.write().unwrap().insert(
+            "old-ticket".to_string(),
+            WsTicket {
+                user_id: "u1".to_string(),
+                created_at: Instant::now() - Duration::from_secs(60),
+            },
+        );
+        assert!(!auth.is_ws_ticket_valid("old-ticket"));
     }
 
     #[test]
