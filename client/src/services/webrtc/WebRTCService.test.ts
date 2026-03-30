@@ -62,6 +62,14 @@ vi.mock('../voiceCrypto', () => ({
   },
 }));
 
+vi.mock('../crypto', () => ({
+  cryptoService: {
+    encryptDM: vi.fn().mockResolvedValue('ZW5jcnlwdGVkLXZvaWNlLWtleQ=='),
+    decryptDM: vi.fn().mockResolvedValue(btoa(String.fromCharCode(...new Array(32).fill(0)))),
+    ensurePeerSession: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 // ─── Mock RTCPeerConnection, RTCSessionDescription, RTCIceCandidate ────────
 
 let mockPc: Record<string, unknown>;
@@ -1408,10 +1416,16 @@ describe('WebRTCService', () => {
         },
       });
 
+      // Set derivedKey so voice key encryption works
+      useAuthStore.setState({ derivedKey: 'test-derived-key' } as never);
+
       // Trigger distributeVoiceKey via user-joined event
       emitWS('voice:user-joined', { user_id: 'peer-3', username: 'new-user' });
 
-      expect(mockWs.voiceKeyDistribute).toHaveBeenCalled();
+      // Wait for async distributeVoiceKey to complete
+      await vi.waitFor(() => {
+        expect(mockWs.voiceKeyDistribute).toHaveBeenCalled();
+      });
 
       // Reset
       vi.mocked(supportsE2EVoice).mockReturnValue(false);
@@ -1456,6 +1470,85 @@ describe('WebRTCService', () => {
       expect(useVoiceStore.getState().e2eVoice).toBeDefined();
 
       // Reset
+      vi.mocked(supportsE2EVoice).mockReturnValue(false);
+    });
+
+    it('distributeVoiceKey warns when derivedKey is missing', async () => {
+      const { supportsE2EVoice } = await import('../voiceCrypto');
+      vi.mocked(supportsE2EVoice).mockReturnValue(true);
+      setupE2EMocks();
+
+      await webrtcService.connect('ch-1', 'team-1');
+
+      (webrtcService as any).encryption.voiceKeyManager.getLocalRawKey = vi.fn(() => new Uint8Array(32));
+      (webrtcService as any).encryption.voiceKeyManager.getLocalKeyId = vi.fn(() => 1);
+
+      useVoiceStore.setState({
+        peers: {
+          'user-1': { user_id: 'user-1', username: 'me', muted: false, deafened: false, speaking: false, voiceLevel: 0 },
+          'peer-2': { user_id: 'peer-2', username: 'other', muted: false, deafened: false, speaking: false, voiceLevel: 0 },
+        },
+      });
+
+      // No derivedKey set — should warn and not distribute
+      useAuthStore.setState({ derivedKey: null } as never);
+      mockWs.voiceKeyDistribute.mockClear();
+
+      emitWS('voice:user-joined', { user_id: 'peer-3', username: 'new-user' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(mockWs.voiceKeyDistribute).not.toHaveBeenCalled();
+
+      vi.mocked(supportsE2EVoice).mockReturnValue(false);
+    });
+
+    it('handleReceivedVoiceKey decrypts via Signal Protocol when derivedKey is set', async () => {
+      const { supportsE2EVoice } = await import('../voiceCrypto');
+      vi.mocked(supportsE2EVoice).mockReturnValue(true);
+      setupE2EMocks();
+
+      await webrtcService.connect('ch-1', 'team-1');
+      useAuthStore.setState({ derivedKey: 'test-key' } as never);
+
+      const { cryptoService } = await import('../crypto');
+
+      emitWS('voice:key-distribute', {
+        sender_id: 'peer-1',
+        key_id: 1,
+        encrypted_keys: { 'user-1': 'encrypted-payload' },
+      });
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(cryptoService.decryptDM).toHaveBeenCalledWith('team-1', 'peer-1', 'encrypted-payload', 'ch-1', 'test-key');
+
+      vi.mocked(supportsE2EVoice).mockReturnValue(false);
+    });
+
+    it('handleReceivedVoiceKey falls back on decrypt failure', async () => {
+      const { supportsE2EVoice } = await import('../voiceCrypto');
+      vi.mocked(supportsE2EVoice).mockReturnValue(true);
+      setupE2EMocks();
+
+      await webrtcService.connect('ch-1', 'team-1');
+      useAuthStore.setState({ derivedKey: 'test-key' } as never);
+
+      const { cryptoService } = await import('../crypto');
+      vi.mocked(cryptoService.decryptDM).mockRejectedValueOnce(new Error('decrypt failed'));
+
+      // Send a valid base64 key directly (fallback should use it as-is)
+      const validKeyB64 = btoa(String.fromCharCode(...new Array(32).fill(0)));
+      emitWS('voice:key-distribute', {
+        sender_id: 'peer-1',
+        key_id: 1,
+        encrypted_keys: { 'user-1': validKeyB64 },
+      });
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Should still work — fallback to unencrypted
+      expect(cryptoService.decryptDM).toHaveBeenCalled();
+
       vi.mocked(supportsE2EVoice).mockReturnValue(false);
     });
   });

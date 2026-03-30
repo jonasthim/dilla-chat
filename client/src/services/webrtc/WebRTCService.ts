@@ -271,7 +271,8 @@ class WebRTCService {
         if (payload.user_id !== this.localUserId) {
           playJoinSound();
           // Distribute our E2E voice key to the new participant
-          this.encryption.distributeVoiceKey(this.teamId, this.channelId, this.localUserId);
+          this.encryption.distributeVoiceKey(this.teamId, this.channelId, this.localUserId)
+            .catch((err) => console.warn('[Voice] Failed to distribute voice key:', err));
         }
       }),
       ws.on('voice:user-left', (payload: { user_id: string }) => {
@@ -305,7 +306,8 @@ class WebRTCService {
           }
 
           // Distribute E2E voice key to existing participants after joining
-          this.encryption.distributeVoiceKey(this.teamId, this.channelId, this.localUserId);
+          this.encryption.distributeVoiceKey(this.teamId, this.channelId, this.localUserId)
+            .catch((err) => console.warn('[Voice] Failed to distribute voice key:', err));
         },
       ),
       // E2E voice key distribution handler
@@ -323,6 +325,8 @@ class WebRTCService {
               payload.sender_id,
               payload.key_id,
               myKey,
+              this.teamId,
+              this.channelId,
             );
           }
         },
