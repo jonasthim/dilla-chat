@@ -754,6 +754,31 @@ describe('CryptoManager', () => {
     expect(typeof ct).toBe('string');
     expect(ct.length).toBeGreaterThan(0);
   });
+
+  it('rotateChannelKey removes member and returns new distribution', async () => {
+    const mgr = await createManager();
+
+    // Create a channel session
+    await mgr.encryptChannel('ch-rotate', 'self', 'init msg');
+
+    // Add another member via distribution
+    const otherSession = await GroupSession.create('ch-rotate', 'other-user');
+    mgr.processSenderKey('ch-rotate', JSON.stringify(otherSession.createDistributionMessage()));
+
+    // Rotate — remove 'other-user'
+    const dist = await mgr.rotateChannelKey('ch-rotate', 'other-user');
+
+    expect(dist).not.toBeNull();
+    const parsed = JSON.parse(dist!);
+    expect(parsed.sender_id).toBe('self');
+    expect(parsed.chain_key.length).toBe(32);
+  });
+
+  it('rotateChannelKey returns null when no session exists', async () => {
+    const mgr = await createManager();
+    const dist = await mgr.rotateChannelKey('nonexistent', 'someone');
+    expect(dist).toBeNull();
+  });
 });
 
 // ─── Session Encryption ───────────────────────────────────────────────────────
