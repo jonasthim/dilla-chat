@@ -3216,3 +3216,67 @@ async fn update_team_long_name_returns_400() {
 
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 }
+
+#[tokio::test]
+async fn update_user_long_display_name_returns_400() {
+    let (state, _tmp) = test_app_state();
+    let (_, _, token) = bootstrap_user_and_team(&state);
+    let app = test_router(state);
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri("/api/v1/users/me")
+                .header("content-type", "application/json")
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::from(
+                    serde_json::json!({ "display_name": "a".repeat(65) }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn update_channel_long_topic_returns_400() {
+    let (state, _tmp) = test_app_state();
+    let (user_id, team_id, token) = bootstrap_user_and_team(&state);
+
+    let channel_id = db::new_id();
+    state.db.with_conn(|conn| {
+        db::create_channel(conn, &db::Channel {
+            id: channel_id.clone(),
+            team_id: team_id.clone(),
+            name: "test".into(),
+            topic: "".into(),
+            channel_type: "text".into(),
+            position: 0,
+            category: "".into(),
+            created_by: user_id.clone(),
+            created_at: db::now_str(),
+            updated_at: db::now_str(),
+        })
+    }).unwrap();
+
+    let app = test_router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/v1/teams/{}/channels/{}", team_id, channel_id))
+                .header("content-type", "application/json")
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::from(
+                    serde_json::json!({ "topic": "a".repeat(1025) }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
