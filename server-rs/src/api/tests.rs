@@ -3280,3 +3280,91 @@ async fn update_channel_long_topic_returns_400() {
 
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 }
+
+#[tokio::test]
+async fn download_nonexistent_attachment_returns_404() {
+    let (state, _tmp) = test_app_state();
+    let (_, team_id, token) = bootstrap_user_and_team(&state);
+    let app = test_router(state);
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/teams/{}/attachments/nonexistent-id", team_id))
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Should return 404 since attachment doesn't exist
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn download_cross_team_attachment_returns_404() {
+    let (state, _tmp) = test_app_state();
+    let (user_id, team_id, token) = bootstrap_user_and_team(&state);
+
+    // Create a channel and message in team
+    let channel_id = db::new_id();
+    let message_id = db::new_id();
+    let attachment_id = db::new_id();
+    let now = db::now_str();
+
+    state.db.with_conn(|conn| {
+        db::create_channel(conn, &db::Channel {
+            id: channel_id.clone(), team_id: team_id.clone(), name: "ch".into(),
+            topic: "".into(), channel_type: "text".into(), position: 0,
+            category: "".into(), created_by: user_id.clone(),
+            created_at: now.clone(), updated_at: now.clone(),
+        })?;
+        db::create_message(conn, &db::Message {
+            id: message_id.clone(), channel_id: channel_id.clone(),
+            dm_channel_id: "".into(), author_id: user_id.clone(),
+            content: "test".into(), msg_type: "text".into(),
+            thread_id: "".into(), edited_at: None, deleted: false,
+            lamport_ts: 0, created_at: now.clone(),
+        })?;
+        db::create_attachment(conn, &db::Attachment {
+            id: attachment_id.clone(), message_id: message_id.clone(),
+            filename_encrypted: vec![1, 2, 3], content_type_encrypted: vec![4, 5, 6],
+            size: 4, storage_path: "/tmp/nonexistent".into(),
+            created_at: now.clone(),
+        })
+    }).unwrap();
+
+    // Create a second team and try to download the attachment from it
+    let team2_id = db::new_id();
+    state.db.with_conn(|conn| {
+        db::create_team(conn, &db::Team {
+            id: team2_id.clone(), name: "Team2".into(), description: "".into(),
+            icon_url: "".into(), created_by: user_id.clone(),
+            max_file_size: 1024, allow_member_invites: true,
+            created_at: now.clone(), updated_at: now.clone(),
+        })?;
+        db::create_member(conn, &db::Member {
+            id: db::new_id(), team_id: team2_id.clone(), user_id: user_id.clone(),
+            nickname: "".into(), joined_at: now.clone(), invited_by: user_id.clone(),
+            updated_at: "".into(),
+        })
+    }).unwrap();
+
+    let app = test_router(state);
+    // Try to download attachment via team2 — should fail
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/teams/{}/attachments/{}", team2_id, attachment_id))
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
