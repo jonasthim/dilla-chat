@@ -3114,7 +3114,105 @@ async fn ws_ticket_returns_ticket_for_authenticated_user() {
     let ticket = body["ticket"].as_str().unwrap();
     assert_eq!(ticket.len(), 64);
 
-    // Ticket should be valid and return the user ID
     let uid = state.auth.validate_ws_ticket(ticket).unwrap();
     assert_eq!(uid, user_id);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Input length validation tests
+// ══════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn register_long_username_returns_400() {
+    let (state, _tmp) = test_app_state();
+    let auth = state.auth.clone();
+
+    let signing_key = {
+        let mut key_bytes = [0u8; 32];
+        rand::RngCore::fill_bytes(&mut rand::rng(), &mut key_bytes);
+        SigningKey::from_bytes(&key_bytes)
+    };
+    let pk = signing_key.verifying_key();
+    let pk_b64 = base64::engine::general_purpose::STANDARD.encode(pk.as_bytes());
+    let (nonce, cid) = auth.generate_challenge().unwrap();
+    let sig = signing_key.sign(&nonce);
+    let sig_b64 = base64::engine::general_purpose::STANDARD.encode(sig.to_bytes());
+
+    let long_username = "a".repeat(33);
+
+    let app = test_router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/auth/register")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "challenge_id": cid,
+                        "public_key": pk_b64,
+                        "signature": sig_b64,
+                        "username": long_username,
+                        "invite_token": "some-token",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn create_channel_long_name_returns_400() {
+    let (state, _tmp) = test_app_state();
+    let (_user_id, team_id, token) = bootstrap_user_and_team(&state);
+    let app = test_router(state);
+
+    let long_name = "a".repeat(101);
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(&format!("/api/v1/teams/{}/channels", team_id))
+                .header("authorization", format!("Bearer {}", token))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"name": long_name, "topic": "ok"}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn update_team_long_name_returns_400() {
+    let (state, _tmp) = test_app_state();
+    let (_user_id, team_id, token) = bootstrap_user_and_team(&state);
+    let app = test_router(state);
+
+    let long_name = "a".repeat(101);
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(&format!("/api/v1/teams/{}", team_id))
+                .header("authorization", format!("Bearer {}", token))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"name": long_name}).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 }
