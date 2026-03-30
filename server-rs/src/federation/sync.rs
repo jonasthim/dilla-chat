@@ -22,6 +22,31 @@ const MAX_SYNC_TOTAL_MESSAGES: usize = 10_000;
 /// Minimum interval between sync requests from the same peer (seconds).
 const SYNC_RATE_LIMIT_SECS: i64 = 300;
 
+/// Validate a state sync response doesn't exceed size limits.
+pub(crate) fn validate_sync_response_size(num_channels: usize, num_messages: usize) -> Result<(), String> {
+    if num_channels > MAX_SYNC_CHANNELS {
+        return Err(format!(
+            "sync response rejected: {} channels exceeds limit of {}",
+            num_channels, MAX_SYNC_CHANNELS
+        ));
+    }
+    if num_messages > MAX_SYNC_TOTAL_MESSAGES {
+        return Err(format!(
+            "sync response rejected: {} messages exceeds limit of {}",
+            num_messages, MAX_SYNC_TOTAL_MESSAGES
+        ));
+    }
+    Ok(())
+}
+
+/// Check if a sync request from a peer should be rate-limited.
+pub(crate) fn is_sync_rate_limited(last_request_ts: Option<i64>, now: i64) -> bool {
+    match last_request_ts {
+        Some(ts) if (now - ts) < SYNC_RATE_LIMIT_SECS => true,
+        _ => false,
+    }
+}
+
 /// Data transferred during a state synchronization exchange.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateSyncData {
@@ -195,20 +220,7 @@ impl SyncManager {
     /// MAX_SYNC_TOTAL_MESSAGES messages to prevent abuse.
     pub async fn handle_state_sync_response(&self, data: StateSyncData) -> Result<(), String> {
         // Validate response size limits.
-        if data.channels.len() > MAX_SYNC_CHANNELS {
-            return Err(format!(
-                "sync response rejected: {} channels exceeds limit of {}",
-                data.channels.len(),
-                MAX_SYNC_CHANNELS
-            ));
-        }
-        if data.messages.len() > MAX_SYNC_TOTAL_MESSAGES {
-            return Err(format!(
-                "sync response rejected: {} messages exceeds limit of {}",
-                data.messages.len(),
-                MAX_SYNC_TOTAL_MESSAGES
-            ));
-        }
+        validate_sync_response_size(data.channels.len(), data.messages.len())?;
 
         let db = self.db.clone();
 
@@ -1101,4 +1113,43 @@ mod tests {
         })
         .unwrap();
     }
+}
+
+    #[test]
+    fn test_validate_sync_response_size_ok() {
+        assert!(validate_sync_response_size(50, 5000).is_ok());
+    }
+
+    #[test]
+    fn test_validate_sync_response_size_too_many_channels() {
+        assert!(validate_sync_response_size(101, 100).is_err());
+    }
+
+    #[test]
+    fn test_validate_sync_response_size_too_many_messages() {
+        assert!(validate_sync_response_size(10, 10001).is_err());
+    }
+
+    #[test]
+    fn test_validate_sync_response_size_at_limit() {
+        assert!(validate_sync_response_size(100, 10000).is_ok());
+    }
+
+    #[test]
+    fn test_is_sync_rate_limited_no_previous() {
+        assert!(!is_sync_rate_limited(None, 1000));
+    }
+
+    #[test]
+    fn test_is_sync_rate_limited_too_soon() {
+        let now = 1000;
+        let last = now - 60; // 60s ago, limit is 300s
+        assert!(is_sync_rate_limited(Some(last), now));
+    }
+
+    #[test]
+    fn test_is_sync_rate_limited_enough_time() {
+        let now = 1000;
+        let last = now - 301; // 301s ago, limit is 300s
+        assert!(!is_sync_rate_limited(Some(last), now));
 }
