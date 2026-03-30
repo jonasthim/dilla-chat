@@ -2,7 +2,32 @@ use crate::db;
 use crate::ws::events::*;
 use crate::ws::hub::Hub;
 
-pub(in crate::ws) async fn handle_thread_message_send(hub: &Hub, user_id: &str, p: ThreadMessageSendPayload) {
+pub(in crate::ws) async fn handle_thread_message_send(hub: &Hub, user_id: &str, team_id: &str, p: ThreadMessageSendPayload) {
+    // Verify the thread's parent channel belongs to the user's team.
+    let db = hub.db.clone();
+    let thread_id_check = p.thread_id.clone();
+    let team_id_check = team_id.to_string();
+    let channel_ok = tokio::task::spawn_blocking(move || {
+        db.with_conn(|conn| {
+            let thread = db::get_thread(conn, &thread_id_check)?;
+            match thread {
+                Some(t) => {
+                    let channel = db::get_channel_by_id(conn, &t.channel_id)?;
+                    Ok(channel.map_or(false, |ch| ch.team_id == team_id_check))
+                }
+                None => Ok(false),
+            }
+        })
+    })
+    .await
+    .unwrap_or(Ok(false))
+    .unwrap_or(false);
+
+    if !channel_ok {
+        tracing::warn!(user_id = user_id, thread_id = %p.thread_id, "thread:message:send denied — channel does not belong to user's team");
+        return;
+    }
+
     let db = hub.db.clone();
     let tid = p.thread_id.clone();
     let uid = user_id.to_string();

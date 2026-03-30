@@ -2,7 +2,26 @@ use crate::db;
 use crate::ws::events::*;
 use crate::ws::hub::Hub;
 
-pub(in crate::ws) async fn handle_reaction_add(hub: &Hub, user_id: &str, p: ReactionPayload) {
+pub(in crate::ws) async fn handle_reaction_add(hub: &Hub, user_id: &str, team_id: &str, p: ReactionPayload) {
+    // Verify the channel (from message) belongs to the user's team.
+    let db = hub.db.clone();
+    let cid = p.channel_id.clone();
+    let tid = team_id.to_string();
+    let channel_ok = tokio::task::spawn_blocking(move || {
+        db.with_conn(|conn| {
+            let channel = db::get_channel_by_id(conn, &cid)?;
+            Ok(channel.map_or(false, |ch| ch.team_id == tid))
+        })
+    })
+    .await
+    .unwrap_or(Ok(false))
+    .unwrap_or(false);
+
+    if !channel_ok {
+        tracing::warn!(user_id = user_id, channel_id = %p.channel_id, "reaction:add denied — channel does not belong to user's team");
+        return;
+    }
+
     let db = hub.db.clone();
     let mid = p.message_id.clone();
     let uid = user_id.to_string();
@@ -35,7 +54,26 @@ pub(in crate::ws) async fn handle_reaction_add(hub: &Hub, user_id: &str, p: Reac
     }
 }
 
-pub(in crate::ws) async fn handle_reaction_remove(hub: &Hub, user_id: &str, p: ReactionPayload) {
+pub(in crate::ws) async fn handle_reaction_remove(hub: &Hub, user_id: &str, team_id: &str, p: ReactionPayload) {
+    // Verify the channel (from message) belongs to the user's team.
+    let db = hub.db.clone();
+    let cid = p.channel_id.clone();
+    let tid = team_id.to_string();
+    let channel_ok = tokio::task::spawn_blocking(move || {
+        db.with_conn(|conn| {
+            let channel = db::get_channel_by_id(conn, &cid)?;
+            Ok(channel.map_or(false, |ch| ch.team_id == tid))
+        })
+    })
+    .await
+    .unwrap_or(Ok(false))
+    .unwrap_or(false);
+
+    if !channel_ok {
+        tracing::warn!(user_id = user_id, channel_id = %p.channel_id, "reaction:remove denied — channel does not belong to user's team");
+        return;
+    }
+
     let db = hub.db.clone();
     let mid = p.message_id.clone();
     let uid = user_id.to_string();
