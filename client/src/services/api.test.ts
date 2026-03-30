@@ -141,6 +141,22 @@ describe('ApiService', () => {
     });
   });
 
+  // ── WS Ticket ──────────────────────────────────────────────────────────────
+
+  describe('getWsTicket', () => {
+    it('requests a WS ticket and returns it', async () => {
+      api.addTeam('t-ws', 'https://ws.io');
+      api.setToken('t-ws', 'jwt-tok');
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ticket: 'abc123' }),
+      });
+
+      const ticket = await api.getWsTicket('t-ws');
+      expect(ticket).toBe('abc123');
+    });
+  });
+
   // ── Request construction ──────────────────────────────────────────────────
 
   describe('request construction', () => {
