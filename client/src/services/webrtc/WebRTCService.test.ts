@@ -62,6 +62,14 @@ vi.mock('../voiceCrypto', () => ({
   },
 }));
 
+vi.mock('../crypto', () => ({
+  cryptoService: {
+    encryptDM: vi.fn().mockResolvedValue('ZW5jcnlwdGVkLXZvaWNlLWtleQ=='),
+    decryptDM: vi.fn().mockResolvedValue(btoa(String.fromCharCode(...new Array(32).fill(0)))),
+    ensurePeerSession: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 // ─── Mock RTCPeerConnection, RTCSessionDescription, RTCIceCandidate ────────
 
 let mockPc: Record<string, unknown>;
@@ -1408,10 +1416,16 @@ describe('WebRTCService', () => {
         },
       });
 
+      // Set derivedKey so voice key encryption works
+      useAuthStore.setState({ derivedKey: 'test-derived-key' } as never);
+
       // Trigger distributeVoiceKey via user-joined event
       emitWS('voice:user-joined', { user_id: 'peer-3', username: 'new-user' });
 
-      expect(mockWs.voiceKeyDistribute).toHaveBeenCalled();
+      // Wait for async distributeVoiceKey to complete
+      await vi.waitFor(() => {
+        expect(mockWs.voiceKeyDistribute).toHaveBeenCalled();
+      });
 
       // Reset
       vi.mocked(supportsE2EVoice).mockReturnValue(false);

@@ -1,6 +1,8 @@
 import { ws } from '../websocket';
 import { useVoiceStore } from '../../stores/voiceStore';
+import { useAuthStore } from '../../stores/authStore';
 import { VoiceKeyManager } from '../voiceCrypto';
+import { cryptoService } from '../crypto';
 
 export class VoiceEncryptionManager {
   e2eEnabled = false;
@@ -41,28 +43,35 @@ export class VoiceEncryptionManager {
     console.log('[Voice] E2E encryption enabled');
   }
 
-  /** Distribute voice key to all participants in the channel. */
-  distributeVoiceKey(
+  /** Distribute voice key to all participants, encrypted per-recipient via Signal Protocol. */
+  async distributeVoiceKey(
     teamId: string | null,
     channelId: string | null,
     localUserId: string | null,
-  ): void {
+  ): Promise<void> {
     if (!this.e2eEnabled || !teamId || !channelId) return;
 
     const rawKey = this.voiceKeyManager.getLocalRawKey();
     const keyId = this.voiceKeyManager.getLocalKeyId();
     if (!rawKey) return;
 
-    // For now, distribute the raw key base64-encoded.
-    // In a full implementation, this would be encrypted per-recipient via Signal Protocol.
     const keyBase64 = btoa(String.fromCodePoint(...rawKey));
+    const derivedKey = useAuthStore.getState().derivedKey;
 
     // Get all peers in the channel
     const peers = useVoiceStore.getState().peers;
     const encryptedKeys: Record<string, string> = {};
     for (const userId of Object.keys(peers)) {
-      if (userId !== localUserId) {
-        encryptedKeys[userId] = keyBase64;
+      if (userId === localUserId) continue;
+      try {
+        if (derivedKey) {
+          // Encrypt the voice key for this specific peer using their Signal Protocol session
+          encryptedKeys[userId] = await cryptoService.encryptDM(teamId, userId, keyBase64, channelId, derivedKey);
+        } else {
+          console.warn('[Voice] No derived key — cannot encrypt voice key for', userId);
+        }
+      } catch (err) {
+        console.warn('[Voice] Failed to encrypt voice key for', userId, err);
       }
     }
 
@@ -71,15 +80,33 @@ export class VoiceEncryptionManager {
     }
   }
 
-  /** Handle received voice key from another participant. */
+  /** Handle received voice key from another participant (decrypts via Signal Protocol). */
   async handleReceivedVoiceKey(
     senderId: string,
     keyId: number,
     encryptedKey: string,
+    teamId: string | null,
+    channelId: string | null,
   ): Promise<void> {
-    // Decode the key (in full implementation, decrypt via Signal Protocol first)
+    const derivedKey = useAuthStore.getState().derivedKey;
+
+    let keyBase64: string;
+    try {
+      if (derivedKey && teamId && channelId) {
+        // Decrypt the voice key using the sender's Signal Protocol session
+        keyBase64 = await cryptoService.decryptDM(teamId, senderId, encryptedKey, channelId, derivedKey);
+      } else {
+        // Fallback: assume unencrypted (backward compat with old clients)
+        keyBase64 = encryptedKey;
+      }
+    } catch (err) {
+      console.warn('[Voice] Failed to decrypt voice key from', senderId, err);
+      // Try treating as unencrypted for backward compatibility
+      keyBase64 = encryptedKey;
+    }
+
     const rawKey = new Uint8Array(
-      atob(encryptedKey)
+      atob(keyBase64)
         .split('')
         .map((c) => c.codePointAt(0)!),
     );
