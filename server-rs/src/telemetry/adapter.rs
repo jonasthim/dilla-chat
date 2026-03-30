@@ -1,5 +1,25 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
+
+/// Deserialize a timestamp that may be a number (epoch seconds) or an ISO 8601 string.
+fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val = serde_json::Value::deserialize(deserializer)?;
+    match &val {
+        serde_json::Value::Number(n) => Ok(n.as_u64().unwrap_or(0)),
+        serde_json::Value::String(s) => {
+            // Try parsing as ISO 8601 → epoch seconds
+            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+                Ok(dt.timestamp() as u64)
+            } else {
+                Ok(s.parse::<u64>().unwrap_or(0))
+            }
+        }
+        _ => Ok(0),
+    }
+}
 
 /// A breadcrumb captured by the client before an error occurred.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,7 +62,7 @@ pub struct TelemetryEvent {
     pub breadcrumbs: Vec<Breadcrumb>,
     #[serde(default)]
     pub context: ClientContext,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_timestamp")]
     pub timestamp: u64,
 
     // Server-enriched fields
@@ -82,6 +102,73 @@ mod tests {
         assert_eq!(ctx.os, "");
         assert_eq!(ctx.url, "");
         assert_eq!(ctx.viewport, "");
+    }
+
+    #[test]
+    fn deserialize_timestamp_from_u64() {
+        let json = r#"{"timestamp": 1711700000}"#;
+        let evt: TelemetryEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(evt.timestamp, 1711700000);
+    }
+
+    #[test]
+    fn deserialize_timestamp_from_iso8601_string() {
+        let json = r#"{"timestamp": "2024-03-29T12:00:00Z"}"#;
+        let evt: TelemetryEvent = serde_json::from_str(json).unwrap();
+        // 2024-03-29T12:00:00Z in epoch seconds
+        assert_eq!(evt.timestamp, 1711713600);
+    }
+
+    #[test]
+    fn deserialize_timestamp_from_iso8601_with_offset() {
+        let json = r#"{"timestamp": "2024-03-29T14:00:00+02:00"}"#;
+        let evt: TelemetryEvent = serde_json::from_str(json).unwrap();
+        // +02:00 means UTC is 12:00:00, same as above
+        assert_eq!(evt.timestamp, 1711713600);
+    }
+
+    #[test]
+    fn deserialize_timestamp_from_numeric_string() {
+        let json = r#"{"timestamp": "1711700000"}"#;
+        let evt: TelemetryEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(evt.timestamp, 1711700000);
+    }
+
+    #[test]
+    fn deserialize_timestamp_from_invalid_string_returns_zero() {
+        let json = r#"{"timestamp": "not-a-timestamp"}"#;
+        let evt: TelemetryEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(evt.timestamp, 0);
+    }
+
+    #[test]
+    fn deserialize_timestamp_from_null_returns_zero() {
+        let json = r#"{"timestamp": null}"#;
+        let evt: TelemetryEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(evt.timestamp, 0);
+    }
+
+    #[test]
+    fn deserialize_timestamp_from_bool_returns_zero() {
+        let json = r#"{"timestamp": true}"#;
+        let evt: TelemetryEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(evt.timestamp, 0);
+    }
+
+    #[test]
+    fn deserialize_timestamp_missing_defaults_to_zero() {
+        let json = r#"{}"#;
+        let evt: TelemetryEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(evt.timestamp, 0);
+    }
+
+    #[test]
+    fn deserialize_timestamp_from_float_truncates() {
+        // JSON numbers that are floats — serde_json Value::Number.as_u64() returns None for floats
+        let json = r#"{"timestamp": 1711700000.5}"#;
+        let evt: TelemetryEvent = serde_json::from_str(json).unwrap();
+        // as_u64() returns None for floats, so falls back to 0
+        assert_eq!(evt.timestamp, 0);
     }
 
     #[test]

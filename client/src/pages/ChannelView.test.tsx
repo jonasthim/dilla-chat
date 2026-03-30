@@ -24,7 +24,7 @@ vi.mock('../services/api', () => ({
 }));
 
 vi.mock('../services/crypto', () => ({
-  cryptoService: { decryptChannel: vi.fn(), encryptChannel: vi.fn() },
+  cryptoService: { decryptChannel: vi.fn(), encryptChannel: vi.fn().mockResolvedValue('encrypted-content') },
   getIdentityKeys: vi.fn(() => ({ publicKeyBytes: new Uint8Array(32) })),
 }));
 
@@ -223,6 +223,7 @@ describe('ChannelView', () => {
   });
 
   it('sends a message via WS when send button is clicked', async () => {
+    useAuthStore.setState({ derivedKey: 'test-key' });
     renderChannelView();
     fireEvent.click(screen.getByTestId('send-btn'));
     await waitFor(() => {
@@ -231,6 +232,7 @@ describe('ChannelView', () => {
   });
 
   it('edits a message via WS when edit button is clicked', async () => {
+    useAuthStore.setState({ derivedKey: 'test-key' });
     renderChannelView();
     fireEvent.click(screen.getByTestId('edit-msg'));
     fireEvent.click(screen.getByTestId('edit-btn'));
@@ -448,15 +450,16 @@ describe('ChannelView', () => {
     });
   });
 
-  it('tryEncrypt falls back to plaintext on encryption error', async () => {
+  it('tryEncrypt does not send message on encryption error', async () => {
     const { cryptoService } = await import('../services/crypto');
     vi.mocked(cryptoService.encryptChannel).mockRejectedValueOnce(new Error('encrypt fail'));
     useAuthStore.setState({ derivedKey: 'test-derived-key' });
     renderChannelView();
     fireEvent.click(screen.getByTestId('send-btn'));
     await waitFor(() => {
-      expect(ws.sendMessage).toHaveBeenCalled();
+      expect(cryptoService.encryptChannel).toHaveBeenCalled();
     });
+    expect(ws.sendMessage).not.toHaveBeenCalled();
   });
 
   it('handleLoadMore with REST decrypts messages using tryDecrypt', async () => {

@@ -29,7 +29,7 @@ export default function UserPanel({
   const { myStatus, myCustomStatus, setMyStatus, setMyCustomStatus, updatePresence } = usePresenceStore();
   const { activeTeamId } = useTeamStore();
   const { teams } = useAuthStore();
-  const { muted, deafened, toggleMute, toggleDeafen } = useVoiceStore();
+  const { muted, deafened, setMuted, setDeafened } = useVoiceStore();
 
   const currentUserId = (() => {
     if (!activeTeamId) return '';
@@ -90,23 +90,23 @@ export default function UserPanel({
   const statusLabel = myCustomStatus || t(`presence.${myStatus}`);
 
   const handleMute = () => {
-    if (muted) {
-      playUnmuteSound();
-    } else {
+    const newMuted = webrtcService.toggleMute();
+    setMuted(newMuted);
+    if (newMuted) {
       playMuteSound();
+    } else {
+      playUnmuteSound();
     }
-    webrtcService.toggleMute();
-    toggleMute();
   };
 
   const handleDeafen = () => {
-    if (deafened) {
-      playUnmuteSound();
-    } else {
+    const newDeafened = webrtcService.toggleDeafen();
+    setDeafened(newDeafened);
+    if (newDeafened) {
       playMuteSound();
+    } else {
+      playUnmuteSound();
     }
-    webrtcService.toggleDeafen();
-    toggleDeafen();
   };
 
   let muteTitle = t('voice.mute', 'Mute');

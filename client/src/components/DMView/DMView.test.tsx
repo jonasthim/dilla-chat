@@ -238,6 +238,7 @@ describe('DMView', () => {
   });
 
   it('sends a DM message via WS when send button is clicked', async () => {
+    useAuthStore.setState({ derivedKey: 'test-key' } as never);
     const { ws } = await renderWithWs();
     fireEvent.click(screen.getByTestId('send-btn'));
     await vi.waitFor(() => {
@@ -246,6 +247,7 @@ describe('DMView', () => {
   });
 
   it('edits a DM message via WS when save edit button is clicked', async () => {
+    useAuthStore.setState({ derivedKey: 'test-key' } as never);
     const { ws } = await renderWithWs();
     fireEvent.click(screen.getByTestId('edit-msg'));
     fireEvent.click(screen.getByTestId('edit-btn'));
@@ -309,16 +311,19 @@ describe('DMView', () => {
     });
   });
 
-  it('falls back to plaintext when encryption fails', async () => {
+  it('does not send message when encryption fails', async () => {
     useAuthStore.setState({ derivedKey: 'test-key' } as never);
     const { ws } = await import('../../services/websocket');
     const { cryptoService } = await import('../../services/crypto');
+    vi.mocked(cryptoService.encryptDM).mockReset();
     vi.mocked(cryptoService.encryptDM).mockRejectedValueOnce(new Error('encrypt failed'));
+    vi.mocked(ws.sendDMMessage).mockClear();
     renderDMView();
     fireEvent.click(screen.getByTestId('send-btn'));
     await vi.waitFor(() => {
-      expect(ws.sendDMMessage).toHaveBeenCalledWith('team-1', 'dm-1', 'test message');
+      expect(cryptoService.encryptDM).toHaveBeenCalled();
     });
+    expect(ws.sendDMMessage).not.toHaveBeenCalled();
   });
 
   it('decrypts DM messages with derivedKey during load', async () => {

@@ -81,6 +81,57 @@ impl OtelProviders {
 /// Returns empty (noop) providers when `config.otel_enabled` is false.
 /// Uses OTLP/HTTP exporter pointed at `config.otel_http_endpoint` (falls back
 /// to `config.otel_endpoint`).
+/// HTTP client wrapper that runs reqwest on the Tokio runtime so it works
+/// inside the batch processor's non-Tokio thread.
+#[derive(Debug, Clone)]
+struct TokioHttpClient {
+    inner: reqwest::Client,
+    handle: tokio::runtime::Handle,
+}
+
+impl TokioHttpClient {
+    async fn do_send(
+        client: reqwest::Client,
+        request: http::Request<bytes::Bytes>,
+    ) -> Result<http::Response<bytes::Bytes>, opentelemetry_http::HttpError> {
+        let (parts, body) = request.into_parts();
+        let req = http::Request::from_parts(parts, body.to_vec());
+        let req: reqwest::Request = req.try_into()?;
+        let resp = client.execute(req).await?;
+        let status = resp.status();
+        let headers = resp.headers().clone();
+        let body = resp.bytes().await?;
+        let mut http_resp = http::Response::builder().status(status);
+        for (k, v) in headers.iter() {
+            http_resp = http_resp.header(k, v);
+        }
+        Ok(http_resp.body(body)?)
+    }
+}
+
+#[async_trait::async_trait]
+impl opentelemetry_http::HttpClient for TokioHttpClient {
+    async fn send(
+        &self,
+        request: http::Request<Vec<u8>>,
+    ) -> Result<http::Response<bytes::Bytes>, opentelemetry_http::HttpError> {
+        let (parts, body) = request.into_parts();
+        let bytes_req = http::Request::from_parts(parts, bytes::Bytes::from(body));
+        let client = self.inner.clone();
+        let handle = self.handle.clone();
+        handle.spawn(Self::do_send(client, bytes_req)).await.unwrap()
+    }
+
+    async fn send_bytes(
+        &self,
+        request: http::Request<bytes::Bytes>,
+    ) -> Result<http::Response<bytes::Bytes>, opentelemetry_http::HttpError> {
+        let client = self.inner.clone();
+        let handle = self.handle.clone();
+        handle.spawn(Self::do_send(client, request)).await.unwrap()
+    }
+}
+
 #[allow(dead_code)]
 pub fn init_otel(config: &Config) -> Result<OtelProviders, Box<dyn std::error::Error>> {
     use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
@@ -127,10 +178,18 @@ pub fn init_otel(config: &Config) -> Result<OtelProviders, Box<dyn std::error::E
         );
     }
 
+    // Build a Tokio-aware HTTP client so reqwest works in batch processor threads.
+    let http_client = TokioHttpClient {
+        inner: reqwest::Client::new(),
+        handle: tokio::runtime::Handle::current(),
+    };
+
     // --- Trace exporter (OTLP/HTTP) ---
+    let trace_endpoint = format!("{}/v1/traces", full_endpoint);
     let mut trace_builder = opentelemetry_otlp::SpanExporter::builder()
         .with_http()
-        .with_endpoint(&full_endpoint);
+        .with_http_client(http_client)
+        .with_endpoint(&trace_endpoint);
 
     if !headers.is_empty() {
         trace_builder = trace_builder.with_headers(headers.clone());
@@ -138,6 +197,8 @@ pub fn init_otel(config: &Config) -> Result<OtelProviders, Box<dyn std::error::E
 
     let trace_exporter = trace_builder.build()?;
 
+    // Use a Tokio-aware batch config by entering the runtime handle
+    // before building the provider (reqwest needs a Tokio reactor).
     let tracer_provider = SdkTracerProvider::builder()
         .with_batch_exporter(trace_exporter)
         .with_resource(resource.clone())
@@ -151,9 +212,15 @@ pub fn init_otel(config: &Config) -> Result<OtelProviders, Box<dyn std::error::E
     );
 
     // --- Metric exporter (OTLP/HTTP) ---
+    let metric_http_client = TokioHttpClient {
+        inner: reqwest::Client::new(),
+        handle: tokio::runtime::Handle::current(),
+    };
+    let metric_endpoint = format!("{}/v1/metrics", full_endpoint);
     let mut metric_builder = opentelemetry_otlp::MetricExporter::builder()
         .with_http()
-        .with_endpoint(&full_endpoint);
+        .with_http_client(metric_http_client)
+        .with_endpoint(&metric_endpoint);
 
     if !headers.is_empty() {
         metric_builder = metric_builder.with_headers(headers);
@@ -178,6 +245,16 @@ pub fn init_otel(config: &Config) -> Result<OtelProviders, Box<dyn std::error::E
         service = %service_name,
         "observability: OTel enabled"
     );
+
+    // Emit a test span to verify the pipeline works end-to-end.
+    {
+        use opentelemetry::trace::{TracerProvider, Tracer, Span};
+        let test_tracer = tracer_provider.tracer("dilla-server-init");
+        let mut test_span = test_tracer.start("otel-init-test");
+        test_span.set_attribute(KeyValue::new("test", "init"));
+        test_span.end();
+        tracing::info!("emitted test span via provider to verify OTel pipeline");
+    }
 
     Ok(OtelProviders {
         tracer_provider: Some(tracer_provider),
@@ -448,5 +525,213 @@ mod tests {
     fn test_metrics_creation() {
         // Metrics::new() should not panic with noop global provider.
         let _m = Metrics::new();
+    }
+
+    fn test_config() -> Config {
+        Config {
+            port: 8080,
+            data_dir: "/tmp".into(),
+            db_passphrase: "".into(),
+            tls_cert: "".into(),
+            tls_key: "".into(),
+            peers: vec![],
+            team_name: "".into(),
+            federation_port: 8081,
+            node_name: "".into(),
+            join_secret: "".into(),
+            fed_bind_addr: "".into(),
+            fed_advert_addr: "".into(),
+            fed_advert_port: 0,
+            max_upload_size: 0,
+            upload_dir: "".into(),
+            log_level: "warn".into(),
+            log_format: "text".into(),
+            rate_limit: 0.0,
+            rate_burst: 0,
+            domain: "".into(),
+            cf_turn_key_id: "".into(),
+            cf_turn_api_token: "".into(),
+            turn_mode: "".into(),
+            turn_shared_secret: "".into(),
+            turn_urls: "".into(),
+            turn_ttl: 0,
+            allowed_origins: vec![],
+            trusted_proxies: vec![],
+            insecure: false,
+            telemetry_adapter: "".into(),
+            sentry_dsn: "".into(),
+            environment: "test".into(),
+            otel_enabled: false,
+            otel_protocol: "".into(),
+            otel_endpoint: "".into(),
+            otel_http_endpoint: "".into(),
+            otel_insecure: false,
+            otel_service_name: "".into(),
+            otel_api_key: "".into(),
+            otel_api_header: "".into(),
+        }
+    }
+
+    #[test]
+    fn test_init_otel_disabled_returns_none_providers() {
+        let config = test_config();
+        let providers = init_otel(&config).expect("init_otel should succeed when disabled");
+        assert!(providers.tracer_provider.is_none());
+        assert!(providers.meter_provider.is_none());
+    }
+
+    #[test]
+    fn test_otel_providers_shutdown_with_none_does_not_panic() {
+        let providers = OtelProviders {
+            tracer_provider: None,
+            meter_provider: None,
+        };
+        // Should be a no-op without panicking
+        providers.shutdown();
+    }
+
+    #[test]
+    fn test_header_extractor_get_existing_key() {
+        let mut headers = header::HeaderMap::new();
+        headers.insert("traceparent", "00-abc-def-01".parse().unwrap());
+        let extractor = HeaderExtractor(&headers);
+        use opentelemetry::propagation::Extractor;
+        assert_eq!(extractor.get("traceparent"), Some("00-abc-def-01"));
+    }
+
+    #[test]
+    fn test_header_extractor_get_missing_key() {
+        let headers = header::HeaderMap::new();
+        let extractor = HeaderExtractor(&headers);
+        use opentelemetry::propagation::Extractor;
+        assert_eq!(extractor.get("traceparent"), None);
+    }
+
+    #[test]
+    fn test_header_extractor_keys() {
+        let mut headers = header::HeaderMap::new();
+        headers.insert("traceparent", "val".parse().unwrap());
+        headers.insert("tracestate", "val2".parse().unwrap());
+        let extractor = HeaderExtractor(&headers);
+        use opentelemetry::propagation::Extractor;
+        let keys = extractor.keys();
+        assert!(keys.contains(&"traceparent"));
+        assert!(keys.contains(&"tracestate"));
+    }
+
+    #[test]
+    fn test_sanitize_route_empty_path() {
+        assert_eq!(sanitize_route(""), "");
+    }
+
+    #[test]
+    fn test_sanitize_route_only_uuid() {
+        let input = "/550e8400-e29b-41d4-a716-446655440000";
+        assert_eq!(sanitize_route(input), "/{id}");
+    }
+
+    #[tokio::test]
+    async fn test_init_otel_enabled_creates_providers() {
+        use tokio::io::AsyncWriteExt;
+        use tokio::net::TcpListener;
+
+        // Start a local HTTP server that accepts OTLP requests
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        tokio::spawn(async move {
+            // Accept multiple connections (trace + metric exporters)
+            loop {
+                if let Ok((mut socket, _)) = listener.accept().await {
+                    tokio::spawn(async move {
+                        let mut buf = vec![0u8; 8192];
+                        let _ = tokio::io::AsyncReadExt::read(&mut socket, &mut buf).await;
+                        let response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+                        let _ = socket.write_all(response.as_bytes()).await;
+                        let _ = socket.shutdown().await;
+                    });
+                }
+            }
+        });
+
+        let mut config = test_config();
+        config.otel_enabled = true;
+        config.otel_http_endpoint = format!("127.0.0.1:{}", port);
+        config.otel_insecure = true;
+        config.otel_service_name = "test-service".into();
+        config.otel_api_key = "test-key".into();
+        config.otel_api_header = "Authorization".into();
+
+        let providers = init_otel(&config).expect("init_otel should succeed with local endpoint");
+        assert!(providers.tracer_provider.is_some());
+        assert!(providers.meter_provider.is_some());
+        providers.shutdown();
+    }
+
+    #[tokio::test]
+    async fn test_tokio_http_client_send() {
+        use opentelemetry_http::HttpClient;
+        use tokio::io::AsyncWriteExt;
+        use tokio::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        // Spawn a minimal HTTP server that returns 200 OK.
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 4096];
+            let _ = tokio::io::AsyncReadExt::read(&mut socket, &mut buf).await;
+            let response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+            socket.write_all(response.as_bytes()).await.unwrap();
+            socket.shutdown().await.unwrap();
+        });
+
+        let client = TokioHttpClient {
+            inner: reqwest::Client::new(),
+            handle: tokio::runtime::Handle::current(),
+        };
+
+        let request = http::Request::builder()
+            .method("POST")
+            .uri(format!("http://127.0.0.1:{}/test", port))
+            .body(vec![1, 2, 3])
+            .unwrap();
+
+        let resp = client.send(request).await.unwrap();
+        assert_eq!(resp.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn test_tokio_http_client_send_bytes() {
+        use opentelemetry_http::HttpClient;
+        use tokio::io::AsyncWriteExt;
+        use tokio::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 4096];
+            let _ = tokio::io::AsyncReadExt::read(&mut socket, &mut buf).await;
+            let response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+            socket.write_all(response.as_bytes()).await.unwrap();
+            socket.shutdown().await.unwrap();
+        });
+
+        let client = TokioHttpClient {
+            inner: reqwest::Client::new(),
+            handle: tokio::runtime::Handle::current(),
+        };
+
+        let request = http::Request::builder()
+            .method("POST")
+            .uri(format!("http://127.0.0.1:{}/test", port))
+            .body(bytes::Bytes::from(vec![1, 2, 3]))
+            .unwrap();
+
+        let resp = client.send_bytes(request).await.unwrap();
+        assert_eq!(resp.status(), 200);
     }
 }

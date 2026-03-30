@@ -46,6 +46,18 @@ struct Challenge {
 /// If no passphrase is set (insecure mode), generate a random ephemeral secret
 /// that is NOT persisted (lost on restart).
 fn derive_jwt_secret(db_passphrase: &str) -> Vec<u8> {
+    // Check for explicit JWT secret override (useful when DB is unencrypted
+    // but you still want stable tokens across restarts).
+    if let Ok(jwt_secret) = std::env::var("DILLA_JWT_SECRET") {
+        if !jwt_secret.is_empty() {
+            let hk = Hkdf::<Sha256>::new(None, jwt_secret.as_bytes());
+            let mut secret = vec![0u8; 32];
+            hk.expand(b"dilla-jwt-signing-key-v1", &mut secret)
+                .expect("HKDF-SHA256 expand for 32 bytes should never fail");
+            return secret;
+        }
+    }
+
     if db_passphrase.is_empty() {
         // Insecure mode: ephemeral random secret (lost on restart)
         let mut raw = vec![0u8; 32];
@@ -716,5 +728,96 @@ mod tests {
         // Verify we can access the database through the accessor
         let has_users = auth.db().has_users().unwrap();
         assert!(!has_users);
+    }
+
+    // ── DILLA_JWT_SECRET env var override tests ─────────────────────────
+
+    #[test]
+    fn test_derive_jwt_secret_with_env_var_override() {
+        // Set the env var, derive secret, then clean up.
+        std::env::set_var("DILLA_JWT_SECRET", "my-explicit-jwt-secret");
+        let s1 = derive_jwt_secret("some-passphrase");
+        let s2 = derive_jwt_secret("different-passphrase");
+        std::env::remove_var("DILLA_JWT_SECRET");
+
+        // Both should be equal because env var takes precedence over passphrase
+        assert_eq!(s1, s2);
+        assert_eq!(s1.len(), 32);
+    }
+
+    #[test]
+    fn test_derive_jwt_secret_env_var_is_deterministic() {
+        std::env::set_var("DILLA_JWT_SECRET", "stable-secret-value");
+        let s1 = derive_jwt_secret("");
+        let s2 = derive_jwt_secret("");
+        std::env::remove_var("DILLA_JWT_SECRET");
+
+        // With env var set, even empty passphrase should yield deterministic results
+        assert_eq!(s1, s2);
+        assert_eq!(s1.len(), 32);
+    }
+
+    #[test]
+    fn test_derive_jwt_secret_env_var_empty_string_ignored() {
+        std::env::set_var("DILLA_JWT_SECRET", "");
+        let s1 = derive_jwt_secret("my-passphrase");
+        std::env::remove_var("DILLA_JWT_SECRET");
+
+        // Empty env var should be ignored, so it should derive from passphrase
+        let s2 = derive_jwt_secret("my-passphrase");
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn test_derive_jwt_secret_env_var_differs_from_passphrase() {
+        // Without env var: derive from passphrase
+        let from_passphrase = derive_jwt_secret("some-passphrase");
+
+        // With env var: derive from env var
+        std::env::set_var("DILLA_JWT_SECRET", "explicit-secret");
+        let from_env = derive_jwt_secret("some-passphrase");
+        std::env::remove_var("DILLA_JWT_SECRET");
+
+        assert_ne!(from_passphrase, from_env);
+    }
+
+    #[test]
+    fn test_derive_jwt_secret_env_var_produces_valid_tokens() {
+        std::env::set_var("DILLA_JWT_SECRET", "test-jwt-secret-for-tokens");
+        let auth = test_auth_service_with_passphrase("ignored-passphrase");
+        std::env::remove_var("DILLA_JWT_SECRET");
+
+        let token = auth.generate_jwt("user-env").unwrap();
+        let user_id = auth.validate_jwt(&token).unwrap();
+        assert_eq!(user_id, "user-env");
+    }
+
+    #[test]
+    fn test_derive_jwt_secret_env_var_cross_instance_validation() {
+        // Both instances must be created while the env var is set so they
+        // derive the same JWT secret from the env var.
+        std::env::set_var("DILLA_JWT_SECRET", "shared-env-secret");
+        let secret_a = derive_jwt_secret("pass-a");
+        let secret_b = derive_jwt_secret("pass-b");
+        std::env::remove_var("DILLA_JWT_SECRET");
+
+        // Both secrets should be identical because env var overrides passphrase
+        assert_eq!(secret_a, secret_b);
+
+        // Verify tokens produced by one can be validated by the other
+        let db = test_db();
+        let auth1 = AuthService {
+            db: db.clone(),
+            jwt_secret: secret_a,
+            challenges: Arc::new(RwLock::new(HashMap::new())),
+        };
+        let auth2 = AuthService {
+            db,
+            jwt_secret: secret_b,
+            challenges: Arc::new(RwLock::new(HashMap::new())),
+        };
+        let token = auth1.generate_jwt("cross-user").unwrap();
+        let user_id = auth2.validate_jwt(&token).unwrap();
+        assert_eq!(user_id, "cross-user");
     }
 }

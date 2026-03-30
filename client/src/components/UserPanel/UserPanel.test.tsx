@@ -178,6 +178,7 @@ describe('UserPanel', () => {
   it('mute button calls toggleMute and plays sound', async () => {
     const { playMuteSound } = await import('../../utils/sounds');
     const { webrtcService } = await import('../../services/webrtc');
+    (webrtcService.toggleMute as ReturnType<typeof vi.fn>).mockReturnValue(true);
     render(<UserPanel username="alice" />);
     fireEvent.click(screen.getByTitle('Mute'));
     expect(playMuteSound).toHaveBeenCalled();
@@ -188,6 +189,7 @@ describe('UserPanel', () => {
     useVoiceStore.setState({ muted: true } as never);
     const { playUnmuteSound } = await import('../../utils/sounds');
     const { webrtcService } = await import('../../services/webrtc');
+    (webrtcService.toggleMute as ReturnType<typeof vi.fn>).mockReturnValue(false);
     render(<UserPanel username="alice" />);
     // Muted state shows 'Unmute' title
     fireEvent.click(screen.getByTitle('Unmute'));
@@ -198,6 +200,7 @@ describe('UserPanel', () => {
   it('deafen button calls toggleDeafen and plays sound', async () => {
     const { playMuteSound } = await import('../../utils/sounds');
     const { webrtcService } = await import('../../services/webrtc');
+    (webrtcService.toggleDeafen as ReturnType<typeof vi.fn>).mockReturnValue(true);
     render(<UserPanel username="alice" />);
     fireEvent.click(screen.getByTitle('Deafen'));
     expect(playMuteSound).toHaveBeenCalled();
@@ -208,6 +211,7 @@ describe('UserPanel', () => {
     useVoiceStore.setState({ deafened: true } as never);
     const { playUnmuteSound } = await import('../../utils/sounds');
     const { webrtcService } = await import('../../services/webrtc');
+    (webrtcService.toggleDeafen as ReturnType<typeof vi.fn>).mockReturnValue(false);
     render(<UserPanel username="alice" />);
     fireEvent.click(screen.getByTitle('Undeafen'));
     expect(playUnmuteSound).toHaveBeenCalled();
