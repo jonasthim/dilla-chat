@@ -511,4 +511,144 @@ mod tests {
     fn test_auth_timeout_constant() {
         assert_eq!(AUTH_TIMEOUT_SECS, 5);
     }
+
+    // ── Integration tests for federation transport auth ──────────────
+
+    use tokio::net::TcpListener;
+    use tokio_tungstenite::MaybeTlsStream;
+
+    /// Helper: start a TCP listener on a random port and return (listener, port).
+    async fn start_tcp_listener() -> (TcpListener, u16) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        (listener, port)
+    }
+
+    #[tokio::test]
+    async fn test_handle_incoming_auth_success() {
+        let (listener, port) = start_tcp_listener().await;
+        let transport = Transport::with_join_secret("test-secret".to_string());
+
+        // Spawn a client that connects and sends the correct auth token.
+        let client_handle = tokio::spawn(async move {
+            let url = format!("ws://127.0.0.1:{}", port);
+            let (mut ws, _) = tokio_tungstenite::connect_async(&url).await.unwrap();
+            ws.send(Message::Text(r#"{"join_token":"test-secret"}"#.into()))
+                .await
+                .unwrap();
+            // Keep connection alive briefly so the server can register it.
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        });
+
+        // Accept the TCP connection and upgrade to WebSocket with MaybeTlsStream.
+        let (tcp_stream, _) = listener.accept().await.unwrap();
+        let ws_stream = tokio_tungstenite::accept_async(MaybeTlsStream::Plain(tcp_stream))
+            .await
+            .unwrap();
+
+        transport.handle_incoming("test-peer", ws_stream).await;
+
+        // Verify peer was registered.
+        let conns = transport.conns.read().await;
+        assert!(conns.contains_key("test-peer"), "peer should be registered after successful auth");
+        assert!(conns["test-peer"].connected);
+
+        client_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_incoming_auth_failure() {
+        let (listener, port) = start_tcp_listener().await;
+        let transport = Transport::with_join_secret("test-secret".to_string());
+
+        // Spawn a client that sends the wrong token.
+        let client_handle = tokio::spawn(async move {
+            let url = format!("ws://127.0.0.1:{}", port);
+            let (mut ws, _) = tokio_tungstenite::connect_async(&url).await.unwrap();
+            ws.send(Message::Text(r#"{"join_token":"wrong"}"#.into()))
+                .await
+                .unwrap();
+            // Read until close or error.
+            while let Some(msg) = ws.next().await {
+                match msg {
+                    Ok(Message::Close(_)) => break,
+                    Err(_) => break,
+                    _ => {}
+                }
+            }
+        });
+
+        let (tcp_stream, _) = listener.accept().await.unwrap();
+        let ws_stream = tokio_tungstenite::accept_async(MaybeTlsStream::Plain(tcp_stream))
+            .await
+            .unwrap();
+
+        transport.handle_incoming("bad-peer", ws_stream).await;
+
+        // Verify peer was NOT registered.
+        let conns = transport.conns.read().await;
+        assert!(!conns.contains_key("bad-peer"), "peer should not be registered after failed auth");
+
+        client_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_connect_to_peer_sends_auth_token() {
+        let (listener, port) = start_tcp_listener().await;
+        let transport = Transport::with_join_secret("outbound-secret".to_string());
+
+        // Spawn a server that accepts and reads the first message.
+        let server_handle = tokio::spawn(async move {
+            let (tcp_stream, _) = listener.accept().await.unwrap();
+            let mut ws = tokio_tungstenite::accept_async(tcp_stream).await.unwrap();
+            let msg = ws.next().await.unwrap().unwrap();
+            match msg {
+                Message::Text(text) => {
+                    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+                    assert_eq!(parsed["join_token"], "outbound-secret");
+                }
+                other => panic!("expected Text message with auth token, got {:?}", other),
+            }
+        });
+
+        let url = format!("ws://127.0.0.1:{}", port);
+        transport.connect_to_peer(&url).await.unwrap();
+
+        // Verify peer was registered in conns.
+        let conns = transport.conns.read().await;
+        assert!(conns.contains_key(&url));
+
+        server_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_incoming_no_auth_when_empty_secret() {
+        let (listener, port) = start_tcp_listener().await;
+        let transport = Transport::with_join_secret(String::new());
+
+        // Spawn a client that connects but sends NO auth message.
+        let client_handle = tokio::spawn(async move {
+            let url = format!("ws://127.0.0.1:{}", port);
+            let (_ws, _) = tokio_tungstenite::connect_async(&url).await.unwrap();
+            // Keep alive briefly.
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        });
+
+        let (tcp_stream, _) = listener.accept().await.unwrap();
+        let ws_stream = tokio_tungstenite::accept_async(MaybeTlsStream::Plain(tcp_stream))
+            .await
+            .unwrap();
+
+        transport.handle_incoming("no-auth-peer", ws_stream).await;
+
+        // With empty secret, auth is skipped so peer should be registered.
+        let conns = transport.conns.read().await;
+        assert!(
+            conns.contains_key("no-auth-peer"),
+            "peer should be registered when auth is skipped (empty secret)"
+        );
+        assert!(conns["no-auth-peer"].connected);
+
+        client_handle.await.unwrap();
+    }
 }
