@@ -3,12 +3,40 @@ use std::sync::Arc;
 
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
+use serde::Deserialize;
 use tokio::net::TcpStream;
 use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 
 use super::FederationEvent;
+
+/// Timeout for the peer to send a join token after connecting.
+const AUTH_TIMEOUT_SECS: u64 = 5;
+
+/// JSON payload expected as the first message from a connecting peer.
+#[derive(Debug, Deserialize)]
+struct AuthMessage {
+    join_token: String,
+}
+
+/// Validate an authentication message against the expected join secret.
+fn validate_auth_message(message_text: &str, expected_secret: &str) -> bool {
+    match serde_json::from_str::<AuthMessage>(message_text) {
+        Ok(auth) => auth.join_token == expected_secret,
+        Err(_) => false,
+    }
+}
+
+/// Build the outbound authentication message JSON.
+fn build_auth_message(join_secret: &str) -> String {
+    serde_json::json!({ "join_token": join_secret }).to_string()
+}
+
+/// Check if federation authentication is required (non-empty secret).
+fn requires_auth(join_secret: &str) -> bool {
+    !join_secret.is_empty()
+}
 
 type WsSink = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
 
@@ -31,6 +59,7 @@ pub struct Transport {
     conns: Arc<RwLock<HashMap<String, PeerConnection>>>,
     peers: Arc<RwLock<Vec<String>>>,
     on_event: Arc<RwLock<Option<OnEventFn>>>,
+    join_secret: String,
     stop_tx: tokio::sync::watch::Sender<bool>,
     stop_rx: tokio::sync::watch::Receiver<bool>,
 }
@@ -56,11 +85,16 @@ fn build_peer_url(address: &str) -> String {
 #[allow(dead_code)]
 impl Transport {
     pub fn new() -> Self {
+        Self::with_join_secret(String::new())
+    }
+
+    pub fn with_join_secret(join_secret: String) -> Self {
         let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
         Transport {
             conns: Arc::new(RwLock::new(HashMap::new())),
             peers: Arc::new(RwLock::new(Vec::new())),
             on_event: Arc::new(RwLock::new(None)),
+            join_secret,
             stop_tx,
             stop_rx,
         }
@@ -90,7 +124,16 @@ impl Transport {
             .await
             .map_err(|e| format!("failed to connect to peer {}: {}", address, e))?;
 
-        let (sink, stream) = ws_stream.split();
+        let (mut sink, stream) = ws_stream.split();
+
+        // Send join token as the first message (outbound authentication).
+        if requires_auth(&self.join_secret) {
+            let auth_msg = build_auth_message(&self.join_secret);
+            sink.send(Message::Text(auth_msg.into()))
+                .await
+                .map_err(|e| format!("failed to send auth to peer {}: {}", address, e))?;
+        }
+
         let sink = Arc::new(tokio::sync::Mutex::new(sink));
 
         {
@@ -114,15 +157,37 @@ impl Transport {
 
     /// Handle an incoming WebSocket connection from a remote peer.
     ///
-    /// Accepts the connection, registers it in the connection map, and spawns a
-    /// read-pump task.
+    /// Accepts the connection, authenticates the peer by expecting a join token
+    /// as the first message within 5 seconds, registers it in the connection map,
+    /// and spawns a read-pump task.
     pub async fn handle_incoming(
         &self,
         peer_addr: &str,
         ws_stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
     ) {
-        let (sink, stream) = ws_stream.split();
+        let (sink, mut stream) = ws_stream.split();
         let sink = Arc::new(tokio::sync::Mutex::new(sink));
+
+        // Authenticate: expect a join_token as the first message within AUTH_TIMEOUT_SECS.
+        if requires_auth(&self.join_secret) {
+            let auth_result = tokio::time::timeout(
+                tokio::time::Duration::from_secs(AUTH_TIMEOUT_SECS),
+                stream.next(),
+            )
+            .await;
+
+            let authenticated = match auth_result {
+                Ok(Some(Ok(Message::Text(text)))) => validate_auth_message(&text, &self.join_secret),
+                _ => false,
+            };
+
+            if !authenticated {
+                tracing::warn!(peer = %peer_addr, "federation peer failed authentication — disconnecting");
+                let mut s = sink.lock().await;
+                let _ = s.send(Message::Close(None)).await;
+                return;
+            }
+        }
 
         {
             let mut conns = self.conns.write().await;
@@ -143,7 +208,7 @@ impl Transport {
             }
         }
 
-        tracing::info!(peer = %peer_addr, "accepted incoming federation peer");
+        tracing::info!(peer = %peer_addr, "accepted incoming federation peer (authenticated)");
 
         self.spawn_read_pump(peer_addr.to_string(), stream);
     }
@@ -386,5 +451,64 @@ mod tests {
             build_peer_url("node2.local"),
             "wss://node2.local/federation"
         );
+    }
+
+    #[test]
+    fn test_validate_auth_message_valid() {
+        let msg = r#"{"join_token":"my-secret"}"#;
+        assert!(validate_auth_message(msg, "my-secret"));
+    }
+
+    #[test]
+    fn test_validate_auth_message_wrong_token() {
+        let msg = r#"{"join_token":"wrong"}"#;
+        assert!(!validate_auth_message(msg, "my-secret"));
+    }
+
+    #[test]
+    fn test_validate_auth_message_invalid_json() {
+        assert!(!validate_auth_message("not json", "secret"));
+    }
+
+    #[test]
+    fn test_validate_auth_message_missing_field() {
+        let msg = r#"{"other":"value"}"#;
+        assert!(!validate_auth_message(msg, "secret"));
+    }
+
+    #[test]
+    fn test_validate_auth_message_empty_token() {
+        let msg = r#"{"join_token":""}"#;
+        assert!(!validate_auth_message(msg, "secret"));
+        assert!(validate_auth_message(msg, ""));
+    }
+
+    #[test]
+    fn test_build_auth_message() {
+        let msg = build_auth_message("my-secret");
+        let parsed: serde_json::Value = serde_json::from_str(&msg).unwrap();
+        assert_eq!(parsed["join_token"], "my-secret");
+    }
+
+    #[test]
+    fn test_build_auth_message_roundtrip() {
+        let secret = "test-join-secret-123";
+        let msg = build_auth_message(secret);
+        assert!(validate_auth_message(&msg, secret));
+    }
+
+    #[test]
+    fn test_requires_auth_with_secret() {
+        assert!(requires_auth("my-secret"));
+    }
+
+    #[test]
+    fn test_requires_auth_empty() {
+        assert!(!requires_auth(""));
+    }
+
+    #[test]
+    fn test_auth_timeout_constant() {
+        assert_eq!(AUTH_TIMEOUT_SECS, 5);
     }
 }
