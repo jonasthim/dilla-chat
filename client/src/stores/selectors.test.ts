@@ -4,6 +4,8 @@ import { useMessageStore } from './messageStore';
 import { useVoiceStore } from './voiceStore';
 import { useTeamStore } from './teamStore';
 import { useThreadStore } from './threadStore';
+import { useDMStore } from './dmStore';
+import { usePresenceStore } from './presenceStore';
 import {
   useChannelMessages,
   useChannelLoading,
@@ -14,8 +16,12 @@ import {
   useVoicePeers,
   useVoiceChannelOccupants,
   useChannelThreads,
+  useThreadMessages,
   useTeamChannels,
   useTeamMembers,
+  useTeamDMs,
+  useDMTyping,
+  useUserPresence,
 } from './selectors';
 
 describe('Store selectors', () => {
@@ -102,6 +108,36 @@ describe('Store selectors', () => {
   it('useTeamMembers returns members for team', () => {
     useTeamStore.setState({ members: new Map([['t1', [{ id: 'm1', teamId: 't1', userId: 'u1', username: 'alice', displayName: 'Alice', nickname: '', joinedAt: '' }]]]) });
     const { result } = renderHook(() => useTeamMembers('t1'));
+    expect(result.current).toHaveLength(1);
+  });
+
+  it('useTeamDMs returns DM channels for team', () => {
+    useDMStore.setState({ dmChannels: { t1: [{ id: 'dm1', type: 'dm' }] } } as never);
+    const { result } = renderHook(() => useTeamDMs('t1'));
+    expect(result.current).toHaveLength(1);
+  });
+
+  it('useDMTyping returns typing users for DM', () => {
+    useDMStore.setState({ dmTyping: { dm1: [{ userId: 'u1', username: 'alice', timestamp: Date.now() }] } } as never);
+    const { result } = renderHook(() => useDMTyping('dm1'));
+    expect(result.current).toHaveLength(1);
+  });
+
+  it('useUserPresence returns presence for user', () => {
+    usePresenceStore.setState({ presences: { t1: { u1: { status: 'online' } } } } as never);
+    const { result } = renderHook(() => useUserPresence('t1', 'u1'));
+    expect(result.current).toEqual({ status: 'online' });
+  });
+
+  it('useUserPresence returns undefined for unknown user', () => {
+    usePresenceStore.setState({ presences: {} } as never);
+    const { result } = renderHook(() => useUserPresence('t1', 'u1'));
+    expect(result.current).toBeUndefined();
+  });
+
+  it('useThreadMessages returns messages for thread', () => {
+    useThreadStore.setState({ threadMessages: { t1: [{ id: 'm1', content: 'reply' }] } } as never);
+    const { result } = renderHook(() => useThreadMessages('t1'));
     expect(result.current).toHaveLength(1);
   });
 });
