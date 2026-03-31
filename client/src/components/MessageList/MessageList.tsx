@@ -8,6 +8,7 @@ import Reactions from '../Reactions/Reactions';
 import FilePreview from '../FilePreview/FilePreview';
 import EmojiPicker from '../EmojiPicker/EmojiPicker';
 import type { Attachment } from '../../services/api';
+import MessageSkeleton from '../Skeleton/MessageSkeleton';
 import { usernameColor, getInitials } from '../../utils/colors';
 import { groupMessages, formatTime } from '../../utils/messageGrouping';
 import './MessageList.css';
@@ -102,9 +103,7 @@ export default function MessageList({
 
   return (
     <div className="message-list" ref={containerRef} onScroll={handleScroll} role="log" aria-live="polite">
-      {isLoading && (
-        <div className="message-list-loading">{t('app.loading', 'Loading...')}</div>
-      )}
+      {isLoading && <MessageSkeleton count={5} />}
       {!canLoadMore && channelMessages.length > 0 && (
         <div className="message-list-beginning" style={{ fontFamily: 'var(--font-display)' }}>
           {t('channels.welcomeTitle', 'Welcome to ~{{name}}', { name: channelName })}

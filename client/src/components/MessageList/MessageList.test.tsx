@@ -188,7 +188,9 @@ describe('MessageList', () => {
     render(
       <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
     );
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    // Skeleton loaders render as aria-hidden divs with the skeleton class
+    const skeletons = document.querySelectorAll('.skeleton-message');
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it('does not show loading indicator when not loading', () => {
