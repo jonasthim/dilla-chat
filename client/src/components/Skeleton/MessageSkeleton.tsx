@@ -16,8 +16,8 @@ export default memo(function MessageSkeleton({ count = 5 }: Readonly<Props>) {
 
   return (
     <>
-      {items.map((width, i) => (
-        <div key={i} className="skeleton-message">
+      {items.map((width) => (
+        <div key={width} className="skeleton-message">
           <Skeleton width={36} height={36} borderRadius="50%" className="skeleton-message-avatar" />
           <div className="skeleton-message-content">
             <Skeleton width={120} height={14} />

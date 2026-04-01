@@ -96,7 +96,7 @@ function App() {
         <Route path="/app/user-settings" element={<UserSettings />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
     </ToastProvider>
     </ErrorBoundary>
   );
