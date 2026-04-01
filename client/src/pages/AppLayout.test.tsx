@@ -302,6 +302,15 @@ describe('AppLayout behavioral', () => {
     });
   });
 
+  it('renders skip-to-content accessibility link', async () => {
+    render(<AppLayout />);
+    await waitFor(() => {
+      const skipLink = document.querySelector('.skip-to-content');
+      expect(skipLink).toBeInTheDocument();
+      expect(skipLink).toHaveAttribute('href', '#main-content');
+    });
+  });
+
   it('auth error handler navigates to /login', async () => {
     render(<AppLayout />);
     await waitFor(() => { expect(api.setAuthErrorHandler).toHaveBeenCalled(); });
