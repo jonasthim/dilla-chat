@@ -61,9 +61,12 @@ export default function ChannelView({ channel }: Readonly<Props>) {
     };
   }, [activeTeamId, channel.id, derivedKey]);
 
-  // Load initial message history via WS (with REST fallback)
+  // Load initial message history via WS (with REST fallback).
+  // Re-loads when derivedKey changes (e.g. restored from sessionStorage
+  // after page reload) so messages can be re-decrypted.
   useEffect(() => {
-    if (!activeTeamId || initialLoadDone.current.has(channel.id)) return;
+    const loadKey = `${channel.id}:${derivedKey ? 'keyed' : 'nokey'}`;
+    if (!activeTeamId || initialLoadDone.current.has(loadKey)) return;
 
     const loadHistory = async () => {
       setLoadingHistory(channel.id, true);
@@ -85,7 +88,7 @@ export default function ChannelView({ channel }: Readonly<Props>) {
         );
         prependMessages(channel.id, decrypted);
         setHasMore(channel.id, decrypted.length >= MESSAGE_PAGE_SIZE);
-        initialLoadDone.current.add(channel.id);
+        initialLoadDone.current.add(loadKey);
       } catch {
         // API might not be available in dev
       } finally {
