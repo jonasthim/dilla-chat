@@ -85,7 +85,7 @@ export default function MessageList({
       firstItemIndex={firstItemIndex}
       initialTopMostItemIndex={groups.length - 1}
       data={groups}
-      followOutput="smooth"
+      followOutput={() => 'smooth'}
       startReached={handleStartReached}
       components={{
         Header: () => (
