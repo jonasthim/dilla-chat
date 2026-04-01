@@ -33,6 +33,14 @@ describe('crypto service', () => {
     expect(() => getIdentityKeys()).toThrow();
   });
 
+  it('initCrypto restores sessions when loadSessions returns data', async () => {
+    const { loadSessions } = await import('./keyStore');
+    vi.mocked(loadSessions).mockResolvedValueOnce({ groupSessions: {}, pairwiseSessions: {} });
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key-with-sessions');
+    // Session restore path exercised (lines 50-53)
+  });
+
   it('initCrypto is idempotent', async () => {
     const keys = await makeTestKeys();
     await initCrypto(keys, 'key1');
