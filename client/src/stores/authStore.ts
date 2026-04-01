@@ -246,7 +246,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }),
 
   logout: () => {
-    import('../services/crypto').then(({ resetCrypto }) => resetCrypto());
+    import('../services/crypto').then(({ resetCrypto }) => resetCrypto()).catch(() => {});
     sessionStorage.removeItem(TEAMS_STORAGE_KEY);
     sessionStorage.removeItem(SERVERS_STORAGE_KEY);
     persistDerivedKey(null);
