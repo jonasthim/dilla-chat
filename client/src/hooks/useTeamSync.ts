@@ -161,11 +161,13 @@ export function useTeamSync(activeTeamId: string | null): { authChecked: boolean
 
   // Set up auth error handler
   useEffect(() => {
-    api.setAuthErrorHandler(() => {
+    api.setAuthErrorHandler(async () => {
       if (authErrorFired.current) return;
       authErrorFired.current = true;
       console.warn('Auth token expired — disconnecting WS and redirecting to login');
       ws.disconnectAll();
+      const { resetCrypto } = await import('../services/crypto');
+      resetCrypto();
       navigate('/login');
     });
   }, [navigate]);

@@ -33,6 +33,7 @@ vi.mock('../services/websocket', () => ({
 
 vi.mock('../services/crypto', () => ({
   initCrypto: vi.fn(),
+  resetCrypto: vi.fn(),
   cryptoService: {
     rotateChannelKey: vi.fn().mockResolvedValue('{"sender_id":"self","chain_key":[1],"signing_public_key":[2]}'),
     processSenderKey: vi.fn().mockResolvedValue(undefined),
@@ -314,8 +315,8 @@ describe('AppLayout behavioral', () => {
   it('auth error handler navigates to /login', async () => {
     render(<AppLayout />);
     await waitFor(() => { expect(api.setAuthErrorHandler).toHaveBeenCalled(); });
-    vi.mocked(api.setAuthErrorHandler).mock.calls[0][0]();
-    expect(mockNavigate).toHaveBeenCalledWith('/login');
+    await vi.mocked(api.setAuthErrorHandler).mock.calls[0][0]();
+    await waitFor(() => { expect(mockNavigate).toHaveBeenCalledWith('/login'); });
   });
 
   it('validates token on mount by calling getTeam', async () => {
