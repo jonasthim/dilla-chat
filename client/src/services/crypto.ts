@@ -25,6 +25,13 @@ const initializingPromises = new Map<string, Promise<void>>();
  * Called after passkey/recovery unlock. Idempotent — skips if already
  * initialized to avoid overwriting in-memory session state.
  */
+/** Clear the crypto manager on logout so initCrypto can re-initialize. */
+export function resetCrypto(): void {
+  manager = null;
+  identityKeys = null;
+  initializedSessions.clear();
+}
+
 export async function initCrypto(keys: IdentityKeys, derivedKey: string): Promise<void> {
   if (manager) {
     console.log('[crypto] Already initialized, skipping duplicate initCrypto');
