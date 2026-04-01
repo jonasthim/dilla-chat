@@ -138,7 +138,7 @@ export const cryptoService = {
     derivedKey: string,
   ): Promise<void> {
     const mgr = getManager();
-    mgr.processSenderKey(channelId, distributionJson);
+    await mgr.processSenderKey(channelId, distributionJson);
     await persistSessions(derivedKey);
   },
 

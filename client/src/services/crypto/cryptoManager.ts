@@ -8,6 +8,7 @@ import { RatchetSession } from './ratchet';
 import type { RatchetMessage } from './ratchet';
 import { GroupSession } from './groupSession';
 import type { GroupMessageData, SenderKeyDistribution } from './groupSession';
+import { saveGroupSession, loadGroupSession } from './sessionStore';
 import { generateSafetyNumber } from './safetyNumbers';
 
 export class CryptoManager {
@@ -73,8 +74,21 @@ export class CryptoManager {
   async getOrCreateGroupSession(channelId: string, senderId: string): Promise<GroupSession> {
     let session = this.groupSessions.get(channelId);
     if (!session) {
+      // Try to restore from encrypted IndexedDB first
+      const stored = await loadGroupSession(channelId);
+      if (stored) {
+        try {
+          session = GroupSession.fromJSON(stored);
+          this.groupSessions.set(channelId, session);
+          return session;
+        } catch {
+          // Stored session corrupted — create fresh
+        }
+      }
       session = await GroupSession.create(channelId, senderId);
       this.groupSessions.set(channelId, session);
+      // Persist the new session
+      await saveGroupSession(channelId, session.toJSON()).catch(() => {});
     }
     return session;
   }
@@ -82,14 +96,31 @@ export class CryptoManager {
   async encryptChannel(channelId: string, senderId: string, plaintext: string): Promise<string> {
     const session = await this.getOrCreateGroupSession(channelId, senderId);
     const msg = await session.encrypt(encoder.encode(plaintext));
+    // Persist updated chain state after encrypt advances the ratchet
+    await saveGroupSession(channelId, session.toJSON()).catch(() => {});
     return toBase64(encoder.encode(JSON.stringify(msg)));
   }
 
   async decryptChannel(channelId: string, _senderId: string, ciphertext: string): Promise<string> {
-    const session = this.groupSessions.get(channelId);
-    if (!session) throw new Error(`No group session for channel ${channelId}`);
+    let session = this.groupSessions.get(channelId);
+    if (!session) {
+      // Try to restore from IndexedDB
+      const stored = await loadGroupSession(channelId);
+      if (stored) {
+        try {
+          session = GroupSession.fromJSON(stored);
+          this.groupSessions.set(channelId, session);
+        } catch {
+          throw new Error(`No group session for channel ${channelId}`);
+        }
+      } else {
+        throw new Error(`No group session for channel ${channelId}`);
+      }
+    }
     const msg: GroupMessageData = JSON.parse(decoder.decode(fromBase64(ciphertext)));
     const plaintext = await session.decrypt(msg);
+    // Persist updated chain state after decrypt advances the ratchet
+    await saveGroupSession(channelId, session.toJSON()).catch(() => {});
     return decoder.decode(plaintext);
   }
 
@@ -101,14 +132,16 @@ export class CryptoManager {
     if (!session) return null;
     session.removeMember(removedUserId);
     await session.rotateMyKey();
+    await saveGroupSession(channelId, session.toJSON()).catch(() => {});
     return JSON.stringify(session.createDistributionMessage());
   }
 
-  processSenderKey(channelId: string, distributionJson: string): void {
+  async processSenderKey(channelId: string, distributionJson: string): Promise<void> {
     const dist: SenderKeyDistribution = JSON.parse(distributionJson);
     const session = this.groupSessions.get(channelId);
     if (session) {
       session.processDistribution(dist);
+      await saveGroupSession(channelId, session.toJSON()).catch(() => {});
     }
   }
 
