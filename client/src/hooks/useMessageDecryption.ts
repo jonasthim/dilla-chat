@@ -25,6 +25,7 @@ export interface ServerMessage {
   deleted: boolean;
   created_at: string;
   reactions: Array<{ emoji: string; users: string[]; count: number }>;
+  attachments?: Array<{ id: string; filename: string; content_type: string; size: number; url: string }>;
 }
 
 export async function tryDecrypt(
@@ -122,5 +123,9 @@ export function serverToMessage(
     deleted: msg.deleted,
     createdAt: msg.created_at,
     reactions: msg.reactions ?? [],
-  };
+    attachments: msg.attachments?.map((a) => ({
+      ...a,
+      url: a.url.startsWith('/') ? `${window.location.origin}${a.url}` : a.url,
+    })),
+  } as Message;
 }

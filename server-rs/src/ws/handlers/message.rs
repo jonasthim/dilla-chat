@@ -93,6 +93,27 @@ pub(in crate::ws) async fn handle_message_send(
         return;
     }
 
+    // Fetch linked attachments for the broadcast payload
+    let db = hub.db.clone();
+    let mid_for_query = msg_id.clone();
+    let attachments = tokio::task::spawn_blocking(move || {
+        db.with_read(|conn| db::get_message_attachments(conn, &mid_for_query))
+    })
+    .await
+    .unwrap_or(Ok(vec![]))
+    .unwrap_or_default();
+
+    let attachment_payloads: Vec<AttachmentPayload> = attachments
+        .iter()
+        .map(|a| AttachmentPayload {
+            id: a.id.clone(),
+            filename: String::from_utf8_lossy(&a.filename_encrypted).to_string(),
+            content_type: String::from_utf8_lossy(&a.content_type_encrypted).to_string(),
+            size: a.size,
+            url: format!("/api/v1/teams/{}/attachments/{}", team_id, a.id),
+        })
+        .collect();
+
     let new_event = Event::new(
         EVENT_MESSAGE_NEW,
         MessageNewPayload {
@@ -104,6 +125,7 @@ pub(in crate::ws) async fn handle_message_send(
             msg_type,
             thread_id: p.thread_id.unwrap_or_default(),
             created_at: now,
+            attachments: attachment_payloads,
         },
     );
 

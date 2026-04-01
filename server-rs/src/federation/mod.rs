@@ -461,6 +461,7 @@ impl MeshNode {
                 msg_type: repl.msg_type,
                 thread_id: repl.thread_id,
                 created_at: repl.created_at,
+                attachments: vec![],
             },
         )
         .map_err(|e| format!("serialize ws event: {}", e))?;

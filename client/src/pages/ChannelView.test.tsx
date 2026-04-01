@@ -232,7 +232,7 @@ describe('ChannelView', () => {
     renderChannelView();
     fireEvent.click(screen.getByTestId('send-btn'));
     await waitFor(() => {
-      expect(ws.sendMessage).toHaveBeenCalledWith('t1', 'ch-1', expect.any(String));
+      expect(ws.sendMessage).toHaveBeenCalledWith('t1', 'ch-1', expect.any(String), 'text', undefined, []);
     });
   });
 

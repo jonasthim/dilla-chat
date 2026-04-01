@@ -151,6 +151,15 @@ pub struct MessageDeletePayload {
     pub channel_id: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AttachmentPayload {
+    pub id: String,
+    pub filename: String,
+    pub content_type: String,
+    pub size: i64,
+    pub url: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageNewPayload {
     pub id: String,
@@ -163,6 +172,8 @@ pub struct MessageNewPayload {
     #[serde(default)]
     pub thread_id: String,
     pub created_at: String,
+    #[serde(default)]
+    pub attachments: Vec<AttachmentPayload>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
