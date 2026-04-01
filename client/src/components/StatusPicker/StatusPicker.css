@@ -7,7 +7,7 @@ dialog.status-picker {
   backdrop-filter: blur(var(--glass-blur-heavy));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-elevated);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px;
   z-index: 1000;
   min-width: 220px;
@@ -40,7 +40,7 @@ dialog.status-picker {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
   color: var(--text-primary);
@@ -58,7 +58,7 @@ dialog.status-picker {
 .status-picker-dot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   flex-shrink: 0;
 }
 
@@ -91,7 +91,7 @@ dialog.status-picker {
   padding: 8px 10px;
   background: var(--bg-primary);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 14px;
   outline: none;
@@ -112,7 +112,7 @@ dialog.status-picker {
 .status-picker-btn {
   padding: 6px 14px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   cursor: pointer;
   font-weight: 500;

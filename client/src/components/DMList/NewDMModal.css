@@ -23,7 +23,7 @@ dialog.new-dm-overlay {
   -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
   backdrop-filter: blur(var(--glass-blur-heavy));
   border: 1px solid var(--glass-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   width: 440px;
   max-height: 600px;
   display: flex;
@@ -92,7 +92,7 @@ dialog.new-dm-overlay {
 .new-dm-search {
   margin: 0 16px 8px;
   padding: 8px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: none;
   background: var(--bg-tertiary);
   color: var(--text-primary);
@@ -122,7 +122,7 @@ dialog.new-dm-overlay {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--text-secondary);
 }
@@ -155,7 +155,7 @@ dialog.new-dm-overlay {
 .new-dm-checkbox {
   width: 20px;
   height: 20px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   border: 2px solid var(--text-muted);
   display: flex;
   align-items: center;
@@ -186,7 +186,7 @@ dialog.new-dm-overlay {
   width: 100%;
   padding: 10px;
   border: 1px solid var(--white-overlay-light);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--gradient-accent);
   color: white;
   font-size: 14px;

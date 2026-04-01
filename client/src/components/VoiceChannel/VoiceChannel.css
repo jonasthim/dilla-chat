@@ -53,7 +53,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--overlay-heavy);
   color: var(--text-secondary);
   font-size: 12px;
@@ -87,7 +87,7 @@
 .voice-tile-avatar {
   width: 64px;
   height: 64px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--bg-accent);
   color: white;
   display: flex;
@@ -159,7 +159,7 @@
 .voice-channel-btn {
   padding: 10px 32px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -207,7 +207,7 @@
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg-tertiary);
   cursor: pointer;
 }
@@ -216,7 +216,7 @@
 .voice-tile-webcam-avatar {
   width: 64px;
   height: 64px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   object-fit: cover;
   background: var(--bg-tertiary);
   transform: scaleX(-1);
@@ -256,7 +256,7 @@
   color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -297,7 +297,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 2px solid transparent;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   min-width: 80px;
@@ -317,7 +317,7 @@
   width: 72px;
   height: 40px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
   transform: scaleX(-1);
 }
@@ -325,7 +325,7 @@
 .fullscreen-thumbnail-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--bg-accent);
   color: white;
   display: flex;

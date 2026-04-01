@@ -43,7 +43,7 @@
 .form input,
 .form textarea {
   padding: 0.6em 1em;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
   background-color: var(--input-bg);
   color: var(--text-primary);
@@ -52,6 +52,13 @@
   box-sizing: border-box;
   font-family: inherit;
   resize: vertical;
+}
+
+.form input:focus,
+.form textarea:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px var(--brand-alpha-12);
 }
 
 @keyframes spin {
@@ -63,8 +70,8 @@
   background: var(--gradient-accent);
   color: var(--interactive-active);
   border: 1px solid var(--white-overlay-light);
-  padding: 0.7em 1.5em;
-  border-radius: 8px;
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--radius-lg);
   font-size: 1em;
   font-weight: 600;
   cursor: pointer;
@@ -83,7 +90,7 @@
 }
 
 .btn-primary:disabled {
-  opacity: 0.4;
+  opacity: var(--opacity-disabled);
   cursor: not-allowed;
 }
 
@@ -91,8 +98,8 @@
   background: var(--glass-bg-primary);
   color: var(--text-secondary);
   border: 1px solid var(--glass-border);
-  padding: 0.6em 1.5em;
-  border-radius: 8px;
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--radius-lg);
   font-size: 0.95em;
   cursor: pointer;
   -webkit-backdrop-filter: blur(var(--glass-blur-light));
@@ -191,7 +198,7 @@
 .login-identity-avatar {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -228,8 +235,8 @@
   background: var(--danger);
   color: var(--interactive-active);
   border: none;
-  padding: 0.5em 1.2em;
-  border-radius: 8px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-lg);
   font-size: 0.9em;
   cursor: pointer;
   transition: filter 0.15s;

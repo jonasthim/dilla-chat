@@ -49,7 +49,7 @@
   margin: 1px 8px 0;
   gap: 12px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   height: 42px;
   box-sizing: border-box;
   transition: background-color 0.15s ease;
@@ -66,7 +66,7 @@
 .member-avatar {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--bg-accent);
   color: white;
   display: flex;
@@ -84,7 +84,7 @@
   right: -2px;
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   border: 3px solid var(--bg-secondary);
   box-sizing: border-box;
 }
@@ -128,7 +128,7 @@
   backdrop-filter: blur(var(--glass-blur-heavy));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-elevated);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px;
   width: 340px;
   z-index: 1000;
@@ -145,7 +145,7 @@
 .member-profile-avatar {
   width: 80px;
   height: 80px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--bg-accent);
   color: white;
   display: flex;
@@ -183,7 +183,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 500;
   background: var(--bg-primary);
@@ -193,7 +193,7 @@
 .role-color-dot {
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
 }
 
 /* ===== Responsive ===== */
