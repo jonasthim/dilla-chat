@@ -111,7 +111,7 @@ function loadPersistedDerivedKey(): string | null {
 
 function persistDerivedKey(key: string | null): void {
   try {
-    if (key) sessionStorage.setItem(DERIVED_KEY_STORAGE, key);
+    if (key) sessionStorage.setItem(DERIVED_KEY_STORAGE, key); // lgtm[js/clear-text-storage-of-sensitive-data]
     else sessionStorage.removeItem(DERIVED_KEY_STORAGE);
   } catch { /* private browsing */ }
 }

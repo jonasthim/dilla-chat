@@ -28,6 +28,10 @@ vi.mock('../services/websocket', () => ({
     disconnectAll: vi.fn(),
     isConnected: vi.fn(() => false),
     request: vi.fn().mockResolvedValue({}),
+    flushPendingMessages: vi.fn(),
+    joinChannel: vi.fn(),
+    leaveChannel: vi.fn(),
+    distributeChannelKey: vi.fn(),
   },
 }));
 
