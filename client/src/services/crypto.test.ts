@@ -136,6 +136,24 @@ describe('crypto service', () => {
     expect(loadGroupSession).toHaveBeenCalledWith('ch-idb-restore');
   });
 
+  it('decryptChannel works after encrypt', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    const { toBase64 } = await import('./cryptoCore');
+    const userId = toBase64(keys.publicKeyBytes);
+    const encrypted = await cryptoService.encryptChannel('ch-dec', userId, 'decrypt me', 'key1');
+    const decrypted = await cryptoService.decryptChannel('ch-dec', userId, userId, encrypted, 'key1');
+    expect(decrypted).toBe('decrypt me');
+  });
+
+  it('generatePrekeyBundle returns bundle', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    const bundle = await cryptoService.generatePrekeyBundle('key1');
+    expect(bundle).toHaveProperty('identity_key');
+    expect(bundle).toHaveProperty('signed_prekey');
+  });
+
   it('resetCrypto allows re-init', async () => {
     const keys = await makeTestKeys();
     await initCrypto(keys, 'key1');
