@@ -1164,6 +1164,36 @@ describe('WebRTCService', () => {
       webrtcService.stopVAD();
       vi.useRealTimers();
     });
+
+    it('VAD suppresses speaking when muted', async () => {
+      vi.useFakeTimers();
+      await webrtcService.connect('ch-1', 'team-1');
+
+      useVoiceStore.getState().addPeer({
+        user_id: 'user-1', username: 'testuser',
+        muted: false, deafened: false, speaking: false, voiceLevel: 0,
+      });
+
+      webrtcService.startVAD();
+
+      // Simulate loud audio to trigger speaking=true
+      const analyser = (webrtcService as any).vad.analyser;
+      if (analyser) {
+        analyser.getByteFrequencyData.mockImplementation((arr: Uint8Array) => {
+          for (let i = 0; i < arr.length; i++) arr[i] = 200;
+        });
+      }
+      vi.advanceTimersByTime(150);
+      expect(useVoiceStore.getState().speaking).toBe(true);
+
+      // Now mute — VAD should suppress speaking
+      useVoiceStore.setState({ muted: true });
+      vi.advanceTimersByTime(150);
+      expect(useVoiceStore.getState().speaking).toBe(false);
+
+      webrtcService.stopVAD();
+      vi.useRealTimers();
+    });
   });
 
   describe('remote VAD', () => {
