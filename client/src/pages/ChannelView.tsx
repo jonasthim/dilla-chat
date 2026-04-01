@@ -366,6 +366,15 @@ export default function ChannelView({ channel }: Readonly<Props>) {
         onEdit={handleEdit}
         onCancelEdit={() => setEditingMessage(null)}
         onTyping={handleTyping}
+        onUploadFile={activeTeamId ? async (file) => {
+          const att = await api.uploadFile(activeTeamId, file);
+          return {
+            ...att,
+            filename: file.name,
+            content_type: file.type || 'application/octet-stream',
+            url: api.getAttachmentUrl(activeTeamId, att.id),
+          };
+        } : undefined}
       />
     </div>
   );
