@@ -22,9 +22,14 @@ const initializingPromises = new Map<string, Promise<void>>();
 
 /**
  * Initialize the crypto service with unlocked identity keys.
- * Called after passkey/recovery unlock.
+ * Called after passkey/recovery unlock. Idempotent — skips if already
+ * initialized to avoid overwriting in-memory session state.
  */
 export async function initCrypto(keys: IdentityKeys, derivedKey: string): Promise<void> {
+  if (manager) {
+    console.log('[crypto] Already initialized, skipping duplicate initCrypto');
+    return;
+  }
   identityKeys = keys;
   manager = new CryptoManager(
     keys.signingKey,
