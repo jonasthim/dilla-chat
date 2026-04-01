@@ -124,6 +124,13 @@ describe('ChannelList', () => {
     expect(screen.getByText('Delete Channel')).toBeInTheDocument();
   });
 
+  it('shows context menu on Shift+F10 keyboard shortcut', () => {
+    const { container } = render(<ChannelList />);
+    const channelBtn = screen.getByText('general').closest('button')!;
+    fireEvent.keyDown(channelBtn, { key: 'F10', shiftKey: true });
+    expect(container.querySelector('.channel-context-menu')).toBeInTheDocument();
+  });
+
   it('renders empty list when no team is active', () => {
     useTeamStore.setState({ activeTeamId: null });
     const { container } = render(<ChannelList />);
