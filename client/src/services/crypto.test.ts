@@ -1,16 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock dependencies
+// Mock only external deps, not crypto internals
 vi.mock('./keyStore', () => ({
   saveSessions: vi.fn().mockResolvedValue(undefined),
   loadSessions: vi.fn().mockResolvedValue(null),
-  unlockWithPrf: vi.fn(),
-}));
-
-vi.mock('./cryptoCore', () => ({
-  fromBase64: vi.fn((s: string) => new Uint8Array([1, 2, 3])),
-  toBase64: vi.fn(() => 'AQID'),
-  CryptoManager: vi.fn(),
 }));
 
 vi.mock('./crypto/sessionStore', () => ({
@@ -18,90 +11,126 @@ vi.mock('./crypto/sessionStore', () => ({
   saveGroupSession: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('./crypto/groupSession', () => ({
-  GroupSession: { fromJSON: vi.fn() },
-}));
-
 import { initCrypto, resetCrypto, getIdentityKeys, cryptoService } from './crypto';
+import { generateEd25519KeyPair, generateX25519KeyPair } from './cryptoCore';
+
+async function makeTestKeys() {
+  const ed = await generateEd25519KeyPair();
+  const dh = await generateX25519KeyPair();
+  return {
+    signingKey: ed.privateKey,
+    publicKeyBytes: ed.publicKeyBytes,
+    dhKeyPair: { privateKey: dh.privateKey, publicKeyBytes: dh.publicKeyBytes },
+  };
+}
 
 describe('crypto service', () => {
   beforeEach(() => {
     resetCrypto();
   });
 
-  it('resetCrypto clears manager state', () => {
-    resetCrypto();
+  it('resetCrypto clears manager', () => {
     expect(() => getIdentityKeys()).toThrow();
   });
 
   it('initCrypto is idempotent', async () => {
-    const mockKeys = {
-      signingKey: {} as CryptoKey,
-      publicKeyBytes: new Uint8Array([1, 2, 3]),
-      dhKeyPair: {
-        privateKey: {} as CryptoKey,
-        publicKeyBytes: new Uint8Array([4, 5, 6]),
-      },
-    };
-
-    await initCrypto(mockKeys, 'derived-key-base64');
-    // Second call should skip
-    await initCrypto(mockKeys, 'derived-key-base64');
-    // No error means idempotent
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    await initCrypto(keys, 'key1'); // should skip
   });
 
-  it('initCrypto then getIdentityKeys returns keys', async () => {
-    const mockKeys = {
-      signingKey: {} as CryptoKey,
-      publicKeyBytes: new Uint8Array([10, 20, 30]),
-      dhKeyPair: {
-        privateKey: {} as CryptoKey,
-        publicKeyBytes: new Uint8Array([40, 50, 60]),
-      },
-    };
-
-    await initCrypto(mockKeys, 'key');
-    const keys = getIdentityKeys();
-    expect(keys.publicKeyBytes).toEqual(new Uint8Array([10, 20, 30]));
+  it('getIdentityKeys returns keys after init', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    const result = getIdentityKeys();
+    expect(result.publicKeyBytes).toEqual(keys.publicKeyBytes);
   });
 
-  it('ensureChannelSession creates session when none exists', async () => {
-    const mockKeys = {
-      signingKey: {} as CryptoKey,
-      publicKeyBytes: new Uint8Array([1]),
-      dhKeyPair: { privateKey: {} as CryptoKey, publicKeyBytes: new Uint8Array([2]) },
-    };
-    await initCrypto(mockKeys, 'key');
-    // Should not throw — creates a new session
-    await cryptoService.ensureChannelSession('ch-test', 'user1', 'key');
+  it('ensureChannelSession creates session', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    await cryptoService.ensureChannelSession('ch-1', 'u1', 'key1');
   });
 
   it('ensureChannelSession is idempotent', async () => {
-    const mockKeys = {
-      signingKey: {} as CryptoKey,
-      publicKeyBytes: new Uint8Array([1]),
-      dhKeyPair: { privateKey: {} as CryptoKey, publicKeyBytes: new Uint8Array([2]) },
-    };
-    await initCrypto(mockKeys, 'key');
-    await cryptoService.ensureChannelSession('ch-idem', 'user1', 'key');
-    await cryptoService.ensureChannelSession('ch-idem', 'user1', 'key'); // should skip
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    await cryptoService.ensureChannelSession('ch-2', 'u1', 'key1');
+    await cryptoService.ensureChannelSession('ch-2', 'u1', 'key1');
   });
 
-  it('resetCrypto then initCrypto works (re-login)', async () => {
-    const mockKeys = {
-      signingKey: {} as CryptoKey,
-      publicKeyBytes: new Uint8Array([1]),
-      dhKeyPair: {
-        privateKey: {} as CryptoKey,
-        publicKeyBytes: new Uint8Array([2]),
-      },
-    };
+  it('getSenderKeyDistribution returns valid JSON', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    const dist = await cryptoService.getSenderKeyDistribution('ch-3', 'key1');
+    const parsed = JSON.parse(dist);
+    expect(parsed).toHaveProperty('sender_id');
+    expect(parsed).toHaveProperty('chain_key');
+  });
 
-    await initCrypto(mockKeys, 'key1');
+  it('processSenderKey accepts distribution', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    await cryptoService.getSenderKeyDistribution('ch-4', 'key1');
+    const dist = JSON.stringify({ sender_id: 'other', chain_key: Array.from({ length: 32 }, () => 0), signing_public_key: Array.from({ length: 32 }, () => 0) });
+    await cryptoService.processSenderKey('ch-4', dist, 'key1');
+  });
+
+  it('encryptChannel returns encrypted string', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    const { toBase64 } = await import('./cryptoCore');
+    const userId = toBase64(keys.publicKeyBytes);
+    const encrypted = await cryptoService.encryptChannel('ch-5', userId, 'hello', 'key1');
+    expect(typeof encrypted).toBe('string');
+    expect(encrypted.length).toBeGreaterThan(10);
+  });
+
+  it('encrypt then decrypt roundtrip works', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    const { toBase64 } = await import('./cryptoCore');
+    const userId = toBase64(keys.publicKeyBytes);
+    const encrypted = await cryptoService.encryptChannel('ch-6', userId, 'secret message', 'key1');
+    const decrypted = await cryptoService.decryptChannel('ch-6', userId, userId, encrypted, 'key1');
+    expect(decrypted).toBe('secret message');
+  });
+
+  it('rotateChannelKey returns distribution', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    const { toBase64 } = await import('./cryptoCore');
+    const userId = toBase64(keys.publicKeyBytes);
+    // Create session first
+    await cryptoService.encryptChannel('ch-rot', userId, 'test', 'key1');
+    const dist = await cryptoService.rotateChannelKey('ch-rot', 'removed-user', 'key1');
+    expect(dist).not.toBeNull();
+    expect(typeof dist).toBe('string');
+  });
+
+  it('rotateChannelKey returns null for unknown channel', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    const dist = await cryptoService.rotateChannelKey('ch-unknown', 'user', 'key1');
+    expect(dist).toBeNull();
+  });
+
+  it('ensureChannelSession restores from IndexedDB when available', async () => {
+    const { loadGroupSession } = await import('./crypto/sessionStore');
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
+    // First call creates fresh (loadGroupSession returns null by default)
+    await cryptoService.ensureChannelSession('ch-idb', 'u1', 'key1');
+    // Verify loadGroupSession was called
+    expect(loadGroupSession).toHaveBeenCalled();
+  });
+
+  it('resetCrypto allows re-init', async () => {
+    const keys = await makeTestKeys();
+    await initCrypto(keys, 'key1');
     resetCrypto();
     expect(() => getIdentityKeys()).toThrow();
-
-    await initCrypto(mockKeys, 'key2');
-    expect(getIdentityKeys().publicKeyBytes).toEqual(new Uint8Array([1]));
+    await initCrypto(keys, 'key2');
+    expect(getIdentityKeys().publicKeyBytes).toEqual(keys.publicKeyBytes);
   });
 });
