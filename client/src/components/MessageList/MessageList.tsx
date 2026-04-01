@@ -92,10 +92,7 @@ export default function MessageList({
           <>
             {isLoading && <MessageSkeleton count={5} />}
             {!canLoadMore && channelMessages.length > 0 && (
-              <div
-                className="message-list-beginning"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
+              <div className="message-list-beginning">
                 {t('channels.welcomeTitle', 'Welcome to ~{{name}}', { name: channelName })}
               </div>
             )}
