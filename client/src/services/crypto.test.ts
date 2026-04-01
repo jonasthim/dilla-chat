@@ -116,13 +116,24 @@ describe('crypto service', () => {
   });
 
   it('ensureChannelSession restores from IndexedDB when available', async () => {
-    const { loadGroupSession } = await import('./crypto/sessionStore');
     const keys = await makeTestKeys();
     await initCrypto(keys, 'key1');
-    // First call creates fresh (loadGroupSession returns null by default)
-    await cryptoService.ensureChannelSession('ch-idb', 'u1', 'key1');
-    // Verify loadGroupSession was called
-    expect(loadGroupSession).toHaveBeenCalled();
+    // First create a session and get its JSON
+    const { toBase64 } = await import('./cryptoCore');
+    const userId = toBase64(keys.publicKeyBytes);
+    await cryptoService.encryptChannel('ch-idb-src', userId, 'seed', 'key1');
+
+    // Now mock loadGroupSession to return a serialized session
+    const { loadGroupSession } = await import('./crypto/sessionStore');
+    const { GroupSession } = await import('./crypto/groupSession');
+    const session = await GroupSession.create('ch-idb-restore', userId);
+    vi.mocked(loadGroupSession).mockResolvedValueOnce(session.toJSON() as Record<string, unknown>);
+
+    // Reset to force a fresh ensureChannelSession
+    resetCrypto();
+    await initCrypto(keys, 'key1');
+    await cryptoService.ensureChannelSession('ch-idb-restore', userId, 'key1');
+    expect(loadGroupSession).toHaveBeenCalledWith('ch-idb-restore');
   });
 
   it('resetCrypto allows re-init', async () => {
