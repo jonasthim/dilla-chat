@@ -426,6 +426,18 @@ describe('WebRTCService', () => {
       await webrtcService.toggleMute();
       expect(mockWs.voiceMute).toHaveBeenCalledWith('team-1', 'ch-1', expect.any(Boolean));
     });
+
+    it('unmute re-acquires mic after mute', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      // Mute first
+      useVoiceStore.setState({ muted: false });
+      await webrtcService.toggleMute();
+      // Now unmute
+      useVoiceStore.setState({ muted: true });
+      await webrtcService.toggleMute();
+      // getUserMedia should have been called to re-acquire
+      expect(mockGetUserMedia).toHaveBeenCalled();
+    });
   });
 
   describe('toggleDeafen', () => {
