@@ -42,7 +42,8 @@ export async function tryDecrypt(
     );
     await cacheMessage(messageId, channelId, plaintext);
     return plaintext;
-  } catch {
+  } catch (err) {
+    console.warn(`[Decrypt] Failed for msg=${messageId} channel=${channelId} sender=${senderId}:`, err);
     if (clean.length > 80 && /^[A-Za-z0-9+/=\s]+$/.test(clean.trim())) {
       return '\u{1F512} *Unable to decrypt \u2014 encrypted with a previous session key*';
     }
