@@ -95,6 +95,18 @@ export class VoiceActivityDetector {
 
       this.vadTimer = setInterval(() => {
         if (!this.analyser) return;
+        const store = useVoiceStore.getState();
+
+        // Never show speaking when muted or deafened
+        if (store.muted || store.deafened) {
+          if (wasSpeaking) {
+            wasSpeaking = false;
+            store.setSpeaking(false);
+            this.updateLocalLevel(0, false, localUserId);
+          }
+          return;
+        }
+
         this.analyser.getByteFrequencyData(dataArray);
         const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
         const level = Math.min(avg / 80, 1);
@@ -104,7 +116,7 @@ export class VoiceActivityDetector {
 
         if (isSpeaking !== wasSpeaking) {
           wasSpeaking = isSpeaking;
-          useVoiceStore.getState().setSpeaking(isSpeaking);
+          store.setSpeaking(isSpeaking);
         }
 
         this.updateLocalLevel(level, wasSpeaking, localUserId);
