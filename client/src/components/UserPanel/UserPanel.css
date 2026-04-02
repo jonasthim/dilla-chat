@@ -1,9 +1,9 @@
 .user-panel {
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 var(--spacing-md);
   height: var(--user-panel-height);
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .user-panel-avatar {
@@ -17,8 +17,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   font-family: inherit;
   flex-shrink: 0;
   position: relative;
@@ -51,7 +51,7 @@
   flex: 1;
   min-width: 0;
   cursor: pointer;
-  padding: 4px 0;
+  padding: var(--spacing-xs) 0;
 }
 
 .user-panel-name {
@@ -64,7 +64,7 @@
 
 .user-panel-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .user-panel-btn {
@@ -72,7 +72,7 @@
   border: none;
   color: var(--interactive-normal);
   padding: 0;
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   width: 32px;
   height: 32px;
   display: flex;

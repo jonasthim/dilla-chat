@@ -41,7 +41,7 @@
 .settings-nav-separator {
   height: 1px;
   background: var(--border-color);
-  margin: 8px 10px;
+  margin: var(--spacing-sm) 10px;
 }
 
 .settings-nav-item {
@@ -54,7 +54,7 @@
   border-radius: 4px;
   cursor: pointer;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: var(--font-size-base);
   user-select: none;
 }
 
@@ -130,8 +130,8 @@
 }
 
 .settings-close-esc {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-muted);
   margin-top: 6px;
   user-select: none;

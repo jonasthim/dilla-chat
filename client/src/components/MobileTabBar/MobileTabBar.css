@@ -35,7 +35,7 @@
 }
 
 .mobile-tab-bar-label {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: var(--font-size-micro);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: 0.02em;
 }

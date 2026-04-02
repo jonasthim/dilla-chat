@@ -1,8 +1,8 @@
 .file-preview-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 4px;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
 }
 
 /* Image */
@@ -75,25 +75,25 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 12px;
+  padding: var(--spacing-md);
   max-width: 400px;
 }
 
 .file-preview-audio-info {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
 }
 
 .file-preview-audio-icon {
-  font-size: 20px;
+  font-size: var(--font-size-xl);
 }
 
 .file-preview-audio-name {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--text-primary);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .file-preview-audio {
@@ -127,23 +127,23 @@
 }
 
 .file-preview-card-name {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--text-link);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .file-preview-card-size {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
 
 .file-preview-card-download {
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   color: var(--interactive-normal);
   text-decoration: none;
-  padding: 4px;
+  padding: var(--spacing-xs);
   flex-shrink: 0;
 }
 

@@ -6,23 +6,23 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  padding: 24px 0 8px;
+  padding: var(--spacing-xl) 0 var(--spacing-sm);
   border-left: 1px solid var(--glass-border);
 }
 
 .member-list-header {
-  padding: 0 16px 16px;
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
 }
 
 .member-role-group {
-  padding-top: 16px;
+  padding-top: var(--spacing-lg);
 }
 
 .member-role-header {
-  padding: 0 8px 4px 16px;
+  padding: 0 var(--spacing-sm) var(--spacing-xs) var(--spacing-lg);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--spacing-xs);
 }
 
 .member-item {
@@ -37,7 +37,7 @@
   align-items: center;
   padding: 1px 8px;
   margin: 1px 8px 0;
-  gap: 12px;
+  gap: var(--spacing-md);
   cursor: pointer;
   border-radius: var(--radius-md);
   height: 42px;
@@ -62,8 +62,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   flex-shrink: 0;
   position: relative;
 }
@@ -111,7 +111,7 @@
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-elevated);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: var(--spacing-lg);
   width: 340px;
   z-index: 1000;
   color: var(--text-primary);
@@ -120,8 +120,8 @@
 .member-profile-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
 }
 
 .member-profile-avatar {
@@ -134,7 +134,7 @@
   align-items: center;
   justify-content: center;
   font-size: 32px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   position: relative;
 }
 
@@ -143,31 +143,31 @@
 }
 
 .member-profile-display {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
   color: var(--header-primary);
 }
 
 .member-profile-username {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--text-muted);
 }
 
 .member-profile-roles {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 12px;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md);
 }
 
 .member-profile-role {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
   background: var(--bg-primary);
   color: var(--interactive-normal);
 }

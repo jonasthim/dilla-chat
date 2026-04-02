@@ -12,8 +12,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px;
-  gap: 24px;
+  padding: var(--spacing-2xl);
+  gap: var(--spacing-xl);
 }
 
 /* Screen share banner — separate large element above the user grid */
@@ -56,14 +56,14 @@
   border-radius: var(--radius-sm);
   background: var(--overlay-heavy);
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
 }
 
 .voice-channel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
+  gap: var(--spacing-lg);
   width: 100%;
   max-width: 800px;
 }
@@ -71,11 +71,11 @@
 .voice-tile {
   background: var(--bg-secondary);
   border-radius: 12px;
-  padding: 24px 16px;
+  padding: var(--spacing-xl) var(--spacing-lg);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
   transition: box-shadow 0.15s ease;
   position: relative;
 }
@@ -94,7 +94,7 @@
   align-items: center;
   justify-content: center;
   font-size: 22px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   box-shadow: 0 0 0 2px var(--bg-modifier-accent, var(--white-overlay-light));
   transition: box-shadow 0.15s ease;
 }
@@ -104,8 +104,8 @@
 }
 
 .voice-tile-name {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   color: var(--text-primary);
   text-align: center;
   max-width: 100%;
@@ -115,14 +115,14 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   min-height: 20px;
 }
 
 .voice-tile-speaking-label {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   color: var(--status-online);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .voice-channel-empty {
@@ -132,33 +132,33 @@
 
 .voice-channel-empty-icon {
   font-size: 48px;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-md);
 }
 
 .voice-channel-empty h3 {
   color: var(--text-primary);
-  margin: 0 0 8px;
-  font-size: 20px;
+  margin: 0 0 var(--spacing-sm);
+  font-size: var(--font-size-xl);
 }
 
 .voice-channel-empty p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-base);
 }
 
 .voice-channel-actions {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .voice-channel-btn {
   padding: 10px 32px;
   border: none;
   border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -187,7 +187,7 @@
 }
 
 .voice-channel-participants {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
 
@@ -238,9 +238,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 500;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   color: var(--text-secondary);
   background: var(--bg-tertiary);
   flex-shrink: 0;
@@ -275,8 +275,8 @@
 /* Floating webcam thumbnail bar at bottom of fullscreen */
 .fullscreen-thumbnail-bar {
   display: flex;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-tertiary);
   overflow-x: auto;
   flex-shrink: 0;
@@ -292,8 +292,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
   border-radius: var(--radius-lg);
   border: 2px solid transparent;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -328,12 +328,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
 }
 
 .fullscreen-thumbnail-name {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   color: var(--text-secondary);
   max-width: 80px;
   overflow: hidden;
@@ -378,17 +378,17 @@
   position: absolute;
   bottom: 60px;
   color: white;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   text-shadow: 0 1px 4px var(--overlay-dark);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--spacing-xs);
 }
 
 .fullscreen-focused-hint {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   color: var(--text-muted);
 }
 

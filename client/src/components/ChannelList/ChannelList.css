@@ -7,14 +7,14 @@
 }
 
 .channel-category {
-  padding-top: 16px;
+  padding-top: var(--spacing-lg);
 }
 
 .channel-category-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px 0 8px;
+  padding: 0 var(--spacing-sm) 0 var(--spacing-sm);
   height: 28px;
   cursor: pointer;
   user-select: none;
@@ -27,7 +27,7 @@
   border-radius: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--spacing-xs);
   flex: 1;
   overflow: hidden;
   transition: color 0.15s ease;
@@ -38,7 +38,7 @@
 }
 
 .category-arrow {
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   transition: transform 0.15s ease;
 }
 
@@ -52,7 +52,7 @@
   color: var(--interactive-normal);
   cursor: pointer;
   font-size: 18px;
-  padding: 0 4px;
+  padding: 0 var(--spacing-xs);
   line-height: 1;
   border-radius: var(--radius-sm);
   transition: color 0.15s ease;
@@ -65,8 +65,8 @@
 .channel-item {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
-  margin: 1px 8px;
+  padding: 6px var(--spacing-sm);
+  margin: 1px var(--spacing-sm);
   border: none;
   border-radius: var(--radius-md);
   background: none;
@@ -74,8 +74,8 @@
   text-align: left;
   width: calc(100% - 16px);
   color: var(--interactive-normal);
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
   gap: 6px;
   position: relative;
 }
@@ -95,7 +95,7 @@
 }
 
 .channel-icon {
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   width: 20px;
   text-align: center;
   flex-shrink: 0;
@@ -134,7 +134,7 @@
   background: none;
   border: none;
   color: var(--interactive-normal);
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   padding: 2px;
 }
 
@@ -150,7 +150,7 @@
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-elevated);
   border-radius: var(--radius-lg);
-  padding: 6px 8px;
+  padding: 6px var(--spacing-sm);
   min-width: 188px;
   z-index: 1000;
 }
@@ -162,12 +162,12 @@
   text-align: left;
   display: flex;
   align-items: center;
-  padding: 6px 8px;
+  padding: 6px var(--spacing-sm);
   border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--interactive-normal);
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   font-family: inherit;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -188,7 +188,7 @@
 
 /* Voice channel connected users */
 .voice-channel-users {
-  padding: 2px 8px 2px 42px;
+  padding: 2px var(--spacing-sm) 2px 42px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -198,9 +198,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--interactive-normal);
-  padding: 2px 4px;
+  padding: 2px var(--spacing-xs);
   border-radius: var(--radius-sm);
   transition: background-color 0.15s ease;
 }
@@ -222,8 +222,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: var(--font-size-micro);
+  font-weight: var(--font-weight-semibold);
   flex-shrink: 0;
   box-shadow: 0 0 0 1.5px var(--bg-modifier-accent, var(--white-overlay-light));
   transition: box-shadow 0.15s ease;
@@ -259,7 +259,7 @@
 .channel-unread-badge {
   min-width: 16px;
   height: 16px;
-  padding: 0 4px;
+  padding: 0 var(--spacing-xs);
   border-radius: var(--radius-full);
   background: var(--brand-500);
   color: #fff;

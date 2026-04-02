@@ -6,7 +6,7 @@
 
 .federation-status h2 {
   color: var(--text-primary);
-  margin: 0 0 4px 0;
+  margin: 0 0 var(--spacing-xs) 0;
 }
 
 /* Node info card */
@@ -14,29 +14,29 @@
   background: var(--bg-secondary);
   border: 1px solid var(--glass-border-light);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: var(--spacing-lg);
 }
 
 .federation-node-info h3 {
   color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  margin: 0 0 12px 0;
+  margin: 0 0 var(--spacing-md) 0;
 }
 
 .node-info-grid {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 8px 16px;
+  gap: var(--spacing-sm) var(--spacing-lg);
   align-items: center;
 }
 
 .node-info-label {
   color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .node-info-value {
@@ -48,28 +48,28 @@
   background: var(--bg-secondary);
   border: 1px solid var(--glass-border-light);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: var(--spacing-lg);
 }
 
 .federation-peers h3 {
   color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  margin: 0 0 12px 0;
+  margin: 0 0 var(--spacing-md) 0;
 }
 
 .federation-mesh-summary {
   color: var(--text-muted);
-  font-size: 12px;
-  margin-bottom: 12px;
+  font-size: var(--font-size-xs);
+  margin-bottom: var(--spacing-md);
 }
 
 .federation-no-peers {
   color: var(--text-muted);
-  font-size: 13px;
-  padding: 12px 0;
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-md) 0;
 }
 
 .federation-peer-table {
@@ -79,14 +79,14 @@
 
 .federation-peer-table th {
   text-align: left;
-  padding: 8px 12px;
+  padding: var(--spacing-sm) var(--spacing-md);
   border-bottom: 1px solid var(--border-color);
 }
 
 .federation-peer-table td {
-  padding: 10px 12px;
+  padding: 10px var(--spacing-md);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -99,7 +99,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .peer-status-dot {
@@ -126,16 +126,16 @@
   background: var(--bg-secondary);
   border: 1px solid var(--glass-border-light);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: var(--spacing-lg);
 }
 
 .federation-join h3 {
   color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  margin: 0 0 12px 0;
+  margin: 0 0 var(--spacing-md) 0;
 }
 
 .federation-generate-btn {
@@ -143,9 +143,9 @@
   color: var(--interactive-active);
   border: 1px solid var(--white-overlay-light);
   border-radius: var(--radius-sm);
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: filter 0.15s, box-shadow 0.15s;
   box-shadow: 0 2px 8px var(--accent-alpha-20);
@@ -162,15 +162,15 @@
 }
 
 .federation-join-result {
-  margin-top: 16px;
+  margin-top: var(--spacing-lg);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--spacing-md);
 }
 
 .federation-join-help {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   margin: 0;
 }
 
@@ -178,7 +178,7 @@
   position: relative;
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
-  padding: 12px;
+  padding: var(--spacing-md);
   color: var(--text-primary);
   word-break: break-all;
   white-space: pre-wrap;
@@ -192,8 +192,8 @@
   color: var(--text-primary);
   border: none;
   border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  font-size: 12px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -208,7 +208,7 @@
 
 .federation-curl-label {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   margin: 0;
 }
 

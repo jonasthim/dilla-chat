@@ -8,7 +8,7 @@
   cursor: default;
   position: relative;
   user-select: none;
-  font-size: 11px;
+  font-size: var(--font-size-micro);
 }
 
 /* Signal bars */
@@ -54,7 +54,7 @@
 
 .connection-status__label {
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   letter-spacing: 0.02em;
 }
 
@@ -73,14 +73,14 @@
   backdrop-filter: blur(var(--glass-blur-heavy));
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  padding: 12px;
+  padding: var(--spacing-md);
   z-index: 1000;
   pointer-events: none;
 }
 
 .connection-status__tooltip-title {
   color: var(--text-normal);
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-sm);
   letter-spacing: 0.04em;
 }
 
@@ -89,20 +89,20 @@
   justify-content: space-between;
   align-items: center;
   padding: 3px 0;
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
 
 .connection-status__tooltip-row span:last-child {
   color: var(--text-normal);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .connection-status__quality-badge {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   padding: 1px 6px;
   border-radius: 4px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .connection-status__quality-badge--excellent,
