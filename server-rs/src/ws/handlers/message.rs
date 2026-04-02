@@ -70,14 +70,49 @@ pub(in crate::ws) async fn handle_message_send(
 
     let db = hub.db.clone();
     let msg_clone = msg.clone();
+    let attachment_ids = p.attachment_ids.clone();
+    let mid_for_attach = msg_id.clone();
     if let Err(e) =
-        tokio::task::spawn_blocking(move || db.with_conn(|conn| db::create_message(conn, &msg_clone)))
+        tokio::task::spawn_blocking(move || {
+            db.with_conn(|conn| {
+                db::create_message(conn, &msg_clone)?;
+                // Link uploaded attachments to this message
+                for att_id in &attachment_ids {
+                    conn.execute(
+                        "UPDATE attachments SET message_id = ?1 WHERE id = ?2",
+                        rusqlite::params![mid_for_attach, att_id],
+                    )?;
+                }
+                Ok::<(), rusqlite::Error>(())
+            })
+        })
             .await
             .unwrap()
     {
         tracing::error!("failed to create message: {}", e);
         return;
     }
+
+    // Fetch linked attachments for the broadcast payload
+    let db = hub.db.clone();
+    let mid_for_query = msg_id.clone();
+    let attachments = tokio::task::spawn_blocking(move || {
+        db.with_read(|conn| db::get_message_attachments(conn, &mid_for_query))
+    })
+    .await
+    .unwrap_or(Ok(vec![]))
+    .unwrap_or_default();
+
+    let attachment_payloads: Vec<AttachmentPayload> = attachments
+        .iter()
+        .map(|a| AttachmentPayload {
+            id: a.id.clone(),
+            filename: String::from_utf8_lossy(&a.filename_encrypted).to_string(),
+            content_type: String::from_utf8_lossy(&a.content_type_encrypted).to_string(),
+            size: a.size,
+            url: format!("/api/v1/teams/{}/attachments/{}", team_id, a.id),
+        })
+        .collect();
 
     let new_event = Event::new(
         EVENT_MESSAGE_NEW,
@@ -90,6 +125,7 @@ pub(in crate::ws) async fn handle_message_send(
             msg_type,
             thread_id: p.thread_id.unwrap_or_default(),
             created_at: now,
+            attachments: attachment_payloads,
         },
     );
 

@@ -24,6 +24,7 @@ pub const EVENT_VOICE_SCREEN_STOP: &str = "voice:screen-stop";
 pub const EVENT_VOICE_WEBCAM_START: &str = "voice:webcam-start";
 pub const EVENT_VOICE_WEBCAM_STOP: &str = "voice:webcam-stop";
 pub const EVENT_VOICE_KEY_DISTRIBUTE: &str = "voice:key-distribute";
+pub const EVENT_CHANNEL_KEY_DISTRIBUTE: &str = "channel:key-distribute";
 pub const EVENT_REQUEST: &str = "request";
 pub const EVENT_PING: &str = "ping";
 pub const EVENT_REACTION_ADD: &str = "reaction:add";
@@ -133,6 +134,8 @@ pub struct MessageSendPayload {
     pub msg_type: String,
     #[serde(default)]
     pub thread_id: Option<String>,
+    #[serde(default)]
+    pub attachment_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -148,6 +151,15 @@ pub struct MessageDeletePayload {
     pub channel_id: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AttachmentPayload {
+    pub id: String,
+    pub filename: String,
+    pub content_type: String,
+    pub size: i64,
+    pub url: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageNewPayload {
     pub id: String,
@@ -160,6 +172,8 @@ pub struct MessageNewPayload {
     #[serde(default)]
     pub thread_id: String,
     pub created_at: String,
+    #[serde(default)]
+    pub attachments: Vec<AttachmentPayload>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -239,6 +253,14 @@ pub struct VoiceKeyDistributePayload {
     pub sender_id: String,
     pub key_id: u32,
     pub encrypted_keys: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChannelKeyDistributePayload {
+    pub channel_id: String,
+    #[serde(default)]
+    pub sender_id: String,
+    pub distribution: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

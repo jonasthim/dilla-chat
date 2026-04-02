@@ -4,9 +4,11 @@ import { useAuthStore } from '../stores/authStore';
 import { useMessageStore, type Message } from '../stores/messageStore';
 import { useThreadStore, type Thread } from '../stores/threadStore';
 import { ws } from '../services/websocket';
-import { api } from '../services/api';
+import { api, type Attachment } from '../services/api';
+import { cryptoService } from '../services/crypto';
 import { deleteCachedMessage } from '../services/messageCache';
 import { tryDecrypt, tryEncrypt, serverToMessage, type ServerMessage } from '../hooks/useMessageDecryption';
+import { useToast } from '../components/Toast/useToast';
 import MessageList from '../components/MessageList/MessageList';
 import MessageInput from '../components/MessageInput/MessageInput';
 
@@ -28,7 +30,9 @@ export default function ChannelView({ channel }: Readonly<Props>) {
     setActiveThread, setThreadPanelOpen,
     addThreadMessage, updateThreadMessage, removeThreadMessage,
   } = useThreadStore();
+  const { toast } = useToast();
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | null>(null);
+  const [scrollTrigger, setScrollTrigger] = useState(0);
   const initialLoadDone = useRef<Set<string>>(new Set());
   const threadsLoadDone = useRef<Set<string>>(new Set());
 
@@ -40,14 +44,31 @@ export default function ChannelView({ channel }: Readonly<Props>) {
   useEffect(() => {
     if (!activeTeamId) return;
     ws.joinChannel(activeTeamId, channel.id);
+
+    // Distribute our sender key to other channel members
+    if (derivedKey) {
+      (async () => {
+        try {
+          const dist = await cryptoService.getSenderKeyDistribution(channel.id, derivedKey);
+          ws.distributeChannelKey(activeTeamId, channel.id, dist);
+        } catch {
+          // Non-critical — other members just won't be able to decrypt our messages yet
+        }
+      })();
+    }
+
     return () => {
       ws.leaveChannel(activeTeamId, channel.id);
     };
-  }, [activeTeamId, channel.id]);
+  }, [activeTeamId, channel.id, derivedKey]);
 
-  // Load initial message history via WS (with REST fallback)
+  // Load initial message history via WS (with REST fallback).
+  // Re-loads when derivedKey changes (e.g. restored from sessionStorage
+  // after page reload) so messages can be re-decrypted.
   useEffect(() => {
-    if (!activeTeamId || initialLoadDone.current.has(channel.id)) return;
+    const loadKey = `${channel.id}:${derivedKey ? 'keyed' : 'nokey'}`;
+    console.log('[ChannelView] loadHistory check:', { loadKey, derivedKey: !!derivedKey, alreadyDone: initialLoadDone.current.has(loadKey) });
+    if (!activeTeamId || initialLoadDone.current.has(loadKey)) return;
 
     const loadHistory = async () => {
       setLoadingHistory(channel.id, true);
@@ -69,7 +90,7 @@ export default function ChannelView({ channel }: Readonly<Props>) {
         );
         prependMessages(channel.id, decrypted);
         setHasMore(channel.id, decrypted.length >= MESSAGE_PAGE_SIZE);
-        initialLoadDone.current.add(channel.id);
+        initialLoadDone.current.add(loadKey);
       } catch {
         // API might not be available in dev
       } finally {
@@ -110,11 +131,23 @@ export default function ChannelView({ channel }: Readonly<Props>) {
       });
     });
 
+    const unsubKeyDist = ws.on('channel:key-distribute', async (payload: { channel_id: string; sender_id: string; distribution: string }) => {
+      if (payload.channel_id !== channel.id) return;
+      if (!derivedKey) return;
+      try {
+        await cryptoService.processSenderKey(channel.id, payload.distribution, derivedKey);
+        console.log(`[ChannelView] Processed sender key from ${payload.sender_id} for channel ${channel.id}`);
+      } catch (err) {
+        console.warn('[ChannelView] Failed to process sender key:', err);
+      }
+    });
+
     return () => {
       unsubNew();
       unsubEdit();
       unsubDelete();
       unsubTyping();
+      unsubKeyDist();
     };
   }, [channel.id, derivedKey, addMessage, updateMessage, deleteMessage, setTyping]);
 
@@ -241,14 +274,16 @@ export default function ChannelView({ channel }: Readonly<Props>) {
   }, [activeTeamId, channel.id, derivedKey, loadingHistory, hasMore, prependMessages, setLoadingHistory, setHasMore]);
 
   const handleSend = useCallback(
-    async (content: string) => {
+    async (content: string, attachments?: Attachment[]) => {
       if (!activeTeamId) { console.warn('[ChannelView] no activeTeamId, dropping message'); return; }
-      console.log('[ChannelView] sending message', { activeTeamId, channelId: channel.id, wsConnected: ws.isConnected(activeTeamId) });
       try {
-        const encrypted = await tryEncrypt(content, channel.id, derivedKey);
-        ws.sendMessage(activeTeamId, channel.id, encrypted);
+        const encrypted = await tryEncrypt(content || ' ', channel.id, derivedKey);
+        const attachmentIds = attachments?.map((a) => a.id) ?? [];
+        ws.sendMessage(activeTeamId, channel.id, encrypted, 'text', undefined, attachmentIds);
+        setScrollTrigger((n) => n + 1);
       } catch (err) {
         console.warn('[ChannelView] encryption failed, message not sent', err);
+        toast('Encryption key not available — log out and back in to unlock your identity', 'error');
       }
     },
     [activeTeamId, channel.id, derivedKey],
@@ -322,6 +357,7 @@ export default function ChannelView({ channel }: Readonly<Props>) {
         onCreateThread={handleCreateThread}
         onOpenThread={handleOpenThread}
         threadInfo={threadInfo}
+        scrollTrigger={scrollTrigger}
       />
 
       <MessageInput
@@ -333,6 +369,15 @@ export default function ChannelView({ channel }: Readonly<Props>) {
         onEdit={handleEdit}
         onCancelEdit={() => setEditingMessage(null)}
         onTyping={handleTyping}
+        onUploadFile={activeTeamId ? async (file) => {
+          const att = await api.uploadFile(activeTeamId, file);
+          return {
+            ...att,
+            filename: file.name,
+            content_type: file.type || 'application/octet-stream',
+            url: api.getAttachmentUrl(activeTeamId, att.id),
+          };
+        } : undefined}
       />
     </div>
   );

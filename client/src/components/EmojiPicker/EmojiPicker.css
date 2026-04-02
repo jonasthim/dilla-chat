@@ -1,6 +1,6 @@
 .emoji-picker-container {
   z-index: 10000;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: 0 8px 24px var(--overlay-dark);
 }
@@ -17,5 +17,5 @@
   --epr-category-icon-active-color: var(--accent);
   --epr-highlight-color: var(--accent);
   border: 1px solid var(--divider);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }

@@ -40,6 +40,19 @@ describe('useMessageDecryption', () => {
       expect(result).toContain('Encrypted message');
     });
 
+    it('returns plaintext from sent cache when encrypt then decrypt', async () => {
+      // tryEncrypt caches plaintext keyed by ciphertext internally.
+      // We need the REAL tryEncrypt to populate the cache, not the mock.
+      // The encryptChannel mock returns 'mock-cipher', and tryEncrypt caches
+      // 'hello from cache' → 'mock-cipher' in sentPlaintextCache.
+      vi.mocked(cryptoService.encryptChannel).mockResolvedValueOnce('mock-cipher-xyz');
+      await tryEncrypt('hello from cache', 'ch1', 'key');
+
+      // Now tryDecrypt for the same ciphertext should find it in sentPlaintextCache
+      const result = await tryDecrypt('m-new', 'mock-cipher-xyz', 'sender', 'ch1', 'key');
+      expect(result).toBe('hello from cache');
+    });
+
     it('decrypts and caches on success', async () => {
       vi.mocked(cryptoService.decryptChannel).mockResolvedValueOnce('plaintext');
       const result = await tryDecrypt('m1', 'cipher', 'sender', 'ch1', 'key');

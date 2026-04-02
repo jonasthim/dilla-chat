@@ -4,8 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Emoji, Plus, Reply, Threads, EditPencil, Trash, ChatBubble } from 'iconoir-react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
-import type { Message } from '../../stores/messageStore';
-import { useChannelMessages, useChannelLoading, useChannelHasMore } from '../../stores/selectors';
+import { useMessageStore, type Message } from '../../stores/messageStore';
 import Reactions from '../Reactions/Reactions';
 import FilePreview from '../FilePreview/FilePreview';
 import EmojiPicker from '../EmojiPicker/EmojiPicker';
@@ -28,6 +27,7 @@ interface Props {
   onOpenThread?: (messageId: string) => void;
   onReaction?: (messageId: string, emoji: string) => void;
   threadInfo?: Record<string, { count: number; lastReplyAt: string | null }>;
+  scrollTrigger?: number;
 }
 
 // Sanitize links to open in new tab
@@ -53,9 +53,10 @@ export default function MessageList({
   threadInfo,
 }: Readonly<Props>) {
   const { t } = useTranslation();
-  const channelMessages = useChannelMessages(channelId);
-  const isLoading = useChannelLoading(channelId);
-  const canLoadMore = useChannelHasMore(channelId);
+  const { messages, loadingHistory, hasMore } = useMessageStore();
+  const channelMessages = messages.get(channelId) ?? [];
+  const isLoading = loadingHistory.get(channelId) ?? false;
+  const canLoadMore = hasMore.get(channelId) ?? true;
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
   const groups = groupMessages(channelMessages);
@@ -68,6 +69,18 @@ export default function MessageList({
       virtuosoRef.current.scrollToIndex({ index: groups.length - 1, behavior: 'auto' });
     }
   }, [channelId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Scroll to bottom when new messages arrive (e.g. after send + server echo)
+  const prevMsgCount = useRef(channelMessages.length);
+  useEffect(() => {
+    if (channelMessages.length > prevMsgCount.current && virtuosoRef.current) {
+      // Small delay to let Virtuoso render the new item first
+      setTimeout(() => {
+        virtuosoRef.current?.scrollToIndex({ index: groups.length - 1, behavior: 'smooth' });
+      }, 50);
+    }
+    prevMsgCount.current = channelMessages.length;
+  }, [channelMessages.length, groups.length]);
 
   const handleStartReached = useCallback(() => {
     if (canLoadMore && !isLoading) {
@@ -85,17 +98,14 @@ export default function MessageList({
       firstItemIndex={firstItemIndex}
       initialTopMostItemIndex={groups.length - 1}
       data={groups}
-      followOutput="smooth"
+      followOutput={() => 'smooth'}
       startReached={handleStartReached}
       components={{
         Header: () => (
           <>
             {isLoading && <MessageSkeleton count={5} />}
             {!canLoadMore && channelMessages.length > 0 && (
-              <div
-                className="message-list-beginning"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
+              <div className="message-list-beginning">
                 {t('channels.welcomeTitle', 'Welcome to ~{{name}}', { name: channelName })}
               </div>
             )}

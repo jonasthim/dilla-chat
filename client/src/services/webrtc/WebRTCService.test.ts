@@ -405,45 +405,57 @@ describe('WebRTCService', () => {
   describe('toggleMute', () => {
     it('toggles audio track enabled state', async () => {
       await webrtcService.connect('ch-1', 'team-1');
-      const muted = webrtcService.toggleMute();
+      const muted = await webrtcService.toggleMute();
       expect(typeof muted).toBe('boolean');
     });
 
-    it('returns false when not connected', () => {
-      const result = webrtcService.toggleMute();
+    it('returns false when not connected', async () => {
+      const result = await webrtcService.toggleMute();
       expect(result).toBe(false);
     });
 
     it('returns false when pushToTalk is enabled', async () => {
       useAudioSettingsStore.setState({ pushToTalk: true });
       await webrtcService.connect('ch-1', 'team-1');
-      const result = webrtcService.toggleMute();
+      const result = await webrtcService.toggleMute();
       expect(result).toBe(false);
     });
 
     it('sends voiceMute via websocket', async () => {
       await webrtcService.connect('ch-1', 'team-1');
-      webrtcService.toggleMute();
+      await webrtcService.toggleMute();
       expect(mockWs.voiceMute).toHaveBeenCalledWith('team-1', 'ch-1', expect.any(Boolean));
+    });
+
+    it('unmute re-acquires mic after mute', async () => {
+      await webrtcService.connect('ch-1', 'team-1');
+      // Mute first
+      useVoiceStore.setState({ muted: false });
+      await webrtcService.toggleMute();
+      // Now unmute
+      useVoiceStore.setState({ muted: true });
+      await webrtcService.toggleMute();
+      // getUserMedia should have been called to re-acquire
+      expect(mockGetUserMedia).toHaveBeenCalled();
     });
   });
 
   describe('toggleDeafen', () => {
     it('toggles deafen and sends via websocket', async () => {
       await webrtcService.connect('ch-1', 'team-1');
-      const deafened = webrtcService.toggleDeafen();
+      const deafened = await webrtcService.toggleDeafen();
       expect(deafened).toBe(true);
       expect(mockWs.voiceDeafen).toHaveBeenCalledWith('team-1', 'ch-1', true);
     });
 
     it('second toggle undeafens (if store is updated between calls)', async () => {
       await webrtcService.connect('ch-1', 'team-1');
-      const first = webrtcService.toggleDeafen(); // deafen -> reads store false, returns true
+      const first = await webrtcService.toggleDeafen(); // deafen -> reads store false, returns true
       expect(first).toBe(true);
       // The service reads from the store but doesn't write back.
       // The caller (UI) must update the store. Simulate that:
       useVoiceStore.setState({ deafened: true });
-      const second = webrtcService.toggleDeafen(); // undeafen -> reads store true, returns false
+      const second = await webrtcService.toggleDeafen(); // undeafen -> reads store true, returns false
       expect(second).toBe(false);
     });
 
@@ -452,7 +464,7 @@ describe('WebRTCService', () => {
       const mockTrack = { enabled: true, kind: 'audio' };
       const mockStream = { getAudioTracks: () => [mockTrack] };
       (webrtcService as any).remoteStreams.set('peer-1', mockStream);
-      webrtcService.toggleDeafen();
+      await webrtcService.toggleDeafen();
       expect(mockTrack.enabled).toBe(false);
     });
 
@@ -463,14 +475,14 @@ describe('WebRTCService', () => {
       (webrtcService as any).remoteStreams.set('peer-1', mockStream);
 
       // First toggle: deafen
-      webrtcService.toggleDeafen();
+      await webrtcService.toggleDeafen();
       expect(mockTrack.enabled).toBe(false);
 
       // Update store so next toggle reads deafened=true
       useVoiceStore.setState({ deafened: true });
 
       // Second toggle: undeafen
-      webrtcService.toggleDeafen();
+      await webrtcService.toggleDeafen();
       expect(mockTrack.enabled).toBe(true);
     });
   });
@@ -895,6 +907,15 @@ describe('WebRTCService', () => {
     it('stops screen and webcam streams', async () => {
       await webrtcService.connect('ch-1', 'team-1');
 
+      // startScreenShare/startWebcam now await a voice:offer from the server.
+      // Emit the offer shortly after the WS methods are called.
+      mockWs.voiceScreenStart.mockImplementation(() => {
+        setTimeout(() => emitWS('voice:offer', { sdp: 'v=0\r\nrenegotiate' }), 10);
+      });
+      mockWs.voiceWebcamStart.mockImplementation(() => {
+        setTimeout(() => emitWS('voice:offer', { sdp: 'v=0\r\nrenegotiate' }), 10);
+      });
+
       const screenTrack = createMockVideoTrack();
       mockGetDisplayMedia.mockResolvedValueOnce(createMockMediaStream([screenTrack]));
       await webrtcService.startScreenShare();
@@ -1143,6 +1164,36 @@ describe('WebRTCService', () => {
       webrtcService.stopVAD();
       vi.useRealTimers();
     });
+
+    it('VAD suppresses speaking when muted', async () => {
+      vi.useFakeTimers();
+      await webrtcService.connect('ch-1', 'team-1');
+
+      useVoiceStore.getState().addPeer({
+        user_id: 'user-1', username: 'testuser',
+        muted: false, deafened: false, speaking: false, voiceLevel: 0,
+      });
+
+      webrtcService.startVAD();
+
+      // Simulate loud audio to trigger speaking=true
+      const analyser = (webrtcService as any).vad.analyser;
+      if (analyser) {
+        analyser.getByteFrequencyData.mockImplementation((arr: Uint8Array) => {
+          for (let i = 0; i < arr.length; i++) arr[i] = 200;
+        });
+      }
+      vi.advanceTimersByTime(150);
+      expect(useVoiceStore.getState().speaking).toBe(true);
+
+      // Now mute — VAD should suppress speaking
+      useVoiceStore.setState({ muted: true });
+      vi.advanceTimersByTime(150);
+      expect(useVoiceStore.getState().speaking).toBe(false);
+
+      webrtcService.stopVAD();
+      vi.useRealTimers();
+    });
   });
 
   describe('remote VAD', () => {
@@ -1365,7 +1416,7 @@ describe('WebRTCService', () => {
     it('returns false when toggleMute called with PTT enabled', async () => {
       useAudioSettingsStore.setState({ pushToTalk: true });
       await webrtcService.connect('ch-1', 'team-1');
-      expect(webrtcService.toggleMute()).toBe(false);
+      expect(await webrtcService.toggleMute()).toBe(false);
       useAudioSettingsStore.setState({ pushToTalk: false });
     });
   });

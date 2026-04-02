@@ -56,7 +56,9 @@ export class WebSocketService {
       this.startHeartbeat(teamId);
       traceWSEvent('receive', 'ws:connected', { team_id: teamId });
       this.emit('ws:connected', { teamId });
-      this.flushPendingMessages(teamId);
+      // Note: pending messages are NOT flushed here — they must wait until
+      // after sync:init completes and channels are joined. Call
+      // flushPendingMessages() from the sync handler instead.
     };
 
     socket.onmessage = (event) => {
@@ -189,7 +191,7 @@ export class WebSocketService {
     }
   }
 
-  private flushPendingMessages(teamId: string): void {
+  flushPendingMessages(teamId: string): void {
     const queue = this.pendingMessages.get(teamId);
     if (!queue || queue.length === 0) return;
     this.pendingMessages.delete(teamId);
@@ -273,10 +275,17 @@ export class WebSocketService {
     content: string,
     type: string = 'text',
     threadId?: string,
+    attachmentIds?: string[],
   ): void {
     this.send(teamId, {
       type: 'message:send',
-      payload: { channel_id: channelId, content, type, thread_id: threadId ?? null },
+      payload: {
+        channel_id: channelId,
+        content,
+        type,
+        thread_id: threadId ?? null,
+        attachment_ids: attachmentIds ?? [],
+      },
     });
   }
 
@@ -347,6 +356,13 @@ export class WebSocketService {
     this.send(teamId, {
       type: 'channel:leave',
       payload: { channel_id: channelId },
+    });
+  }
+
+  distributeChannelKey(teamId: string, channelId: string, distribution: string): void {
+    this.send(teamId, {
+      type: 'channel:key-distribute',
+      payload: { channel_id: channelId, distribution },
     });
   }
 

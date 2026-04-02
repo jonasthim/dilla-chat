@@ -1,21 +1,21 @@
 .reactions-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
   align-items: center;
 }
 
 .reaction-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 6px;
-  border-radius: 6px;
+  gap: var(--spacing-xs);
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--radius-md);
   background: var(--bg-tertiary);
   border: 1px solid transparent;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--text-muted);
   transition: background-color 0.1s ease, border-color 0.1s ease;
   position: relative;
@@ -66,7 +66,7 @@
   border: 1px solid var(--glass-border);
   color: var(--header-primary);
   padding: 8px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
@@ -88,7 +88,7 @@
   width: 28px;
   height: 24px;
   padding: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--bg-tertiary);
   border: 1px solid transparent;
   cursor: pointer;

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { ToastProvider } from '../components/Toast/Toast';
 
 vi.mock('../services/websocket', () => ({
   ws: {
@@ -12,6 +13,7 @@ vi.mock('../services/websocket', () => ({
     startTyping: vi.fn(),
     joinChannel: vi.fn(),
     leaveChannel: vi.fn(),
+    distributeChannelKey: vi.fn(),
   },
 }));
 
@@ -24,7 +26,13 @@ vi.mock('../services/api', () => ({
 }));
 
 vi.mock('../services/crypto', () => ({
-  cryptoService: { decryptChannel: vi.fn(), encryptChannel: vi.fn().mockResolvedValue('encrypted-content') },
+  cryptoService: {
+    decryptChannel: vi.fn(),
+    encryptChannel: vi.fn().mockResolvedValue('encrypted-content'),
+    getSenderKeyDistribution: vi.fn().mockResolvedValue('{"sender_id":"u1"}'),
+    processSenderKey: vi.fn().mockResolvedValue(undefined),
+    ensureChannelSession: vi.fn().mockResolvedValue(undefined),
+  },
   getIdentityKeys: vi.fn(() => ({ publicKeyBytes: new Uint8Array(32) })),
 }));
 
@@ -71,7 +79,11 @@ function makeChannel(overrides?: Partial<Channel>): Channel {
 
 /** Render ChannelView with standard props */
 function renderChannelView(overrides?: Partial<Channel>) {
-  return render(<ChannelView channel={makeChannel(overrides)} />);
+  return render(
+    <ToastProvider>
+      <ChannelView channel={makeChannel(overrides)} />
+    </ToastProvider>,
+  );
 }
 
 /** Fire a WS event handler by name on the current render */
@@ -136,9 +148,9 @@ describe('ChannelView', () => {
   });
 
   it('renders with different channels via rerender', () => {
-    const { rerender } = render(<ChannelView channel={makeChannel({ id: 'ch-1', name: 'general' })} />);
+    const { rerender } = render(<ToastProvider><ChannelView channel={makeChannel({ id: 'ch-1', name: 'general' })} /></ToastProvider>);
     expect(screen.getByTestId('message-list')).toHaveAttribute('data-channel-name', 'general');
-    rerender(<ChannelView channel={makeChannel({ id: 'ch-2', name: 'random' })} />);
+    rerender(<ToastProvider><ChannelView channel={makeChannel({ id: 'ch-2', name: 'random' })} /></ToastProvider>);
     expect(screen.getByTestId('message-list')).toHaveAttribute('data-channel-name', 'random');
   });
 
@@ -222,12 +234,20 @@ describe('ChannelView', () => {
     expect(screen.getByTestId('message-list')).toBeInTheDocument();
   });
 
+  it('distributes sender key on channel join when derivedKey is set', async () => {
+    useAuthStore.setState({ derivedKey: 'test-key' });
+    renderChannelView();
+    await waitFor(() => {
+      expect(ws.distributeChannelKey).toHaveBeenCalledWith('t1', 'ch-1', expect.any(String));
+    });
+  });
+
   it('sends a message via WS when send button is clicked', async () => {
     useAuthStore.setState({ derivedKey: 'test-key' });
     renderChannelView();
     fireEvent.click(screen.getByTestId('send-btn'));
     await waitFor(() => {
-      expect(ws.sendMessage).toHaveBeenCalledWith('t1', 'ch-1', expect.any(String));
+      expect(ws.sendMessage).toHaveBeenCalledWith('t1', 'ch-1', expect.any(String), 'text', undefined, []);
     });
   });
 

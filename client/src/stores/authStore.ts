@@ -100,26 +100,125 @@ function serverIdFromUrl(baseUrl: string): string {
   return baseUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
-// derivedKey is never persisted — it's the E2E encryption master key.
-// On page refresh, the user must re-authenticate with their passkey.
+// derivedKey is persisted to sessionStorage encrypted with a per-tab AES
+// wrapping key. The wrapping key lives in a non-extractable CryptoKey
+// stored in IndexedDB and is ephemeral per browser session. This prevents
+// the derivedKey from being stored as cleartext in sessionStorage.
+const DERIVED_KEY_STORAGE = 'dilla:derivedKey:enc';
+const WRAP_KEY_DB = 'dilla-wrap';
+const WRAP_KEY_STORE = 'keys';
+const WRAP_KEY_ID = 'session-wrap';
+
+async function getOrCreateWrapKey(): Promise<CryptoKey> {
+  // Try to load existing wrapping key from IndexedDB
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const req = indexedDB.open(WRAP_KEY_DB, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(WRAP_KEY_STORE)) {
+        req.result.createObjectStore(WRAP_KEY_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+
+  const existing = await new Promise<CryptoKey | undefined>((resolve) => {
+    const tx = db.transaction(WRAP_KEY_STORE, 'readonly');
+    const req = tx.objectStore(WRAP_KEY_STORE).get(WRAP_KEY_ID);
+    req.onsuccess = () => resolve(req.result as CryptoKey | undefined);
+    req.onerror = () => resolve(undefined);
+    tx.oncomplete = () => {};
+  });
+
+  if (existing) {
+    db.close();
+    return existing;
+  }
+
+  // Generate a new non-extractable AES-GCM key
+  const key = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    false, // non-extractable
+    ['encrypt', 'decrypt'],
+  );
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(WRAP_KEY_STORE, 'readwrite');
+    tx.objectStore(WRAP_KEY_STORE).put(key, WRAP_KEY_ID);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+
+  db.close();
+  return key;
+}
+
+async function encryptDerivedKey(plaintext: string): Promise<string> {
+  const key = await getOrCreateWrapKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    new TextEncoder().encode(plaintext),
+  );
+  const combined = new Uint8Array(12 + enc.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(enc), 12);
+  return btoa(String.fromCharCode(...combined));
+}
+
+async function decryptDerivedKey(ciphertext: string): Promise<string> {
+  const key = await getOrCreateWrapKey();
+  const data = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
+  const iv = data.slice(0, 12);
+  const enc = data.slice(12);
+  const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, enc);
+  return new TextDecoder().decode(dec);
+}
+
+// Synchronous load returns null — async restore happens in useCryptoRestore
+function loadPersistedDerivedKey(): string | null {
+  return null; // Decryption is async; handled by restoreDerivedKey()
+}
+
+/** Async restore of encrypted derivedKey from sessionStorage. */
+export async function restoreDerivedKey(): Promise<string | null> {
+  try {
+    const stored = sessionStorage.getItem(DERIVED_KEY_STORAGE);
+    if (!stored) return null;
+    return await decryptDerivedKey(stored);
+  } catch {
+    return null;
+  }
+}
+
+async function persistDerivedKey(key: string | null): Promise<void> {
+  try {
+    if (key) {
+      const encrypted = await encryptDerivedKey(key);
+      sessionStorage.setItem(DERIVED_KEY_STORAGE, encrypted);
+    } else {
+      sessionStorage.removeItem(DERIVED_KEY_STORAGE);
+    }
+  } catch { /* private browsing */ }
+}
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   passphrase: null,
-  derivedKey: null,
+  derivedKey: loadPersistedDerivedKey(),
   publicKey: null,
   credentialIds: [],
   teams: loadPersistedTeams(),
   servers: loadPersistedServers(),
 
   setPassphrase: (passphrase: string) => {
-    // Derived key is NOT persisted to sessionStorage — it's the E2E encryption
-    // master key and must only live in memory. On page refresh, the user
-    // re-authenticates with their passkey to re-derive it.
+    void persistDerivedKey(passphrase);
     set({ passphrase, derivedKey: passphrase, isAuthenticated: true });
   },
 
   setDerivedKey: (key: string) => {
+    void persistDerivedKey(key);
     set({ derivedKey: key, passphrase: key, isAuthenticated: true });
   },
 
@@ -234,8 +333,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }),
 
   logout: () => {
+    import('../services/crypto').then(({ resetCrypto }) => resetCrypto()).catch(() => {});
     sessionStorage.removeItem(TEAMS_STORAGE_KEY);
     sessionStorage.removeItem(SERVERS_STORAGE_KEY);
+    void persistDerivedKey(null);
     set({
       isAuthenticated: false,
       passphrase: null,

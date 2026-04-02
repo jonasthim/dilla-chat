@@ -121,6 +121,51 @@ describe('WebSocketService', () => {
     });
   });
 
+  describe('message queuing', () => {
+    it('queues messages when socket is closed and flushes on call', () => {
+      mockSocket.readyState = WebSocket.CLOSED;
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      service.send('t1', { type: 'msg:send', payload: { text: 'hello' } });
+      service.send('t1', { type: 'msg:send', payload: { text: 'world' } });
+      expect(mockSocket.send).not.toHaveBeenCalled();
+      warn.mockRestore();
+
+      // Now open socket and flush
+      mockSocket.readyState = WebSocket.OPEN;
+      service.flushPendingMessages('t1');
+      expect(mockSocket.send).toHaveBeenCalledTimes(2);
+    });
+
+    it('flushPendingMessages is no-op when no queued messages', () => {
+      service.flushPendingMessages('t1');
+      expect(mockSocket.send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('distributeChannelKey', () => {
+    it('sends channel:key-distribute event', () => {
+      service.distributeChannelKey('t1', 'ch-1', '{"sender_id":"u1"}');
+      const sent = JSON.parse(mockSocket.send.mock.calls[0][0]);
+      expect(sent.type).toBe('channel:key-distribute');
+      expect(sent.payload.channel_id).toBe('ch-1');
+      expect(sent.payload.distribution).toBe('{"sender_id":"u1"}');
+    });
+  });
+
+  describe('sendMessage with attachments', () => {
+    it('includes attachment_ids in payload', () => {
+      service.sendMessage('t1', 'ch-1', 'encrypted', 'text', undefined, ['att-1', 'att-2']);
+      const sent = JSON.parse(mockSocket.send.mock.calls[0][0]);
+      expect(sent.payload.attachment_ids).toEqual(['att-1', 'att-2']);
+    });
+
+    it('sends empty attachment_ids by default', () => {
+      service.sendMessage('t1', 'ch-1', 'encrypted');
+      const sent = JSON.parse(mockSocket.send.mock.calls[0][0]);
+      expect(sent.payload.attachment_ids).toEqual([]);
+    });
+  });
+
   describe('event handlers', () => {
     it('on/off registers and removes handlers', () => {
       const handler = vi.fn();

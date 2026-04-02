@@ -11,7 +11,7 @@
   padding: 0;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--bg-accent);
   color: white;
   display: flex;
@@ -36,7 +36,7 @@
   right: -2px;
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   border: 3px solid var(--bg-secondary);
   box-sizing: border-box;
 }
@@ -84,7 +84,7 @@
   color: var(--interactive-normal);
   cursor: pointer;
   padding: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 20px;
   width: 32px;
   height: 32px;
