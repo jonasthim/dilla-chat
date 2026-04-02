@@ -14,6 +14,7 @@ pub mod presence;
 pub mod voice;
 pub mod federation;
 pub mod helpers;
+pub mod theme;
 
 use crate::auth::{self, AuthService};
 use crate::config::Config;
@@ -98,6 +99,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/v1/health", get(health))
         .route("/api/v1/version", get(version))
         .route("/api/v1/config", get(get_config))
+        .route("/theme/custom.css", get(theme::get_custom_theme))
         .merge(auth_routes)
         .route(
             "/api/v1/invites/{token}/info",
@@ -330,6 +332,7 @@ async fn get_config(
     Json(serde_json::json!({
         "domain": state.config.domain,
         "rp_id": state.config.domain,
+        "has_custom_theme": !state.config.theme_file.is_empty(),
     }))
 }
 
