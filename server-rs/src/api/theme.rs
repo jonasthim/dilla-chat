@@ -6,41 +6,63 @@ use axum::{
 
 use super::AppState;
 
-/// Serve the custom theme CSS file configured via DILLA_THEME_FILE.
-/// Returns 404 if no custom theme is configured or the file doesn't exist.
-pub async fn get_custom_theme(
-    State(state): State<AppState>,
-) -> Response {
-    let path = &state.config.theme_file;
+/// Maximum custom theme file size (1 MB).
+const MAX_THEME_SIZE: u64 = 1_048_576;
+
+/// Read and validate a theme file at startup. Returns `None` if the path is
+/// empty, the file is missing, or it exceeds the size limit.
+///
+/// The content is read once and cached in `AppState.custom_theme_css` so the
+/// handler never touches the filesystem at request time (avoids CodeQL
+/// "uncontrolled data in path" warnings and is faster).
+pub fn load_theme_file(path: &str) -> Option<String> {
     if path.is_empty() {
-        return StatusCode::NOT_FOUND.into_response();
+        return None;
     }
 
-    // Validate file exists and is not too large (max 1 MB).
-    let meta = match tokio::fs::metadata(path).await {
-        Ok(m) => m,
-        Err(_) => {
-            tracing::warn!(path = path, "custom theme file not found");
-            return StatusCode::NOT_FOUND.into_response();
+    let canonical = match std::fs::canonicalize(path) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!(path = path, error = %e, "custom theme file not found");
+            return None;
         }
     };
 
-    if meta.len() > 1_048_576 {
+    let meta = match std::fs::metadata(&canonical) {
+        Ok(m) => m,
+        Err(_) => return None,
+    };
+
+    if meta.len() > MAX_THEME_SIZE {
         tracing::warn!(path = path, size = meta.len(), "custom theme file too large (>1MB)");
-        return StatusCode::NOT_FOUND.into_response();
+        return None;
     }
 
-    match tokio::fs::read_to_string(path).await {
-        Ok(css) => (
+    match std::fs::read_to_string(&canonical) {
+        Ok(css) => {
+            tracing::info!(path = path, bytes = css.len(), "loaded custom theme CSS");
+            Some(css)
+        }
+        Err(e) => {
+            tracing::warn!(path = path, error = %e, "custom theme file unreadable");
+            None
+        }
+    }
+}
+
+/// Serve the cached custom theme CSS.
+/// Returns 404 if no custom theme was loaded at startup.
+pub async fn get_custom_theme(
+    State(state): State<AppState>,
+) -> Response {
+    match &state.custom_theme_css {
+        Some(css) => (
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/css; charset=utf-8"),
              (header::CACHE_CONTROL, "public, max-age=300")],
-            css,
+            css.clone(),
         ).into_response(),
-        Err(_) => {
-            tracing::warn!(path = path, "custom theme file unreadable");
-            StatusCode::NOT_FOUND.into_response()
-        }
+        None => StatusCode::NOT_FOUND.into_response(),
     }
 }
 
@@ -110,6 +132,7 @@ mod tests {
             otel_api_key: String::new(),
             otel_api_header: String::new(),
         });
+        let custom_theme_css = load_theme_file(theme_file);
         let state = AppState {
             db,
             auth,
@@ -117,6 +140,7 @@ mod tests {
             presence,
             config,
             mesh: None,
+            custom_theme_css,
         };
         (state, tmp)
     }
@@ -176,5 +200,24 @@ mod tests {
 
         let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(body_bytes, css_content.as_bytes());
+    }
+
+    #[test]
+    fn load_theme_file_returns_none_for_empty_path() {
+        assert!(load_theme_file("").is_none());
+    }
+
+    #[test]
+    fn load_theme_file_returns_none_for_missing_file() {
+        assert!(load_theme_file("/nonexistent/theme.css").is_none());
+    }
+
+    #[test]
+    fn load_theme_file_reads_valid_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("test.css");
+        std::fs::write(&path, ":root { --x: 1; }").unwrap();
+        let result = load_theme_file(path.to_str().unwrap());
+        assert_eq!(result, Some(":root { --x: 1; }".to_string()));
     }
 }

@@ -44,6 +44,7 @@ pub struct AppState {
     pub presence: Arc<PresenceManager>,
     pub config: Arc<Config>,
     pub mesh: Option<Arc<MeshNode>>,
+    pub custom_theme_css: Option<String>,
 }
 
 #[cfg(not(tarpaulin_include))]

@@ -77,6 +77,7 @@ fn test_app_state() -> (AppState, tempfile::TempDir) {
         presence,
         config,
         mesh: None,
+        custom_theme_css: None,
     };
     (state, tmp)
 }
@@ -2445,6 +2446,7 @@ async fn cors_allowed_origins_config() {
         presence,
         config,
         mesh: None,
+        custom_theme_css: None,
     };
 
     // Use test_router which uses {param} syntax.
