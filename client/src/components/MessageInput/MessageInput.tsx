@@ -284,7 +284,7 @@ export default function MessageInput({
               }}
             />
             <button
-              className="toolbar-btn"
+              className="toolbar-btn clickable"
               title={t('upload.attachFile', 'Attach File')}
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
@@ -299,7 +299,7 @@ export default function MessageInput({
                   anchorRef={emojiBtnRef}
                 />
               )}
-              <button ref={emojiBtnRef} className="toolbar-btn" title={t('messages.emoji', 'Emoji')} onClick={() => setShowEmojiPicker(v => !v)} disabled={uploading}>
+              <button ref={emojiBtnRef} className="toolbar-btn clickable" title={t('messages.emoji', 'Emoji')} onClick={() => setShowEmojiPicker(v => !v)} disabled={uploading}>
                 <Emoji width={18} height={18} strokeWidth={1.75} />
               </button>
             </div>

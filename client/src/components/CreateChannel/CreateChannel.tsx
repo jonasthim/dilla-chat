@@ -57,10 +57,10 @@ export default function CreateChannel({ defaultCategory, onClose }: Readonly<Pro
     <dialog className="create-channel-overlay" open aria-labelledby="create-channel-title">
       <button type="button" className="dialog-backdrop" onClick={onClose} aria-label="Close" />
       <div className="create-channel-modal" ref={modalRef}>
-        <h2 id="create-channel-title">{t('channels.create')}</h2>
+        <h2 id="create-channel-title" className="heading-3">{t('channels.create')}</h2>
 
         <div className="create-channel-field">
-          <label>{t('channels.type', 'Channel Type')}</label>
+          <label className="micro">{t('channels.type', 'Channel Type')}</label>
           <div className="channel-type-toggle">
             <button
               className={`channel-type-btn ${type === 'text' ? 'active' : ''}`}
@@ -78,7 +78,7 @@ export default function CreateChannel({ defaultCategory, onClose }: Readonly<Pro
         </div>
 
         <div className="create-channel-field">
-          <label htmlFor="create-channel-name">{t('channels.name', 'Channel Name')}</label>
+          <label htmlFor="create-channel-name" className="micro">{t('channels.name', 'Channel Name')}</label>
           <input
             id="create-channel-name"
             type="text"
@@ -90,7 +90,7 @@ export default function CreateChannel({ defaultCategory, onClose }: Readonly<Pro
         </div>
 
         <div className="create-channel-field">
-          <label htmlFor="create-channel-category">{t('channels.categoryLabel', 'Category')}</label>
+          <label htmlFor="create-channel-category" className="micro">{t('channels.categoryLabel', 'Category')}</label>
           <CategorySelect
             id="create-channel-category"
             category={category}
@@ -101,7 +101,7 @@ export default function CreateChannel({ defaultCategory, onClose }: Readonly<Pro
         </div>
 
         <div className="create-channel-field">
-          <label htmlFor="create-channel-topic">{t('channels.topicLabel', 'Topic')} ({t('channels.optional', 'optional')})</label>
+          <label htmlFor="create-channel-topic" className="micro">{t('channels.topicLabel', 'Topic')} ({t('channels.optional', 'optional')})</label>
           <textarea
             id="create-channel-topic"
             value={topic}

@@ -134,12 +134,12 @@ export default function UserPanel({
         }}
         type="button"
       >
-        <div className="user-panel-name">{displayName ?? username}</div>
-        <div className="user-panel-status-text">{statusLabel}</div>
+        <div className="user-panel-name title truncate">{displayName ?? username}</div>
+        <div className="user-panel-status-text caption truncate">{statusLabel}</div>
       </button>
       <div className="user-panel-actions">
         <button
-          className={`user-panel-btn ${muted ? 'user-panel-btn-active' : ''}`}
+          className={`user-panel-btn clickable ${muted ? 'user-panel-btn-active' : ''}`}
           onClick={handleMute}
           disabled={deafened}
           title={muteTitle}
@@ -147,14 +147,14 @@ export default function UserPanel({
           {muted ? <MicrophoneMute width={20} height={20} strokeWidth={2} /> : <Microphone width={20} height={20} strokeWidth={2} />}
         </button>
         <button
-          className={`user-panel-btn ${deafened ? 'user-panel-btn-active' : ''}`}
+          className={`user-panel-btn clickable ${deafened ? 'user-panel-btn-active' : ''}`}
           onClick={handleDeafen}
           title={deafened ? t('voice.undeafen', 'Undeafen') : t('voice.deafen', 'Deafen')}
         >
           {deafened ? <HeadsetWarning width={20} height={20} strokeWidth={2} /> : <Headset width={20} height={20} strokeWidth={2} />}
         </button>
         <button
-          className="user-panel-btn"
+          className="user-panel-btn clickable"
           onClick={onSettingsClick}
           title={t('settings.general')}
         >

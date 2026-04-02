@@ -90,13 +90,13 @@ function FileCard({ attachment }: Readonly<{ attachment: Attachment }>) {
     <div className="file-preview-card">
       <div className="file-preview-card-icon"><Page width={24} height={24} /></div>
       <div className="file-preview-card-info">
-        <span className="file-preview-card-name">{attachment.filename}</span>
+        <span className="file-preview-card-name truncate">{attachment.filename}</span>
         <span className="file-preview-card-size">{formatFileSize(attachment.size)}</span>
       </div>
       <a
         href={attachment.url}
         download={attachment.filename}
-        className="file-preview-card-download"
+        className="file-preview-card-download clickable"
         title={t('upload.download', 'Download')}
       >
         <Download width={16} height={16} />

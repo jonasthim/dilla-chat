@@ -22,7 +22,7 @@ export default function ShortcutsModal({ onClose }: Readonly<Props>) {
           {shortcuts.map((s) => (
             <div className="shortcuts-row" key={s.key}>
               <span className="shortcuts-action">{t(s.action)}</span>
-              <kbd className="shortcuts-key">{s.key}</kbd>
+              <kbd className="shortcuts-key mono">{s.key}</kbd>
             </div>
           ))}
         </div>

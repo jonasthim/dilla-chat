@@ -27,7 +27,7 @@ export default function Reactions({ reactions, currentUserId, onToggleReaction, 
         return (
           <button
             key={r.emoji}
-            className={`reaction-chip ${isMe ? 'reaction-chip-active' : ''}`}
+            className={`reaction-chip clickable ${isMe ? 'reaction-chip-active' : ''}`}
             onClick={() => onToggleReaction(r.emoji)}
             onMouseEnter={() => setHoveredEmoji(r.emoji)}
             onMouseLeave={() => setHoveredEmoji(null)}
@@ -56,7 +56,7 @@ export default function Reactions({ reactions, currentUserId, onToggleReaction, 
       <div className="reaction-add-wrapper">
         <button
           ref={addBtnRef}
-          className="reaction-add-btn"
+          className="reaction-add-btn clickable"
           onClick={() => setShowPicker(!showPicker)}
           title={t('reactions.addReaction', 'Add Reaction')}
         >

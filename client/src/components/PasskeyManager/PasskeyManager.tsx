@@ -114,7 +114,7 @@ export default function PasskeyManager() {
           credInfo.credentials.map((cred, i) => (
             <div key={cred.id || i} className="passkey-manager-item">
               <span className="passkey-manager-item-name">{cred.name || 'Passkey'}</span>
-              <span className="passkey-manager-item-id">
+              <span className="passkey-manager-item-id mono">
                 {cred.id?.slice(0, 12)}...
               </span>
             </div>

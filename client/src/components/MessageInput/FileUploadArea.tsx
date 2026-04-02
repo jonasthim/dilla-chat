@@ -44,11 +44,11 @@ export default function FileUploadArea({
                 </span>
               )}
               <div className="file-preview-details">
-                <span className="file-preview-name">{pf.file.name}</span>
+                <span className="file-preview-name truncate">{pf.file.name}</span>
                 <span className="file-preview-size">{formatFileSize(pf.file.size)}</span>
               </div>
               <button
-                className="file-preview-remove"
+                className="file-preview-remove clickable"
                 onClick={() => onRemoveFile(idx)}
                 title="Remove"
               >

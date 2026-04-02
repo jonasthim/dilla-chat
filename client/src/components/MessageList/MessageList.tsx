@@ -174,7 +174,7 @@ export default function MessageList({
                     <div className="message-actions">
                       {onReaction && (
                         <button
-                          className="message-action-btn"
+                          className="message-action-btn clickable"
                           onClick={() =>
                             setEmojiPickerMsgId(
                               emojiPickerMsgId === msg.id ? null : msg.id,
@@ -190,7 +190,7 @@ export default function MessageList({
                       )}
                       {onReply && (
                         <button
-                          className="message-action-btn"
+                          className="message-action-btn clickable"
                           onClick={() => onReply(msg)}
                           title={t('messages.reply', 'Reply')}
                         >
@@ -199,7 +199,7 @@ export default function MessageList({
                       )}
                       {onCreateThread && (
                         <button
-                          className="message-action-btn"
+                          className="message-action-btn clickable"
                           onClick={() => onCreateThread(msg)}
                           title={t('thread.createThread', 'Create Thread')}
                         >
@@ -208,7 +208,7 @@ export default function MessageList({
                       )}
                       {msg.authorId === currentUserId && onEdit && (
                         <button
-                          className="message-action-btn"
+                          className="message-action-btn clickable"
                           onClick={() => onEdit(msg)}
                           title={t('messages.edit', 'Edit Message')}
                         >
@@ -217,7 +217,7 @@ export default function MessageList({
                       )}
                       {msg.authorId === currentUserId && onDelete && (
                         <button
-                          className="message-action-btn danger"
+                          className="message-action-btn danger clickable"
                           onClick={() => onDelete(msg)}
                           title={t('messages.delete', 'Delete Message')}
                         >

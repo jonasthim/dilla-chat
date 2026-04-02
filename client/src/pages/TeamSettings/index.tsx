@@ -69,7 +69,7 @@ export default function TeamSettings() {
       {tab === 'moderation' && activeTeamId && <ModerationTab teamId={activeTeamId} />}
       {tab === 'audit-log' && (
         <div className="settings-section">
-          <h2>{t('settings.auditLog', 'Audit Log')}</h2>
+          <h2 className="heading-3">{t('settings.auditLog', 'Audit Log')}</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
             {t('moderation.noActions', 'No recent actions')}
           </p>
@@ -78,7 +78,7 @@ export default function TeamSettings() {
       {tab === 'bans' && activeTeamId && <BansTab teamId={activeTeamId} />}
       {tab === 'delete-server' && (
         <div className="settings-section">
-          <h2>{t('settings.deleteServer', 'Delete Server')}</h2>
+          <h2 className="heading-3">{t('settings.deleteServer', 'Delete Server')}</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
             {t('settings.deleteServerDesc', 'This action is irreversible. All data will be permanently deleted.')}
           </p>

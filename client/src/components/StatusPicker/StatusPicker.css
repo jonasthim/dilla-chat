@@ -18,10 +18,6 @@ dialog.status-picker {
 
 .status-picker-header {
   padding: 8px 10px 4px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
   color: var(--text-secondary);
 }
 

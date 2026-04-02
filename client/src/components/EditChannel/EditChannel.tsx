@@ -56,7 +56,7 @@ export default function EditChannel({ channel, onClose }: Readonly<Props>) {
         <h2 id="edit-channel-title">{t('channels.editChannel', 'Edit Channel')}</h2>
 
         <div className="edit-channel-field">
-          <label htmlFor="edit-channel-name">{t('channels.name', 'Channel Name')}</label>
+          <label htmlFor="edit-channel-name" className="micro">{t('channels.name', 'Channel Name')}</label>
           <input
             id="edit-channel-name"
             type="text"
@@ -68,7 +68,7 @@ export default function EditChannel({ channel, onClose }: Readonly<Props>) {
         </div>
 
         <div className="edit-channel-field">
-          <label htmlFor="edit-channel-category">{t('channels.categoryLabel', 'Category')}</label>
+          <label htmlFor="edit-channel-category" className="micro">{t('channels.categoryLabel', 'Category')}</label>
           <CategorySelect
             id="edit-channel-category"
             category={category}
@@ -79,7 +79,7 @@ export default function EditChannel({ channel, onClose }: Readonly<Props>) {
         </div>
 
         <div className="edit-channel-field">
-          <label htmlFor="edit-channel-topic">{t('channels.topicLabel', 'Topic')} ({t('channels.optional', 'optional')})</label>
+          <label htmlFor="edit-channel-topic" className="micro">{t('channels.topicLabel', 'Topic')} ({t('channels.optional', 'optional')})</label>
           <textarea
             id="edit-channel-topic"
             value={topic}

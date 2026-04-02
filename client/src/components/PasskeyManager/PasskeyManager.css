@@ -50,8 +50,6 @@
 }
 
 .passkey-manager-item-id {
-  font-family: monospace;
-  font-size: 12px;
   color: var(--text-muted);
 }
 

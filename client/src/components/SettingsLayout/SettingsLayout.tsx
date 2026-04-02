@@ -34,7 +34,7 @@ export default function SettingsLayout({ sections, activeId, onSelect, onClose, 
             <div key={section.label ?? section.items.map(i => i.id).join(',')} className="settings-nav-section">
               {si > 0 && <div className="settings-nav-separator" />}
               {section.label && (
-                <div className="settings-nav-header">{section.label}</div>
+                <div className="settings-nav-header micro">{section.label}</div>
               )}
               {section.items.map((item) => (
                 <button

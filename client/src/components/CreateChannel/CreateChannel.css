@@ -33,8 +33,6 @@ dialog.create-channel-overlay {
 
 .create-channel-modal h2 {
   margin: 0 0 20px;
-  font-size: 20px;
-  font-weight: 600;
 }
 
 .create-channel-field {
@@ -44,10 +42,6 @@ dialog.create-channel-overlay {
 .create-channel-field label {
   display: block;
   margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
   color: var(--text-secondary);
 }
 

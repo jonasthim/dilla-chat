@@ -14,10 +14,8 @@
   border-radius: var(--radius-md);
   background: var(--bg-tertiary);
   border: 1px solid transparent;
-  cursor: pointer;
   font-size: var(--font-size-base);
   color: var(--text-muted);
-  transition: background-color 0.1s ease, border-color 0.1s ease;
   position: relative;
   height: 24px;
 }
@@ -91,11 +89,9 @@
   border-radius: var(--radius-md);
   background: var(--bg-tertiary);
   border: 1px solid transparent;
-  cursor: pointer;
   color: var(--interactive-normal);
   font-size: 14px;
   font-weight: 400;
-  transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
 }
 
 .reaction-add-btn:hover {

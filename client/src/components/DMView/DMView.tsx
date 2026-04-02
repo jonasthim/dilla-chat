@@ -267,7 +267,7 @@ export default function DMView({ dm, currentUserId, showMembers = false }: Reado
 
         {showMembers && dm.is_group && (
           <div className="dm-member-panel">
-            <div className="dm-member-panel-header">
+            <div className="dm-member-panel-header micro">
               {t('dm.members', '{{count}} members', { count: dm.members.length })}
             </div>
             {dm.members.map((member) => (

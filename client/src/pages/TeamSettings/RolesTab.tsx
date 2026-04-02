@@ -77,7 +77,7 @@ export default function RolesTab({ teamId }: Readonly<{ teamId: string }>) {
 
   return (
     <div className="settings-section">
-      <h2>{t('settings.roles')}</h2>
+      <h2 className="heading-3">{t('settings.roles')}</h2>
 
       <button className="btn-primary" onClick={handleCreateRole} style={{ marginBottom: 16 }}>
         {t('roles.create', 'Create Role')}
@@ -101,12 +101,12 @@ export default function RolesTab({ teamId }: Readonly<{ teamId: string }>) {
       {selectedRole && (
         <div className="role-editor">
           <div className="settings-field">
-            <label>{t('roles.name', 'Role Name')}</label>
+            <label className="micro">{t('roles.name', 'Role Name')}</label>
             <input value={editName} onChange={(e) => setEditName(e.target.value)} />
           </div>
 
           <div className="settings-field">
-            <label>{t('roles.color', 'Color')}</label>
+            <label className="micro">{t('roles.color', 'Color')}</label>
             <input
               type="color"
               value={editColor}
@@ -115,7 +115,7 @@ export default function RolesTab({ teamId }: Readonly<{ teamId: string }>) {
             />
           </div>
 
-          <h3>{t('roles.permissions', 'Permissions')}</h3>
+          <h3 className="title">{t('roles.permissions', 'Permissions')}</h3>
           <div className="permissions-grid">
             {PERMISSION_FLAGS.map(({ bit, label }) => (
               <label key={bit} className="permission-check">

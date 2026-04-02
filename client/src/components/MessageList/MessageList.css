@@ -242,16 +242,12 @@
   background: none;
   border: none;
   color: var(--interactive-normal);
-  cursor: pointer;
   padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-sm);
   font-size: var(--font-size-md);
   line-height: 1;
-  transition: background-color 0.1s ease, color 0.1s ease;
 }
 
 .message-action-btn:hover {
-  background: var(--bg-modifier-hover);
   color: var(--interactive-hover);
 }
 

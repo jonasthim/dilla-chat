@@ -129,7 +129,7 @@ export default function SearchBar({ onJumpToMessage }: Readonly<Props>) {
             </div>
           ) : (
             <>
-              <div className="search-bar-result-count">
+              <div className="search-bar-result-count micro">
                 {t('search.results', '{{count}} results', { count: results.length })}
               </div>
               {results.map((result) => (
