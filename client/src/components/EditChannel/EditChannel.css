@@ -44,10 +44,6 @@ dialog.edit-channel-overlay {
 .edit-channel-field label {
   display: block;
   margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
   color: var(--text-secondary);
 }
 

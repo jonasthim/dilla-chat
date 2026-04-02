@@ -52,11 +52,11 @@ export default function InvitesTab({ teamId }: Readonly<{ teamId: string }>) {
 
   return (
     <div className="settings-section">
-      <h2>{t('settings.invites')}</h2>
+      <h2 className="heading-3">{t('settings.invites')}</h2>
 
       <div className="invite-form">
         <div className="settings-field">
-          <label>{t('invites.maxUses', 'Max Uses')}</label>
+          <label className="micro">{t('invites.maxUses', 'Max Uses')}</label>
           <select value={maxUses} onChange={(e) => setMaxUses(e.target.value)}>
             <option value="0">{t('invites.unlimited', 'Unlimited')}</option>
             <option value="1">1</option>
@@ -69,7 +69,7 @@ export default function InvitesTab({ teamId }: Readonly<{ teamId: string }>) {
         </div>
 
         <div className="settings-field">
-          <label>{t('invites.expiry', 'Expires After')}</label>
+          <label className="micro">{t('invites.expiry', 'Expires After')}</label>
           <select value={expiry} onChange={(e) => setExpiry(e.target.value)}>
             <option value="0.5">{t('invites.30min', '30 minutes')}</option>
             <option value="1">{t('invites.1hour', '1 hour')}</option>
@@ -106,7 +106,7 @@ export default function InvitesTab({ teamId }: Readonly<{ teamId: string }>) {
                   <td>
                     <div className="invite-link-cell">
                       <button
-                        className="invite-link-text"
+                        className="invite-link-text mono"
                         onClick={() => copyLink(inv.id, inv.token)}
                         title={link}
                         type="button"

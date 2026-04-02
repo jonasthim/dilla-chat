@@ -80,10 +80,8 @@
   padding: 6px 8px;
   margin: 1px 8px;
   border-radius: var(--radius-sm);
-  cursor: pointer;
   gap: 12px;
   position: relative;
-  transition: background-color 0.15s ease;
 }
 
 .dm-item::before {
@@ -152,9 +150,6 @@
   font-size: 16px;
   font-weight: 500;
   color: var(--interactive-normal);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   flex: 1;
 }
 
@@ -173,9 +168,6 @@
 .dm-item-preview {
   font-size: 13px;
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dm-item-no-msg {

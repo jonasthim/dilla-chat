@@ -200,7 +200,7 @@ export default function UserSettings() {
           {publicKey && (
             <div className="settings-field" style={{ marginTop: 20 }}>
               <label>{t('identity.publicKeyLabel', 'Your public key fingerprint')}</label>
-              <div className="user-public-key">{publicKey}</div>
+              <div className="user-public-key mono">{publicKey}</div>
             </div>
           )}
         </div>
@@ -487,7 +487,7 @@ export default function UserSettings() {
             {shortcuts.map((s) => (
               <div className="keybind-row" key={s.key}>
                 <span className="keybind-action">{t(s.action)}</span>
-                <kbd className="keybind-key">{s.key}</kbd>
+                <kbd className="keybind-key mono">{s.key}</kbd>
               </div>
             ))}
           </div>

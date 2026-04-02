@@ -90,12 +90,7 @@
 }
 
 .search-bar-result-count {
-  font-size: 11px;
-  color: var(--text-muted);
   padding: 4px 8px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
 .search-bar-result {

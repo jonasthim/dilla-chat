@@ -18,7 +18,7 @@ export default function BansTab({ teamId }: Readonly<{ teamId: string }>) {
 
   return (
     <div className="settings-section">
-      <h2>{t('settings.bans', 'Bans')}</h2>
+      <h2 className="heading-3">{t('settings.bans', 'Bans')}</h2>
       <div className="banned-users-list">
         {bannedUsers.length === 0 && (
           <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>

@@ -80,7 +80,7 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
     return (
       <div key={cat} className="channel-category">
         <div className="channel-category-header">
-          <button className="channel-category-name" onClick={() => toggleCategory(cat)} type="button">
+          <button className="channel-category-name micro" onClick={() => toggleCategory(cat)} type="button">
             <span className={`category-arrow ${isCollapsed ? 'collapsed' : ''}`}>▼</span>
             {cat}
           </button>
@@ -108,7 +108,7 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
             return (
               <div key={ch.id}>
                 <button
-                  className={`channel-item ${activeChannelId === ch.id ? 'active' : ''}`}
+                  className={`channel-item clickable ${activeChannelId === ch.id ? 'active' : ''}`}
                   onClick={() => {
                     setActiveChannel(ch.id);
                     if (isVoice && !isVoiceConnected && activeTeamId) {
@@ -124,7 +124,7 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
                   }}
                 >
                   <span className={`channel-icon ${isVoice && voicePeerList.length > 0 ? 'voice-active' : ''}`}>{isVoice ? <SoundHigh width={16} height={16} strokeWidth={2} /> : <span className="channel-tilde">~</span>}</span>
-                  <span className="channel-name">{ch.name}</span>
+                  <span className="channel-name truncate">{ch.name}</span>
                 </button>
                 {voicePeerList.length > 0 && (
                   <div className="voice-channel-users">

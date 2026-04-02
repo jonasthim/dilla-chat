@@ -123,9 +123,9 @@ export default function FederationStatus({ teamId }: Readonly<{ teamId: string }
           <h3>{t('federation.nodeInfo')}</h3>
           <div className="node-info-grid">
             <span className="node-info-label">{t('federation.nodeName')}</span>
-            <span className="node-info-value">{status.node_name}</span>
+            <span className="node-info-value mono">{status.node_name}</span>
             <span className="node-info-label">{t('federation.lamportTimestamp')}</span>
-            <span className="node-info-value">{status.lamport_ts}</span>
+            <span className="node-info-value mono">{status.lamport_ts}</span>
           </div>
         </div>
       )}
@@ -144,10 +144,10 @@ export default function FederationStatus({ teamId }: Readonly<{ teamId: string }
           <table className="federation-peer-table">
             <thead>
               <tr>
-                <th>{t('federation.peerName')}</th>
-                <th>{t('federation.peerAddress')}</th>
-                <th>{t('federation.peerStatus')}</th>
-                <th>{t('federation.peerLastSeen')}</th>
+                <th className="micro">{t('federation.peerName')}</th>
+                <th className="micro">{t('federation.peerAddress')}</th>
+                <th className="micro">{t('federation.peerStatus')}</th>
+                <th className="micro">{t('federation.peerLastSeen')}</th>
               </tr>
             </thead>
             <tbody>
@@ -183,7 +183,7 @@ export default function FederationStatus({ teamId }: Readonly<{ teamId: string }
         {joinToken && (
           <div className="federation-join-result">
             <p className="federation-join-help">{t('federation.joinCommandHelp')}</p>
-            <div className="federation-command-block">
+            <div className="federation-command-block mono">
               {joinToken.join_command}
               <button
                 className={`federation-copy-btn ${copiedField === 'join' ? 'copied' : ''}`}
@@ -194,7 +194,7 @@ export default function FederationStatus({ teamId }: Readonly<{ teamId: string }
             </div>
 
             <p className="federation-curl-label">{t('federation.curlOneLiner')}</p>
-            <div className="federation-command-block">
+            <div className="federation-command-block mono">
               {curlOneLiner}
               <button
                 className={`federation-copy-btn ${copiedField === 'curl' ? 'copied' : ''}`}

@@ -53,7 +53,7 @@ export default function UserProfile({ member, presence, x, y, onSendMessage }: R
 
         {member.roles.length > 0 && (
           <div className="user-profile-section">
-            <div className="user-profile-section-title">{t('profile.roles')}</div>
+            <div className="user-profile-section-title micro">{t('profile.roles')}</div>
             <div className="user-profile-roles">
               {member.roles.map((role: Role) => (
                 <span key={role.id} className="user-profile-role-badge">

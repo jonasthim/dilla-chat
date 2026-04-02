@@ -174,7 +174,7 @@ export default function AppLayout() {
           <span className="content-header-icon">
             {activeDM.is_group ? <Group width={20} height={20} strokeWidth={2} /> : <ChatBubble width={20} height={20} strokeWidth={2} />}
           </span>
-          <span className="content-header-name">
+          <span className="content-header-name title">
             {activeDM.is_group
               ? ((activeDM as unknown as { name?: string }).name || activeDM.members.map((m) => m.display_name || m.username).join(', '))
               : (() => {
@@ -216,7 +216,7 @@ export default function AppLayout() {
           <span className="content-header-icon">
             {activeChannel.type === 'voice' ? <SoundHigh width={20} height={20} strokeWidth={2} /> : <span className="channel-tilde">~</span>}
           </span>
-          <span className="content-header-name">{activeChannel.name}</span>
+          <span className="content-header-name title">{activeChannel.name}</span>
           {derivedKey && (
             <span className="content-header-encrypted" title="End-to-end encrypted">
               <Lock width={14} height={14} strokeWidth={2} />
@@ -243,7 +243,7 @@ export default function AppLayout() {
     }
     return (
       <>
-        <span className="content-header-name">{t('app.name')}</span>
+        <span className="content-header-name title">{t('app.name')}</span>
         <div className="content-header-actions">
           <SearchBar onJumpToMessage={handleJumpToMessage} />
           <button
@@ -388,7 +388,7 @@ export default function AppLayout() {
     <div className={`channel-sidebar ${isMobile ? 'mobile-fullwidth' : ''}`} style={isMobile ? undefined : { width: channelWidth }}>
       <div className="channel-sidebar-header">
         <div className="channel-sidebar-header-top">
-          <span className="channel-sidebar-header-name">
+          <span className="channel-sidebar-header-name title truncate">
             {isDMMode ? t('dm.title', 'Direct Messages') : (activeTeamId && teamMap.get(activeTeamId)?.name) || t('app.name')}
           </span>
           <button

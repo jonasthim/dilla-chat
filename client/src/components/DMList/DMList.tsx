@@ -119,7 +119,7 @@ export default function DMList({ currentUserId, onNewDM }: Readonly<Props>) {
           return (
             <button
               key={dm.id}
-              className={`dm-item ${activeDMId === dm.id ? 'active' : ''}`}
+              className={`dm-item clickable ${activeDMId === dm.id ? 'active' : ''}`}
               onClick={() => setActiveDM(dm.id)}
               type="button"
             >
@@ -132,10 +132,10 @@ export default function DMList({ currentUserId, onNewDM }: Readonly<Props>) {
               </div>
               <div className="dm-item-info">
                 <div className="dm-item-header">
-                  <span className="dm-item-name">{displayName}</span>
+                  <span className="dm-item-name truncate">{displayName}</span>
                   <span className="dm-item-time">{formatTimestamp(timestamp)}</span>
                 </div>
-                <div className="dm-item-preview">
+                <div className="dm-item-preview truncate">
                   {lastMsg || (
                     <span className="dm-item-no-msg">{t('dm.noMessages', 'No messages yet. Say hello!')}</span>
                   )}

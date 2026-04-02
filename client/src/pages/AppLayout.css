@@ -120,9 +120,6 @@
 
 .content-header-name {
   font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--header-primary);
 }
 
 .content-header-encrypted {
@@ -247,12 +244,6 @@
 
 .channel-sidebar-header-name {
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 16px;
-  color: var(--header-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   flex: 1;
   min-width: 0;
 }

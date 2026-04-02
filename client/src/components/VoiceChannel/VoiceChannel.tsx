@@ -180,7 +180,7 @@ export default function VoiceChannel({ channel }: Readonly<Props>) {
                         {peer.username.slice(0, 2).toUpperCase()}
                       </div>
                     )}
-                    <div className="voice-tile-name">{peer.username}</div>
+                    <div className="voice-tile-name truncate">{peer.username}</div>
                     <div className="voice-tile-icons">
                       {peer.muted && <span title={t('voice.mute')}><MicrophoneMute width={16} height={16} strokeWidth={2} /></span>}
                       {peer.deafened && <span title={t('voice.deafen')}><HeadsetWarning width={16} height={16} strokeWidth={2} /></span>}

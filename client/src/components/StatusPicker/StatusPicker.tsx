@@ -51,7 +51,7 @@ export default function StatusPicker({
 
   return (
     <dialog className="status-picker" open>
-      <div className="status-picker-header">{t('presence.setStatus')}</div>
+      <div className="status-picker-header micro">{t('presence.setStatus')}</div>
 
       <div className="status-picker-options">
         {STATUS_OPTIONS.map((opt) => (

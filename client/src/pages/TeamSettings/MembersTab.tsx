@@ -81,7 +81,7 @@ export default function MembersTab({ teamId }: Readonly<{ teamId: string }>) {
 
   return (
     <div className="settings-section">
-      <h2>{t('settings.members')}</h2>
+      <h2 className="heading-3">{t('settings.members')}</h2>
 
       <div className="members-search">
         <input

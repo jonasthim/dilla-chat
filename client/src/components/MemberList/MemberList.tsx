@@ -121,11 +121,11 @@ export default function MemberList() {
           <PresenceIndicator status={status} size="medium" />
         </div>
         <div className="member-info">
-          <div className="member-display-name">
+          <div className="member-display-name truncate">
             {member.nickname || member.displayName || member.username}
           </div>
           {customStatus && (
-            <div className="member-custom-status">{customStatus}</div>
+            <div className="member-custom-status truncate caption">{customStatus}</div>
           )}
         </div>
       </button>
@@ -136,7 +136,7 @@ export default function MemberList() {
     <div className="member-list">
       {onlineGroup.length > 0 && (
         <div className="member-role-group">
-          <div className="member-role-header">
+          <div className="member-role-header micro">
             {t('presence.onlineCount', { count: onlineGroup.length })}
           </div>
           {onlineGroup.map(renderMember)}
@@ -145,7 +145,7 @@ export default function MemberList() {
 
       {offlineGroup.length > 0 && (
         <div className="member-role-group">
-          <div className="member-role-header">
+          <div className="member-role-header micro">
             {t('presence.offlineCount', { count: offlineGroup.length })}
           </div>
           {offlineGroup.map(renderMember)}

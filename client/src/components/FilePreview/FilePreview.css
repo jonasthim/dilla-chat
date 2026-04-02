@@ -130,9 +130,6 @@
   font-size: 14px;
   color: var(--text-link);
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .file-preview-card-size {
@@ -143,16 +140,13 @@
 .file-preview-card-download {
   background: none;
   border: none;
-  cursor: pointer;
   font-size: 20px;
   color: var(--interactive-normal);
   text-decoration: none;
   padding: 4px;
-  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 
 .file-preview-card-download:hover {
   color: var(--interactive-hover);
-  background: var(--bg-modifier-hover);
 }

@@ -84,7 +84,5 @@ dialog.shortcuts-overlay {
   color: var(--text-secondary);
   padding: 4px 10px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-family: 'Consolas', 'Monaco', monospace;
   border: 1px solid var(--border-color);
 }

@@ -121,8 +121,6 @@
 }
 
 .user-public-key {
-  font-family: monospace;
-  font-size: 12px;
   background: var(--input-bg);
   padding: 8px 12px;
   border-radius: 4px;
@@ -441,8 +439,6 @@
 }
 
 .keybind-key {
-  font-family: monospace;
-  font-size: 12px;
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   padding: 4px 8px;

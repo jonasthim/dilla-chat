@@ -55,22 +55,11 @@
 }
 
 .user-panel-name {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--header-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   line-height: 18px;
 }
 
 .user-panel-status-text {
-  font-size: 12px;
-  color: var(--text-muted);
   line-height: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .user-panel-actions {
@@ -82,21 +71,17 @@
   background: none;
   border: none;
   color: var(--interactive-normal);
-  cursor: pointer;
   padding: 0;
-  border-radius: var(--radius-sm);
   font-size: 20px;
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .user-panel-btn:hover {
   color: var(--interactive-hover);
-  background: var(--bg-modifier-hover);
 }
 
 .user-panel-btn-active {

@@ -116,7 +116,7 @@ export default function ConnectionStatus() {
 
       {showTooltip && (
         <div className="connection-status__tooltip">
-          <div className="connection-status__tooltip-title">Connection Info</div>
+          <div className="connection-status__tooltip-title micro">Connection Info</div>
           <div className="connection-status__tooltip-row">
             <span>Quality</span>
             <span className={`connection-status__quality-badge connection-status__quality-badge--${state.quality}`}>

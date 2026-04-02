@@ -299,7 +299,7 @@ export default function ThreadPanel({ thread, onClose }: Readonly<Props>) {
     <div className="thread-panel">
       <div className="thread-panel-header">
         <div className="thread-panel-header-info">
-          <div className="thread-panel-title">{threadTitle}</div>
+          <div className="thread-panel-title title truncate">{threadTitle}</div>
           <div className="thread-panel-subtitle">
             {(() => {
               if (thread.message_count === 0) return t('thread.noReplies', 'No replies yet. Start the conversation!');

@@ -40,25 +40,25 @@ export default function OverviewTab({
 
   return (
     <div className="settings-section">
-      <h2>{t('settings.overview', 'Overview')}</h2>
+      <h2 className="heading-3">{t('settings.overview', 'Overview')}</h2>
 
       <div className="settings-field">
-        <label>{t('settings.teamName', 'Team Name')}</label>
+        <label className="micro">{t('settings.teamName', 'Team Name')}</label>
         <input value={name} onChange={(e) => setName(e.target.value)} />
       </div>
 
       <div className="settings-field">
-        <label>{t('settings.description', 'Description')}</label>
+        <label className="micro">{t('settings.description', 'Description')}</label>
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
 
       <div className="settings-field">
-        <label>{t('settings.iconUrl', 'Icon URL')}</label>
+        <label className="micro">{t('settings.iconUrl', 'Icon URL')}</label>
         <input value={iconUrl} onChange={(e) => setIconUrl(e.target.value)} />
       </div>
 
       <div className="settings-field">
-        <label>{t('settings.maxFileSize', 'Max File Size (bytes)')}</label>
+        <label className="micro">{t('settings.maxFileSize', 'Max File Size (bytes)')}</label>
         <input
           type="number"
           value={maxFileSize}
