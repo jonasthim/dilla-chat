@@ -84,7 +84,7 @@
 
 .public-brand-pill {
   font-size: 0.78rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--text-secondary);
   background: var(--glass-bg-primary);
   border: 1px solid var(--glass-border);

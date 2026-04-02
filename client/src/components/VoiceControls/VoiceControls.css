@@ -26,7 +26,7 @@
 .voice-controls-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .voice-controls-left {
@@ -40,7 +40,7 @@
 .voice-controls-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -50,8 +50,8 @@
   align-items: center;
   gap: 6px;
   color: var(--status-online);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   line-height: 18px;
 }
 
@@ -68,9 +68,9 @@
 }
 
 .voice-controls-channel {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -81,7 +81,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: 4px;
+  margin-top: var(--spacing-xs);
   max-height: 80px;
   overflow-y: auto;
 }
@@ -90,7 +90,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--interactive-normal);
   padding: 1px 0;
 }
@@ -120,13 +120,13 @@
 }
 
 .voice-peer-icon {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   flex-shrink: 0;
 }
 
 .voice-controls-buttons {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-sm);
   justify-content: center;
 }
 

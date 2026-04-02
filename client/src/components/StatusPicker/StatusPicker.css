@@ -8,7 +8,7 @@ dialog.status-picker {
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-elevated);
   border-radius: var(--radius-lg);
-  padding: 8px;
+  padding: var(--spacing-sm);
   z-index: 1000;
   min-width: 220px;
   max-width: none;
@@ -38,7 +38,7 @@ dialog.status-picker {
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--text-primary);
   background: transparent;
 }
@@ -74,8 +74,8 @@ dialog.status-picker {
 
 .status-picker-custom-label {
   display: block;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-secondary);
   margin-bottom: 6px;
   text-transform: uppercase;
@@ -89,7 +89,7 @@ dialog.status-picker {
   border: none;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--font-size-base);
   outline: none;
   box-sizing: border-box;
 }
@@ -101,7 +101,7 @@ dialog.status-picker {
 .status-picker-custom-actions {
   display: flex;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: var(--spacing-sm);
   justify-content: flex-end;
 }
 
@@ -109,9 +109,9 @@ dialog.status-picker {
   padding: 6px 14px;
   border: none;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   cursor: pointer;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .status-picker-btn.save {

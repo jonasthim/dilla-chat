@@ -9,7 +9,7 @@
   background-color: var(--input-bg);
   border: 1px solid transparent;
   border-radius: var(--radius-lg);
-  padding: 0 8px;
+  padding: 0 var(--spacing-sm);
   height: 28px;
   width: 200px;
   transition: width 0.2s ease, border-color 0.15s ease, box-shadow 0.15s ease;
@@ -32,7 +32,7 @@
   background: none;
   border: none;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-family: inherit;
   outline: none;
   padding: 0 6px;
@@ -78,19 +78,19 @@
   box-shadow: var(--glass-shadow-elevated);
   border-radius: var(--radius-lg);
   z-index: 200;
-  padding: 8px;
+  padding: var(--spacing-sm);
 }
 
 /* Result styles (shared with old modal) */
 .search-bar-no-results {
   text-align: center;
-  padding: 24px 16px;
+  padding: var(--spacing-xl) var(--spacing-lg);
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--font-size-base);
 }
 
 .search-bar-result-count {
-  padding: 4px 8px;
+  padding: var(--spacing-xs) var(--spacing-sm);
 }
 
 .search-bar-result {
@@ -115,24 +115,24 @@
 .search-result-header {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--spacing-sm);
   margin-bottom: 2px;
 }
 
 .search-result-author {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   color: var(--header-primary);
 }
 
 .search-result-time {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .search-result-content {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--text-normal);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -147,7 +147,7 @@
   color: var(--header-primary);
   border-radius: 2px;
   padding: 0 2px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 /* ===== Responsive ===== */

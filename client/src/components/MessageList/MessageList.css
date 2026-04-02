@@ -1,13 +1,13 @@
 .message-list {
   flex: 1;
-  padding: 8px 0 0;
+  padding: var(--spacing-sm) 0 0;
 }
 
 .message-list-loading {
   text-align: center;
-  padding: 12px;
+  padding: var(--spacing-md);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .message-list-beginning {
@@ -39,7 +39,7 @@
 /* Message groups */
 .message-group {
   display: flex;
-  padding: 2px 48px 2px 16px;
+  padding: 2px 48px 2px var(--spacing-lg);
   margin-top: 1.0625rem;
   position: relative;
 }
@@ -53,7 +53,7 @@
 .message-group-avatar {
   flex-shrink: 0;
   width: 40px;
-  margin-right: 16px;
+  margin-right: var(--spacing-lg);
   margin-top: 0.125rem;
 }
 
@@ -65,7 +65,7 @@
   align-items: center;
   justify-content: center;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--interactive-active);
   user-select: none;
   cursor: pointer;
@@ -92,7 +92,7 @@
 
 .message-username {
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--header-primary);
   cursor: pointer;
   transition: text-decoration 0.05s ease;
@@ -105,7 +105,7 @@
 .message-timestamp {
   font-size: 0.75rem;
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 /* Individual messages */
@@ -181,19 +181,19 @@
 
 .message-content blockquote {
   border-left: 4px solid var(--interactive-muted);
-  padding-left: 12px;
-  margin: 4px 0;
+  padding-left: var(--spacing-md);
+  margin: var(--spacing-xs) 0;
   color: var(--text-normal);
 }
 
 .message-content ul,
 .message-content ol {
   margin: 0;
-  padding-left: 24px;
+  padding-left: var(--spacing-xl);
 }
 
 .message-content strong {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--header-primary);
 }
 
@@ -204,8 +204,8 @@
 .message-edited {
   font-size: 0.625rem;
   color: var(--text-muted);
-  margin-left: 4px;
-  font-weight: 400;
+  margin-left: var(--spacing-xs);
+  font-weight: var(--font-weight-normal);
 }
 
 /* Hover action bar */
@@ -233,9 +233,9 @@
 .message-item:hover {
   background: var(--bg-modifier-hover);
   border-radius: var(--radius-sm);
-  margin: 0 -4px;
-  padding-left: 4px;
-  padding-right: 4px;
+  margin: 0 calc(-1 * var(--spacing-xs));
+  padding-left: var(--spacing-xs);
+  padding-right: var(--spacing-xs);
 }
 
 .message-action-btn {
@@ -260,15 +260,15 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 4px;
-  padding: 2px 8px 2px 3px;
+  margin-top: var(--spacing-xs);
+  padding: 2px var(--spacing-sm) 2px 3px;
   background: none;
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--text-link);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   transition: background-color 0.15s ease;
 }
 
@@ -277,17 +277,17 @@
 }
 
 .thread-indicator-icon {
-  font-size: 16px;
+  font-size: var(--font-size-lg);
 }
 
 .thread-indicator-count {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .thread-indicator-time {
   color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 400;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
 }
 
 /* Emoji picker anchor positioned relative to message */

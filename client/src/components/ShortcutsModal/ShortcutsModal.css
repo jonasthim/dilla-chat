@@ -25,7 +25,7 @@ dialog.shortcuts-overlay {
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow-elevated);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: var(--spacing-xl);
   width: 480px;
   max-width: 90vw;
   color: var(--text-primary);
@@ -40,8 +40,8 @@ dialog.shortcuts-overlay {
 
 .shortcuts-header h2 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
 }
 
 .shortcuts-close {
@@ -50,7 +50,7 @@ dialog.shortcuts-overlay {
   color: var(--text-muted);
   cursor: pointer;
   font-size: 18px;
-  padding: 4px 8px;
+  padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-sm);
 }
 
@@ -62,20 +62,20 @@ dialog.shortcuts-overlay {
 .shortcuts-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .shortcuts-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
 }
 
 .shortcuts-action {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--text-primary);
 }
 

@@ -21,7 +21,7 @@ dialog.user-profile-popover {
 }
 
 .user-profile-body {
-  padding: 0 16px 16px;
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
   position: relative;
 }
 
@@ -29,7 +29,7 @@ dialog.user-profile-popover {
   position: relative;
   display: inline-block;
   margin-top: -30px;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-sm);
 }
 
 .user-profile-avatar {
@@ -42,19 +42,19 @@ dialog.user-profile-popover {
   align-items: center;
   justify-content: center;
   font-size: 22px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   border: 4px solid var(--bg-tertiary);
 }
 
 .user-profile-display-name {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
   margin-bottom: 2px;
 }
 
 .user-profile-username {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
   margin-bottom: 10px;
 }
@@ -63,13 +63,13 @@ dialog.user-profile-popover {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-bottom: 12px;
-  padding: 8px 0;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
   border-top: 1px solid var(--white-overlay-subtle);
 }
 
 .user-profile-status-text {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
 
@@ -80,7 +80,7 @@ dialog.user-profile-popover {
 }
 
 .user-profile-section {
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-md);
 }
 
 .user-profile-section-title {
@@ -91,16 +91,16 @@ dialog.user-profile-popover {
 .user-profile-roles {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--spacing-xs);
 }
 
 .user-profile-role-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  gap: var(--spacing-xs);
+  padding: 2px var(--spacing-sm);
   border-radius: 12px;
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   background: var(--bg-primary);
 }
 
@@ -111,22 +111,22 @@ dialog.user-profile-popover {
 }
 
 .user-profile-member-since {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   color: var(--text-secondary);
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-md);
 }
 
 .user-profile-send-btn {
   width: 100%;
-  padding: 8px;
+  padding: var(--spacing-sm);
   border: 1px solid var(--white-overlay-light);
   border-radius: var(--radius-sm);
   background: var(--gradient-accent);
   color: white;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
-  margin-top: 4px;
+  margin-top: var(--spacing-xs);
   transition: filter 0.15s, box-shadow 0.15s;
   box-shadow: 0 2px 8px var(--accent-alpha-20);
 }
