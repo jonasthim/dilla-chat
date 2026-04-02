@@ -48,6 +48,7 @@ fn test_config() -> Config {
         allowed_origins: vec![],
         trusted_proxies: vec![],
         insecure: false,
+        theme_file: String::new(),
         telemetry_adapter: "none".into(),
         sentry_dsn: String::new(),
         environment: "test".into(),
