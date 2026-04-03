@@ -48,6 +48,7 @@ function ImagePreview({ attachment }: Readonly<{ attachment: Attachment }>) {
       {expanded && (
         <div
           className="fixed inset-0 bg-overlay-heavy flex items-center justify-center z-modal cursor-pointer"
+          data-testid="file-preview-lightbox"
           aria-hidden="true"
           onClick={() => setExpanded(false)}
         >

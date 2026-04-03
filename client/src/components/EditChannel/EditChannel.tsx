@@ -51,7 +51,7 @@ export default function EditChannel({ channel, onClose }: Readonly<Props>) {
   return (
     <dialog className="fixed inset-0 border-none p-0 bg-transparent max-w-none max-h-none bg-overlay-dark backdrop-blur-[4px] flex items-center justify-center z-[1000]" open aria-labelledby="edit-channel-title">
       <button type="button" className="dialog-backdrop" onClick={onClose} aria-label="Close" />
-      <div className="bg-glass-modal backdrop-blur-glass-heavy border border-glass-border shadow-glass-elevated rounded-lg p-xl w-[440px] max-w-[90vw] text-foreground-primary">
+      <div className="bg-glass-modal backdrop-blur-glass-heavy border border-glass-border shadow-glass-elevated rounded-lg p-xl w-[440px] max-w-[90vw] text-foreground-primary" data-testid="edit-channel-modal">
         <h2 id="edit-channel-title" className="m-0 mb-5 text-xl font-semibold">{t('channels.editChannel', 'Edit Channel')}</h2>
 
         <div className="mb-lg">

@@ -125,6 +125,8 @@ export default function DMList({ currentUserId, onNewDM }: Readonly<Props>) {
             <button
               key={dm.id}
               className={`dm-item-indicator clickable bg-transparent border-none w-[calc(100%-16px)] text-left font-[inherit] text-[inherit] text-inherit flex items-center py-1.5 px-sm mx-sm my-px rounded-sm gap-md hover:bg-surface-hover ${activeDMId === dm.id ? 'active bg-surface-active' : ''}`}
+              data-testid="dm-item"
+              data-active={activeDMId === dm.id}
               onClick={() => setActiveDM(dm.id)}
               type="button"
             >

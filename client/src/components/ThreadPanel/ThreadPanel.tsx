@@ -345,6 +345,7 @@ export default function ThreadPanel({ thread, onClose }: Readonly<Props>) {
         style={{ scrollbarColor: 'var(--scrollbar-thin-thumb) var(--scrollbar-thin-track)' }}
         ref={containerRef}
         onScroll={handleScroll}
+        data-testid="thread-messages"
       >
         {loading && (
           <div className="text-center p-md text-foreground-muted text-sm">{t('app.loading', 'Loading...')}</div>

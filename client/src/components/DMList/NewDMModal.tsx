@@ -107,11 +107,13 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Read
               <span
                 key={m.userId}
                 className="inline-flex items-center gap-xs bg-bg-accent text-white rounded-[12px] py-[3px] pr-2 pl-2.5 text-sm"
+                data-testid="new-dm-chip"
               >
                 {m.displayName || m.username}
                 <button
                   className="bg-transparent border-none text-white-overlay-medium cursor-pointer text-micro px-0.5 py-0 leading-none hover:text-white"
                   onClick={() => removeMember(m.userId)}
+                  data-testid="new-dm-chip-remove"
                 >
                   <Xmark width={14} height={14} strokeWidth={2} />
                 </button>
@@ -136,6 +138,8 @@ export default function NewDMModal({ currentUserId, onClose, onDMCreated }: Read
               <button
                 key={member.userId}
                 className={`bg-transparent border-none w-full text-left font-[inherit] text-[inherit] flex items-center justify-between px-md py-sm rounded-sm cursor-pointer text-foreground-secondary hover:bg-surface-hover ${isSelected ? 'bg-surface-selected' : ''}`}
+                data-testid="new-dm-member"
+                data-selected={isSelected}
                 onClick={() => toggleMember(member)}
                 type="button"
               >

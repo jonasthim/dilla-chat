@@ -90,6 +90,7 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
               className="bg-transparent border-none text-interactive cursor-pointer text-lg px-xs leading-none rounded-sm transition-colors duration-150 hover:text-interactive-hover"
               onClick={() => onCreateChannel(cat)}
               title={t('channels.create')}
+              data-testid="channel-category-add"
             >
               <Plus width={16} height={16} strokeWidth={2} />
             </button>

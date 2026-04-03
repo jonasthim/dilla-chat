@@ -16,7 +16,7 @@ export default function ShortcutsModal({ onClose }: Readonly<Props>) {
       aria-labelledby="shortcuts-title"
     >
       <button type="button" className="dialog-backdrop" onClick={onClose} aria-label="Close" />
-      <div className="bg-glass-modal backdrop-blur-glass-heavy border border-glass-border shadow-glass-elevated rounded-lg p-xl w-[480px] max-w-[90vw] text-foreground-primary">
+      <div className="bg-glass-modal backdrop-blur-glass-heavy border border-glass-border shadow-glass-elevated rounded-lg p-xl w-[480px] max-w-[90vw] text-foreground-primary" data-testid="shortcuts-modal">
         <div className="flex items-center justify-between mb-5">
           <h2 id="shortcuts-title" className="m-0 text-xl font-semibold">
             {t('shortcuts.title', 'Keyboard Shortcuts')}
@@ -33,6 +33,7 @@ export default function ShortcutsModal({ onClose }: Readonly<Props>) {
             <div
               className="flex items-center justify-between px-md py-sm rounded-sm bg-surface-secondary"
               key={s.key}
+              data-testid="shortcut-row"
             >
               <span className="text-base text-foreground-primary">{t(s.action)}</span>
               <kbd className="bg-surface-tertiary text-foreground-secondary py-1 px-2.5 rounded-sm border border-border font-mono">

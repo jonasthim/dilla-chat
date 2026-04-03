@@ -30,11 +30,12 @@ export default function UserProfile({ member, presence, x, y, onSendMessage }: R
       className="fixed bg-glass-floating backdrop-blur-[var(--glass-blur-heavy)] border border-glass-border shadow-glass-elevated rounded-lg w-[300px] z-[1000] overflow-hidden text-foreground-primary p-0 max-w-none max-h-none"
       style={{ left: Math.max(0, x), top: y }}
       open
+      data-testid="user-profile-popover"
     >
       <div className="h-[60px] bg-accent" />
       <div className="px-4 pb-4 relative">
         <div className="relative inline-block -mt-[30px] mb-2">
-          <div className="size-16 rounded-full bg-accent text-white flex items-center justify-center text-[22px] font-semibold border-4 border-surface-tertiary">{initials}</div>
+          <div className="size-16 rounded-full bg-accent text-white flex items-center justify-center text-[22px] font-semibold border-4 border-surface-tertiary" data-testid="user-profile-avatar">{initials}</div>
           <PresenceIndicator status={status} size="large" className="border-floating" />
         </div>
 
@@ -51,7 +52,7 @@ export default function UserProfile({ member, presence, x, y, onSendMessage }: R
         </div>
 
         {member.roles.length > 0 && (
-          <div className="mb-3">
+          <div className="mb-3" data-testid="user-profile-roles">
             <div className="text-micro font-medium uppercase tracking-wide text-foreground-muted mb-1.5">{t('profile.roles')}</div>
             <div className="flex flex-wrap gap-1">
               {member.roles.map((role: Role) => (

@@ -62,6 +62,7 @@ export default function StatusPicker({
           <button
             key={opt.value}
             className={`border-none w-full text-left font-[inherit] flex items-center gap-2.5 py-2 px-2.5 rounded-sm cursor-pointer text-sm text-foreground-primary bg-transparent hover:bg-surface-hover ${currentStatus === opt.value ? 'bg-accent' : ''}`}
+            data-active={currentStatus === opt.value || undefined}
             onClick={() => handleStatusSelect(opt.value)}
             type="button"
           >

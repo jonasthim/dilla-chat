@@ -35,14 +35,16 @@ export function ToastProvider({ children }: Readonly<{ children: ReactNode }>) {
     <ToastContext value={{ toast }}>
       {children}
       <div
-        className="fixed bottom-lg right-lg z-toast flex flex-col-reverse gap-sm pointer-events-none"
+        className="toast-container fixed bottom-lg right-lg z-toast flex flex-col-reverse gap-sm pointer-events-none"
         role="status"
         aria-live="polite"
+        data-testid="toast-container"
       >
         {toasts.map((t) => (
           <div
             key={t.id}
             className={`flex items-center gap-md px-lg py-md rounded-md text-sm text-foreground-primary bg-surface-secondary border border-border shadow-glass pointer-events-auto animate-toast-slide-in max-w-[360px] ${typeClasses[t.type]}`}
+            data-testid={`toast-${t.type}`}
           >
             <span className="flex-1">{t.message}</span>
             <button

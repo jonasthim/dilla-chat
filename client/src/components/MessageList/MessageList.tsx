@@ -117,7 +117,7 @@ export default function MessageList({
 
         if (isSystem) {
           return (
-            <div className="flex justify-center px-lg py-xs">
+            <div className="flex justify-center px-lg py-xs" data-testid="system-message">
               <span className="text-sm tracking-wide uppercase font-medium text-foreground-muted">
                 {firstMsg.content}
               </span>
@@ -127,7 +127,8 @@ export default function MessageList({
 
         return (
           <div className="flex pr-12 pl-lg mt-[1.0625rem] relative first:mt-4"
-               style={{ paddingRight: '48px' }}>
+               style={{ paddingRight: '48px' }}
+               data-testid="message-group">
             <div className="shrink-0 w-10 mr-lg mt-0.5">
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-[15px] font-semibold text-interactive-active select-none cursor-pointer transition-opacity duration-150 hover:opacity-85"
@@ -175,7 +176,7 @@ export default function MessageList({
                     </div>
                   )}
                   {!msg.deleted && (
-                    <div className="hidden group-hover/msg:flex group-focus-within/msg:flex absolute -top-4 -right-8 bg-glass-floating backdrop-blur-glass-light border border-glass-border rounded-md p-0.5 gap-0 z-[1] shadow-[0_2px_8px_0_var(--overlay-light)]">
+                    <div className="hidden group-hover/msg:flex group-focus-within/msg:flex absolute -top-4 -right-8 bg-glass-floating backdrop-blur-glass-light border border-glass-border rounded-md p-0.5 gap-0 z-[1] shadow-[0_2px_8px_0_var(--overlay-light)]" data-testid="message-actions">
                       {onReaction && (
                         <button
                           className="bg-transparent border-none text-interactive p-xs px-sm text-md leading-none clickable hover:text-interactive-hover"

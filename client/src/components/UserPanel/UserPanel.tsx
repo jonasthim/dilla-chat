@@ -120,6 +120,7 @@ export default function UserPanel({
           setShowStatusPicker(!showStatusPicker);
         }}
         type="button"
+        data-testid="user-panel-avatar"
       >
         {initials}
         <PresenceIndicator status={myStatus} size="medium" className="border-tertiary" />
@@ -131,6 +132,7 @@ export default function UserPanel({
           setShowStatusPicker(!showStatusPicker);
         }}
         type="button"
+        data-testid="user-panel-info"
       >
         <div className="text-lg font-semibold leading-[1.375] text-heading truncate">{displayName ?? username}</div>
         <div className="text-xs font-normal leading-[1.4] text-foreground-muted truncate">{statusLabel}</div>

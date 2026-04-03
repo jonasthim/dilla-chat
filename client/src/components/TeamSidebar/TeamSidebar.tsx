@@ -43,6 +43,8 @@ export default function TeamSidebar() {
       <div
         key={teamId}
         className={`team-icon-wrapper relative w-12 h-12 ${isActive ? 'active' : ''}`}
+        data-testid="team-icon"
+        data-active={isActive || undefined}
       >
         <button
           className={`w-[var(--size-avatar-lg)] h-[var(--size-avatar-lg)] rounded-full border-none p-0 font-inherit bg-surface text-brand flex items-center justify-center text-[18px] font-semibold cursor-pointer transition-[border-radius,background-color] duration-200 ease-linear relative hover:rounded-[16px] hover:bg-brand hover:text-white ${isActive ? 'rounded-[16px] !bg-brand !text-white' : ''}`}
@@ -63,13 +65,13 @@ export default function TeamSidebar() {
         {serverGroups.map((group, i) => (
           <div key={group.serverId} className="server-group flex flex-col items-center gap-sm w-full max-md:flex-row max-md:flex-wrap max-md:gap-md">
             {hasMultipleServers && (
-              <div className="text-[9px] font-semibold uppercase text-interactive tracking-[0.04em] max-w-[48px] overflow-hidden text-ellipsis whitespace-nowrap text-center opacity-60 cursor-default max-md:w-full max-md:max-w-none max-md:text-left" title={group.serverUrl}>
+              <div className="text-[9px] font-semibold uppercase text-interactive tracking-[0.04em] max-w-[48px] overflow-hidden text-ellipsis whitespace-nowrap text-center opacity-60 cursor-default max-md:w-full max-md:max-w-none max-md:text-left" title={group.serverUrl} data-testid="server-label">
                 {group.serverId.split('.')[0]}
               </div>
             )}
             {group.teamIds.map(renderTeamIcon)}
             {hasMultipleServers && i < serverGroups.length - 1 && (
-              <div className="w-8 h-0.5 bg-surface-active rounded-[1px] my-xs max-md:w-full max-md:h-px max-md:my-xs" />
+              <div className="w-8 h-0.5 bg-surface-active rounded-[1px] my-xs max-md:w-full max-md:h-px max-md:my-xs" data-testid="team-separator" />
             )}
           </div>
         ))}
@@ -77,12 +79,13 @@ export default function TeamSidebar() {
           <div className="w-8 h-0.5 bg-surface-active rounded-[1px] my-xs max-md:w-full max-md:h-px max-md:my-xs" />
         )}
         {ungrouped.map(renderTeamIcon)}
-        {teamEntries.length > 0 && <div className="w-8 h-0.5 bg-surface-active rounded-[1px] my-xs max-md:w-full max-md:h-px max-md:my-xs" />}
+        {teamEntries.length > 0 && <div className="w-8 h-0.5 bg-surface-active rounded-[1px] my-xs max-md:w-full max-md:h-px max-md:my-xs" data-testid="team-separator" />}
       </div>
       <button
         className="w-[var(--size-avatar-lg)] h-[var(--size-avatar-lg)] rounded-full bg-surface text-green text-2xl font-normal flex items-center justify-center cursor-pointer border-none p-0 mb-sm transition-[border-radius,background-color,color] duration-200 ease-linear box-border hover:rounded-[16px] hover:bg-green hover:text-white"
         onClick={() => navigate('/join')}
         title={t('sidebar.addTeam')}
+        data-testid="team-add"
       >
         <Plus width={20} height={20} strokeWidth={2} />
       </button>

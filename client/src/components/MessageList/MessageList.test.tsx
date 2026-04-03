@@ -171,7 +171,7 @@ describe('MessageList', () => {
       <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
     );
     expect(screen.getByText('User joined')).toBeInTheDocument();
-    expect(container.querySelector('.message-system')).toBeInTheDocument();
+    expect(screen.getByTestId('system-message')).toBeInTheDocument();
   });
 
   it('shows welcome message when at the beginning', () => {
@@ -518,7 +518,7 @@ describe('MessageList', () => {
         onDelete={vi.fn()}
       />,
     );
-    expect(container.querySelector('.message-actions')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('message-actions')).not.toBeInTheDocument();
   });
 
   it('creates separate groups for messages far apart in time', () => {
@@ -567,7 +567,7 @@ describe('MessageList', () => {
     const { container } = render(
       <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
     );
-    expect(container.querySelectorAll('.message-group').length).toBe(0);
+    expect(screen.queryAllByTestId('message-group').length).toBe(0);
   });
 
   it('calls onLoadMore when scrolled to top with more history', () => {
@@ -594,10 +594,10 @@ describe('MessageList', () => {
       loadingHistory: new Map([['ch-1', false]]),
       hasMore: new Map([['ch-1', true]]),
     });
-    const { container } = render(
+    render(
       <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={onLoadMore} />,
     );
-    const list = container.querySelector('.message-list')!;
+    const list = screen.getByTestId('virtuoso-scroller');
     Object.defineProperty(list, 'scrollTop', { value: 500, configurable: true });
     Object.defineProperty(list, 'scrollHeight', { value: 1000, configurable: true });
     Object.defineProperty(list, 'clientHeight', { value: 500, configurable: true });
@@ -831,11 +831,11 @@ describe('MessageList', () => {
     const { container } = render(
       <MessageList channelId="ch-1" currentUserId="user-3" onLoadMore={vi.fn()} />,
     );
-    // System message should be in .message-system div
-    expect(container.querySelector('.message-system')).toBeInTheDocument();
+    // System message should be in data-testid="system-message" div
+    expect(screen.getByTestId('system-message')).toBeInTheDocument();
     // Alice group + system group + Bob group = 2 message-groups + 1 system
-    expect(container.querySelectorAll('.message-group').length).toBe(2);
-    expect(container.querySelectorAll('.message-system').length).toBe(1);
+    expect(screen.getAllByTestId('message-group').length).toBe(2);
+    expect(screen.getAllByTestId('system-message').length).toBe(1);
   });
 
   it('preserves scroll position when prepending history', () => {
@@ -845,10 +845,10 @@ describe('MessageList', () => {
       loadingHistory: new Map(),
       hasMore: new Map([['ch-1', true]]),
     });
-    const { container } = render(
+    render(
       <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
     );
-    const list = container.querySelector('.message-list')!;
+    const list = screen.getByTestId('virtuoso-scroller');
     // Make scrollTop writable for the preserve scroll effect
     Object.defineProperty(list, 'scrollTop', { value: 50, configurable: true, writable: true });
     Object.defineProperty(list, 'scrollHeight', { value: 1000, configurable: true });
@@ -874,10 +874,10 @@ describe('MessageList', () => {
       loadingHistory: new Map([['ch-1', true]]),
       hasMore: new Map([['ch-1', true]]),
     });
-    const { container } = render(
+    render(
       <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={onLoadMore} />,
     );
-    const list = container.querySelector('.message-list')!;
+    const list = screen.getByTestId('virtuoso-scroller');
     Object.defineProperty(list, 'scrollTop', { value: 50, configurable: true });
     Object.defineProperty(list, 'scrollHeight', { value: 1000, configurable: true });
     Object.defineProperty(list, 'clientHeight', { value: 500, configurable: true });
@@ -946,10 +946,10 @@ describe('MessageList', () => {
       loadingHistory: new Map([['ch-1', false]]),
       hasMore: new Map([['ch-1', false]]),
     });
-    const { container } = render(
+    render(
       <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
     );
-    const list = container.querySelector('.message-list')!;
+    const list = screen.getByTestId('virtuoso-scroller');
     // Simulate scroll at bottom
     Object.defineProperty(list, 'scrollTop', { value: 480, configurable: true });
     Object.defineProperty(list, 'scrollHeight', { value: 1000, configurable: true });

@@ -103,6 +103,7 @@ export default function SearchBar({ onJumpToMessage }: Readonly<Props>) {
     <div className="relative" ref={containerRef}>
       <div
         className={`flex items-center bg-input border border-transparent rounded-lg px-sm h-7 w-[200px] max-md:w-[140px] transition-all duration-200 ease-out box-border ${focused ? 'w-[300px] max-md:w-[200px] border-brand shadow-[0_0_0_2px_var(--brand-alpha-12)]' : ''}`}
+        data-focused={focused || undefined}
       >
         <Search className="text-foreground-muted shrink-0" width={16} height={16} strokeWidth={2} />
         <input
@@ -142,6 +143,7 @@ export default function SearchBar({ onJumpToMessage }: Readonly<Props>) {
                   className="bg-transparent border-none w-full text-left font-[inherit] text-[inherit] text-[length:inherit] py-2.5 px-3 rounded-sm cursor-pointer mb-0.5 transition-colors duration-150 ease-out hover:bg-surface-hover"
                   onClick={() => handleResultClick(result)}
                   type="button"
+                  data-testid="search-result"
                 >
                   <div className="flex items-baseline gap-sm mb-0.5">
                     <span className="text-base font-medium text-heading">
@@ -153,7 +155,7 @@ export default function SearchBar({ onJumpToMessage }: Readonly<Props>) {
                   </div>
                   <div className="text-sm text-foreground overflow-hidden text-ellipsis line-clamp-2 leading-[1.375]">
                     {result.message.content.substring(0, result.matchStart)}
-                    <mark className="bg-accent-a25 text-heading rounded-[2px] px-0.5 font-medium">
+                    <mark className="bg-accent-a25 text-heading rounded-[2px] px-0.5 font-medium" data-testid="search-highlight">
                       {result.message.content.substring(
                         result.matchStart,
                         result.matchEnd,

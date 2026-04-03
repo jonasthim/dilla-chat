@@ -117,6 +117,8 @@ export default function ConnectionStatus() {
     <output
       className={`flex items-center gap-1.5 px-2.5 py-2 bg-surface-secondary border-t border-divider cursor-default relative select-none text-micro ${qualityColorClass[state.quality]}`}
       aria-label={`Connection quality: ${label}`}
+      data-testid="connection-status"
+      data-quality={state.quality}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
@@ -125,6 +127,8 @@ export default function ConnectionStatus() {
           <div
             key={i}
             className={`w-[3px] rounded-[1px] transition-colors duration-200 ${barHeights[i]} ${i < bars ? 'connection-bar active' : 'connection-bar'}`}
+            data-testid="connection-bar"
+            data-active={i < bars}
           />
         ))}
       </div>
@@ -138,7 +142,7 @@ export default function ConnectionStatus() {
               {label}
             </span>
           </div>
-          <div className="flex justify-between items-center py-[3px] text-xs text-foreground-muted">
+          <div className="flex justify-between items-center py-[3px] text-xs text-foreground-muted" data-testid="tooltip-latency">
             <span>Latency</span>
             <span className="text-foreground font-medium">{state.latency === null ? '—' : `${state.latency} ms`}</span>
           </div>

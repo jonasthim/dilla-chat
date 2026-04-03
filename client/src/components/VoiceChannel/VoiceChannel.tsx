@@ -77,13 +77,14 @@ export default function VoiceChannel({ channel }: Readonly<Props>) {
   if (fullscreen && hasScreenShare && isInThisChannel) {
     return (
       <div className="flex flex-col flex-1 min-w-0 relative">
-        <div className="absolute inset-0 z-20 flex flex-col bg-surface-tertiary">
+        <div className="absolute inset-0 z-20 flex flex-col bg-surface-tertiary" data-testid="screen-share-fullscreen">
           <div className="flex items-center gap-1.5 px-md py-sm text-sm font-medium text-foreground-secondary bg-surface-tertiary shrink-0">
             <AppWindow width={16} height={16} strokeWidth={2} />
             <span>{screenSharing ? 'You are sharing your screen' : `${sharerName} is sharing their screen`}</span>
             <button
               className="ml-auto bg-transparent border-none text-foreground-muted cursor-pointer p-1 rounded-sm flex items-center justify-center hover:text-foreground-primary hover:bg-surface-hover"
               onClick={() => setFullscreen(false)}
+              data-testid="screen-share-close"
             >
               <Collapse width={16} height={16} strokeWidth={2} />
             </button>
@@ -97,6 +98,7 @@ export default function VoiceChannel({ channel }: Readonly<Props>) {
                   className="border-none p-0 font-inherit text-inherit w-full flex-1 flex flex-col items-center justify-center bg-surface-tertiary cursor-pointer min-h-0"
                   onClick={() => setFocusedWebcam(null)}
                   type="button"
+                  data-testid="fullscreen-focused-webcam"
                 >
                   {(() => { const s = getWebcamStream(focusedWebcam); return s ? (
                     <VideoPreview stream={s} className="max-w-full max-h-full object-contain -scale-x-100" />
@@ -116,7 +118,7 @@ export default function VoiceChannel({ channel }: Readonly<Props>) {
 
           {/* Floating webcam thumbnail bar */}
           {peerList.length > 0 && (
-            <div className="flex gap-sm px-md py-sm bg-surface-tertiary overflow-x-auto shrink-0 items-center justify-center">
+            <div className="flex gap-sm px-md py-sm bg-surface-tertiary overflow-x-auto shrink-0 items-center justify-center" data-testid="fullscreen-thumbnail-bar">
               {peerList.map((peer) => {
                 const webcamStream = getWebcamStream(peer.user_id);
                 const hasWebcam = !!(peer.webcam_sharing && webcamStream);
@@ -127,6 +129,7 @@ export default function VoiceChannel({ channel }: Readonly<Props>) {
                     onClick={hasWebcam ? () => setFocusedWebcam(peer.user_id) : undefined}
                     style={hasWebcam ? { cursor: 'pointer' } : undefined}
                     type="button"
+                    data-testid="fullscreen-thumbnail"
                   >
                     {hasWebcam && webcamStream ? (
                       <VideoPreview stream={webcamStream} className="w-[72px] h-[40px] object-cover rounded-sm bg-surface-tertiary -scale-x-100" />
@@ -159,6 +162,7 @@ export default function VoiceChannel({ channel }: Readonly<Props>) {
                 className="border-none p-0 font-inherit text-inherit text-left w-full max-w-[800px] rounded-[12px] overflow-hidden bg-surface-tertiary cursor-pointer relative hover:shadow-[0_0_0_2px_var(--brand)]"
                 onClick={() => setFullscreen(true)}
                 type="button"
+                data-testid="voice-screen-share-banner"
               >
                 <VideoPreview stream={activeScreenStream} className="w-full aspect-video object-contain bg-surface-tertiary block" onClick={() => setFullscreen(true)} />
                 <div className="absolute bottom-2 left-2 flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-overlay-heavy text-foreground-secondary text-xs font-medium">
@@ -180,13 +184,14 @@ export default function VoiceChannel({ channel }: Readonly<Props>) {
                 return (
                   <div
                     key={peer.user_id}
-                    className={`bg-surface-secondary rounded-[12px] px-lg py-xl flex flex-col items-center gap-sm transition-shadow duration-150 ease-linear relative ${peer.speaking ? 'shadow-[0_0_0_1.5px_var(--status-online)]' : ''}`}
+                    className={`voice-tile bg-surface-secondary rounded-[12px] px-lg py-xl flex flex-col items-center gap-sm transition-shadow duration-150 ease-linear relative ${peer.speaking ? 'speaking shadow-[0_0_0_1.5px_var(--status-online)]' : ''}`}
                     style={{ '--voice-level': peer.voiceLevel ?? 0 } as React.CSSProperties}
+                    data-testid="voice-tile"
                   >
                     {isSharingWebcam && webcamStream ? (
                       <VideoPreview stream={webcamStream} className="w-16 h-16 rounded-full object-cover bg-surface-tertiary -scale-x-100 shadow-[0_0_0_2px_var(--white-overlay-light)]" />
                     ) : (
-                      <div className={`w-16 h-16 rounded-full bg-bg-accent text-white flex items-center justify-center text-[22px] font-semibold shadow-[0_0_0_2px_var(--white-overlay-light)] transition-shadow duration-150 ease-linear ${peer.speaking ? 'speaking-ring' : ''}`}>
+                      <div className={`w-16 h-16 rounded-full bg-bg-accent text-white flex items-center justify-center text-[22px] font-semibold shadow-[0_0_0_2px_var(--white-overlay-light)] transition-shadow duration-150 ease-linear ${peer.speaking ? 'speaking-ring' : ''}`} data-testid="voice-tile-avatar">
                         {peer.username.slice(0, 2).toUpperCase()}
                       </div>
                     )}

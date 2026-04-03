@@ -45,7 +45,7 @@ export default function VoiceControls() {
   };
 
   return (
-    <div className="pt-2.5 px-3 pb-1.5 overflow-visible animate-voice-slide-in">
+    <div className="pt-2.5 px-3 pb-1.5 overflow-visible animate-voice-slide-in" data-testid="voice-controls">
       <div className="flex items-center gap-sm">
         <div className="flex flex-col gap-px min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-status-online text-sm font-semibold leading-[18px]">
@@ -60,14 +60,14 @@ export default function VoiceControls() {
         </div>
         <div className="flex items-center gap-sm shrink-0 ml-auto">
           <button
-            className={`bg-transparent border-none text-interactive cursor-pointer p-0 rounded-sm w-8 h-8 flex items-center justify-center transition-[color,background-color] duration-150 ease-linear hover:text-interactive-hover hover:bg-surface-hover ${webcamSharing ? 'text-foreground-danger bg-danger-a15 hover:bg-danger-a25' : ''}`}
+            className={`bg-transparent border-none text-interactive cursor-pointer p-0 rounded-sm w-8 h-8 flex items-center justify-center transition-[color,background-color] duration-150 ease-linear hover:text-interactive-hover hover:bg-surface-hover ${webcamSharing ? 'active text-foreground-danger bg-danger-a15 hover:bg-danger-a25' : ''}`}
             onClick={handleWebcam}
             title={webcamSharing ? t('voice.stopWebcam', 'Stop camera') : t('voice.startWebcam', 'Share camera')}
           >
             {webcamSharing ? <VideoCameraOff width={18} height={18} strokeWidth={2} /> : <VideoCamera width={18} height={18} strokeWidth={2} />}
           </button>
           <button
-            className={`bg-transparent border-none text-interactive cursor-pointer p-0 rounded-sm w-8 h-8 flex items-center justify-center transition-[color,background-color] duration-150 ease-linear hover:text-interactive-hover hover:bg-surface-hover ${screenSharing ? 'text-foreground-danger bg-danger-a15 hover:bg-danger-a25' : ''}`}
+            className={`bg-transparent border-none text-interactive cursor-pointer p-0 rounded-sm w-8 h-8 flex items-center justify-center transition-[color,background-color] duration-150 ease-linear hover:text-interactive-hover hover:bg-surface-hover ${screenSharing ? 'active text-foreground-danger bg-danger-a15 hover:bg-danger-a25' : ''}`}
             onClick={handleScreenShare}
             title={screenSharing ? t('voice.stopScreenShare', 'Stop sharing') : t('voice.startScreenShare', 'Share screen')}
           >

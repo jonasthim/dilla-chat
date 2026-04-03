@@ -112,15 +112,17 @@ export default function MemberList() {
       <button
         key={member.id}
         className={`flex items-center w-[calc(100%-16px)] text-left font-[inherit] text-[inherit] text-inherit bg-none border-none px-2 py-px mx-2 mt-px gap-3 cursor-pointer rounded-md h-[42px] box-border transition-colors duration-150 ease-out hover:bg-surface-hover ${isOffline ? 'opacity-40' : ''}`}
+        data-testid="member-item"
+        data-offline={isOffline}
         onClick={(e) => handleMemberClick(e, member)}
         type="button"
       >
-        <div className="size-8 rounded-full bg-accent text-white flex items-center justify-center text-base font-medium shrink-0 relative">
+        <div className="size-8 rounded-full bg-accent text-white flex items-center justify-center text-base font-medium shrink-0 relative" data-testid="member-avatar">
           {getInitials(member)}
           <PresenceIndicator status={status} size="medium" />
         </div>
         <div className="flex-1 min-w-0 flex flex-col justify-center">
-          <div className="text-base font-medium text-interactive leading-[18px] truncate group-hover:text-interactive-hover">
+          <div className="text-base font-medium text-interactive leading-[18px] truncate group-hover:text-interactive-hover" data-testid="member-display-name">
             {member.nickname || member.displayName || member.username}
           </div>
           {customStatus && (

@@ -64,12 +64,16 @@ export default function CreateChannel({ defaultCategory, onClose }: Readonly<Pro
             <button
               className={`flex-1 p-2.5 rounded-sm border cursor-pointer text-base flex items-center justify-center gap-1.5${type === 'text' ? ' border-accent text-foreground-primary bg-brand-a15' : ' border-border bg-input text-foreground-secondary'}`}
               onClick={() => setType('text')}
+              data-testid="channel-type-text"
+              data-active={type === 'text'}
             >
               <Hashtag width={16} height={16} strokeWidth={2} /> {t('channels.text')}
             </button>
             <button
               className={`flex-1 p-2.5 rounded-sm border cursor-pointer text-base flex items-center justify-center gap-1.5${type === 'voice' ? ' border-accent text-foreground-primary bg-brand-a15' : ' border-border bg-input text-foreground-secondary'}`}
               onClick={() => setType('voice')}
+              data-testid="channel-type-voice"
+              data-active={type === 'voice'}
             >
               <SoundHigh width={16} height={16} strokeWidth={2} /> {t('channels.voice')}
             </button>
