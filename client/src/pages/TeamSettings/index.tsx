@@ -70,7 +70,7 @@ export default function TeamSettings() {
       {tab === 'audit-log' && (
         <div className="settings-section">
           <h2 className="heading-3">{t('settings.auditLog', 'Audit Log')}</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+          <p className="text-foreground-muted text-sm">
             {t('moderation.noActions', 'No recent actions')}
           </p>
         </div>
@@ -79,10 +79,10 @@ export default function TeamSettings() {
       {tab === 'delete-server' && (
         <div className="settings-section">
           <h2 className="heading-3">{t('settings.deleteServer', 'Delete Server')}</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+          <p className="text-foreground-muted text-sm">
             {t('settings.deleteServerDesc', 'This action is irreversible. All data will be permanently deleted.')}
           </p>
-          <button className="btn-danger" style={{ marginTop: 16 }} disabled>
+          <button className="btn-danger mt-4" disabled>
             {t('settings.deleteServer', 'Delete Server')}
           </button>
         </div>
