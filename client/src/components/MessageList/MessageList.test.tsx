@@ -167,7 +167,7 @@ describe('MessageList', () => {
       loadingHistory: new Map(),
       hasMore: new Map(),
     });
-    const { container } = render(
+    render(
       <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
     );
     expect(screen.getByText('User joined')).toBeInTheDocument();
@@ -509,7 +509,7 @@ describe('MessageList', () => {
       loadingHistory: new Map(),
       hasMore: new Map(),
     });
-    const { container } = render(
+    render(
       <MessageList
         channelId="ch-1"
         currentUserId="user-1"
@@ -564,7 +564,7 @@ describe('MessageList', () => {
       loadingHistory: new Map(),
       hasMore: new Map(),
     });
-    const { container } = render(
+    render(
       <MessageList channelId="ch-1" currentUserId="user-1" onLoadMore={vi.fn()} />,
     );
     expect(screen.queryAllByTestId('message-group').length).toBe(0);
@@ -828,7 +828,7 @@ describe('MessageList', () => {
       loadingHistory: new Map(),
       hasMore: new Map(),
     });
-    const { container } = render(
+    render(
       <MessageList channelId="ch-1" currentUserId="user-3" onLoadMore={vi.fn()} />,
     );
     // System message should be in data-testid="system-message" div
