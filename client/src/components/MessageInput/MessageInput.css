@@ -27,7 +27,7 @@
   overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-shadow: 0 -4px 20px var(--overlay-dark);
-  margin: 0 var(--spacing-lg) var(--spacing-lg);
+  margin: 0 var(--spacing-xl) var(--spacing-lg);
 }
 
 .message-input-composer:focus-within {

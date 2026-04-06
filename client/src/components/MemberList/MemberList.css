@@ -33,7 +33,7 @@
   color: inherit;
   display: flex;
   align-items: center;
-  padding: 1px 8px;
+  padding: var(--spacing-xs) var(--spacing-md);
   margin: 1px 8px 0;
   gap: var(--spacing-md);
   cursor: pointer;
@@ -49,13 +49,13 @@
 }
 
 .member-item.offline {
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .member-avatar {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   background: var(--bg-accent);
   color: white;
   display: flex;
