@@ -409,9 +409,10 @@ describe('WebRTCService', () => {
       expect(typeof muted).toBe('boolean');
     });
 
-    it('returns false when not connected', async () => {
+    it('toggles mute state when not connected (pre-set)', async () => {
       const result = await webrtcService.toggleMute();
-      expect(result).toBe(false);
+      expect(result).toBe(true); // was unmuted → now muted
+      expect(useVoiceStore.getState().muted).toBe(true);
     });
 
     it('returns false when pushToTalk is enabled', async () => {
