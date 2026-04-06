@@ -24,8 +24,8 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
   const { channels, activeTeamId, activeChannelId, setActiveChannel, removeChannel } = useTeamStore();
   const { currentChannelId: voiceChannelId, connected: voiceConnected, peers: voicePeers, voiceOccupants, joinChannel: voiceJoin, muted: localMuted, deafened: localDeafened, screenSharing: localScreenSharing } = useVoiceStore();
   const { counts: unreadCounts } = useUnreadStore();
-  const { teams, activeTeamId: authActiveTeamId } = useAuthStore();
-  const currentUserId = (authActiveTeamId ? teams.get(authActiveTeamId)?.user?.id : '') ?? '';
+  const authTeams = useAuthStore((s) => s.teams);
+  const currentUserId = (activeTeamId ? authTeams.get(activeTeamId)?.user?.id : '') ?? '';
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
@@ -108,13 +108,18 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
             const voicePeerValues = Object.values(voicePeers);
             let voicePeerList: typeof voicePeerValues;
             if (isVoiceConnected) {
-              // Merge local mute state into occupant data (which includes self)
-              const occupants = voiceOccupants[ch.id] ?? [];
-              voicePeerList = occupants.map(p =>
-                p.user_id === currentUserId
-                  ? { ...p, muted: localMuted, deafened: localDeafened, screen_sharing: localScreenSharing }
-                  : p,
-              );
+              // WebRTC peers = remote users only. Add local user with store state.
+              const localUsername = (activeTeamId ? authTeams.get(activeTeamId)?.user?.username : '') ?? 'You';
+              const localEntry = {
+                user_id: currentUserId,
+                username: localUsername,
+                muted: localMuted,
+                deafened: localDeafened,
+                screen_sharing: localScreenSharing,
+                speaking: false,
+                voiceLevel: 0,
+              };
+              voicePeerList = [localEntry, ...voicePeerValues];
             } else if (isVoice) {
               voicePeerList = voiceOccupants[ch.id] ?? [];
             } else {
