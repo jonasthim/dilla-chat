@@ -170,23 +170,25 @@ export default function VoiceChannel({ channel }: Readonly<Props>) {
                 return (
                   <div
                     key={peer.user_id}
-                    className={`voice-tile ${peer.speaking ? 'speaking' : ''}`}
+                    className={`voice-tile ${peer.speaking ? 'speaking' : ''} ${isSharingWebcam && webcamStream ? 'has-webcam' : ''}`}
                     style={{ '--voice-level': peer.voiceLevel ?? 0 } as React.CSSProperties}
                   >
                     {isSharingWebcam && webcamStream ? (
-                      <VideoPreview stream={webcamStream} className="voice-tile-webcam-avatar" />
+                      <VideoPreview stream={webcamStream} className="voice-tile-webcam-fill" />
                     ) : (
                       <div className={`voice-tile-avatar ${peer.speaking ? 'speaking-ring' : ''}`}>
                         {peer.username.slice(0, 2).toUpperCase()}
                       </div>
                     )}
-                    <div className="voice-tile-name truncate">{peer.username}</div>
-                    <div className="voice-tile-icons">
-                      {peer.muted && <span title={t('voice.mute')}><MicrophoneMute width={16} height={16} strokeWidth={2} /></span>}
-                      {peer.deafened && <span title={t('voice.deafen')}><HeadsetWarning width={16} height={16} strokeWidth={2} /></span>}
-                      {peer.screen_sharing && <span title="Sharing screen"><AppWindow width={16} height={16} strokeWidth={2} /></span>}
-                      {isSharingWebcam && <span title="Camera on"><VideoCamera width={16} height={16} strokeWidth={2} /></span>}
-                      {peer.speaking && <span className="voice-tile-speaking-label">{t('voice.speaking')}</span>}
+                    <div className="voice-tile-overlay">
+                      <div className="voice-tile-name truncate">{peer.username}</div>
+                      <div className="voice-tile-icons">
+                        {peer.muted && <span title={t('voice.mute')}><MicrophoneMute width={16} height={16} strokeWidth={2} /></span>}
+                        {peer.deafened && <span title={t('voice.deafen')}><HeadsetWarning width={16} height={16} strokeWidth={2} /></span>}
+                        {peer.screen_sharing && <span title="Sharing screen"><AppWindow width={16} height={16} strokeWidth={2} /></span>}
+                        {isSharingWebcam && <span title="Camera on"><VideoCamera width={16} height={16} strokeWidth={2} /></span>}
+                        {peer.speaking && <span className="voice-tile-speaking-label">{t('voice.speaking')}</span>}
+                      </div>
                     </div>
                   </div>
                 );
