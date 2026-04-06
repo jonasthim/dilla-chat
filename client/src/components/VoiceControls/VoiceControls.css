@@ -92,10 +92,10 @@
 .voice-controls-peer {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--spacing-sm);
   font-size: var(--font-size-sm);
   color: var(--interactive-normal);
-  padding: 1px 0;
+  padding: var(--spacing-xs) 0;
 }
 
 .voice-controls-peer.speaking {
@@ -129,23 +129,25 @@
 
 .voice-controls-buttons {
   display: flex;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
   justify-content: center;
+  flex-wrap: nowrap;
 }
 
 .voice-btn {
-  background: none;
+  background: rgba(255, 255, 255, 0.04);
   border: none;
   color: var(--interactive-normal);
   cursor: pointer;
   padding: 0;
   border-radius: var(--radius-md);
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
 }
 
 .voice-btn:hover {
