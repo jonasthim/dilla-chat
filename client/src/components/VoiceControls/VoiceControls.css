@@ -1,6 +1,6 @@
 .voice-controls {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   padding: var(--spacing-sm) var(--spacing-lg);
   gap: var(--spacing-sm);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -129,7 +129,7 @@
 
 .voice-controls-buttons {
   display: flex;
-  gap: var(--spacing-xs);
+  gap: var(--spacing-sm);
   justify-content: center;
   flex-wrap: nowrap;
 }
@@ -141,8 +141,8 @@
   cursor: pointer;
   padding: 0;
   border-radius: var(--radius-md);
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
