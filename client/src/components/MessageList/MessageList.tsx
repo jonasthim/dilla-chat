@@ -85,7 +85,7 @@ export default function MessageList({
   // Scroll to bottom on channel change
   useEffect(() => {
     if (virtuosoRef.current) {
-      virtuosoRef.current.scrollToIndex({ index: groups.length - 1, behavior: 'auto' });
+      virtuosoRef.current.scrollToIndex({ index: START_INDEX - 1, align: 'end', behavior: 'auto' });
     }
   }, [channelId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -96,7 +96,7 @@ export default function MessageList({
       if (atBottom) {
         // Small delay to let Virtuoso render the new item first
         setTimeout(() => {
-          virtuosoRef.current?.scrollToIndex({ index: groups.length - 1, behavior: 'smooth' });
+          virtuosoRef.current?.scrollToIndex({ index: START_INDEX - 1, align: 'end', behavior: 'smooth' });
         }, 50);
       } else {
         setNewMessageCount((prev) => prev + (channelMessages.length - prevMsgCount.current));
@@ -337,7 +337,7 @@ export default function MessageList({
       <button
         className="scroll-to-bottom-pill"
         onClick={() =>
-          virtuosoRef.current?.scrollToIndex({ index: groups.length - 1, behavior: 'smooth' })
+          virtuosoRef.current?.scrollToIndex({ index: START_INDEX - 1, align: 'end', behavior: 'smooth' })
         }
         type="button"
       >
