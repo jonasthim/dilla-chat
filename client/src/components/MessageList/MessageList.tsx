@@ -101,6 +101,7 @@ export default function MessageList({
       followOutput={() => 'smooth'}
       startReached={handleStartReached}
       components={{
+        Footer: () => <div style={{ height: 'var(--spacing-2xl)', minHeight: 32 }} />,
         Header: () => (
           <>
             {isLoading && <MessageSkeleton count={5} />}
