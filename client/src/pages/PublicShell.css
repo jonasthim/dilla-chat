@@ -27,22 +27,36 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 30% 40%, var(--brand-alpha-30) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 70% at 70% 70%, var(--accent-alpha-15) 0%, transparent 70%);
+    radial-gradient(ellipse 90% 70% at 20% 30%, var(--brand-alpha-25) 0%, transparent 65%),
+    radial-gradient(ellipse 70% 80% at 75% 75%, var(--accent-alpha-20) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 50% at 60% 20%, var(--brand-alpha-15) 0%, transparent 60%);
   animation: public-brand-drift 16s ease-in-out infinite alternate;
   pointer-events: none;
+}
+
+.public-brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
 }
 
 @keyframes public-brand-drift {
   0% {
     background:
-      radial-gradient(ellipse 80% 60% at 30% 40%, var(--brand-alpha-30) 0%, transparent 70%),
-      radial-gradient(ellipse 60% 70% at 70% 70%, var(--accent-alpha-15) 0%, transparent 70%);
+      radial-gradient(ellipse 90% 70% at 20% 30%, var(--brand-alpha-25) 0%, transparent 65%),
+      radial-gradient(ellipse 70% 80% at 75% 75%, var(--accent-alpha-20) 0%, transparent 65%),
+      radial-gradient(ellipse 50% 50% at 60% 20%, var(--brand-alpha-15) 0%, transparent 60%);
   }
   100% {
     background:
-      radial-gradient(ellipse 70% 70% at 40% 50%, var(--brand-alpha-25) 0%, transparent 70%),
-      radial-gradient(ellipse 80% 50% at 60% 30%, var(--accent-alpha-20) 0%, transparent 70%);
+      radial-gradient(ellipse 80% 80% at 40% 50%, var(--brand-alpha-20) 0%, transparent 65%),
+      radial-gradient(ellipse 85% 55% at 65% 25%, var(--accent-alpha-25) 0%, transparent 65%),
+      radial-gradient(ellipse 60% 60% at 25% 70%, var(--brand-alpha-20) 0%, transparent 60%);
   }
 }
 

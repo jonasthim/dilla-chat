@@ -32,7 +32,7 @@
 
 .message-input-composer:focus-within {
   border-color: var(--brand-500);
-  box-shadow: 0 0 0 3px var(--brand-alpha-12);
+  box-shadow: 0 0 0 3px var(--brand-alpha-12), 0 0 var(--spacing-xl) var(--brand-alpha-10);
 }
 
 /* Typing indicator above the composer */
@@ -193,6 +193,8 @@
   background: var(--brand-500);
   color: white;
   cursor: pointer;
+  box-shadow: var(--glow-brand);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .toolbar-send-btn.has-content:hover {

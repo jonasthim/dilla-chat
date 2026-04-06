@@ -69,11 +69,13 @@
   color: var(--interactive-active);
   user-select: none;
   cursor: pointer;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 0 0 2px var(--bg-primary);
 }
 
 .message-avatar:hover {
   opacity: 0.85;
+  box-shadow: 0 0 var(--spacing-sm) var(--brand-alpha-15);
 }
 
 .message-group-content {
@@ -218,8 +220,8 @@
   top: calc(-1 * var(--spacing-lg));
   right: var(--spacing-sm);
   background: var(--glass-bg-floating);
-  -webkit-backdrop-filter: blur(var(--glass-blur-light));
-  backdrop-filter: blur(var(--glass-blur-light));
+  -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
+  backdrop-filter: blur(var(--glass-blur-heavy));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-xs);

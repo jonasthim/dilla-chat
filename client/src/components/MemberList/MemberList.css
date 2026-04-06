@@ -45,6 +45,7 @@
 
 .member-item:hover {
   background: var(--bg-modifier-hover);
+  box-shadow: inset 3px 0 0 var(--brand-alpha-25);
 }
 
 .member-item.offline {

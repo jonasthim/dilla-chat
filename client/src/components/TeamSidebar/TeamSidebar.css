@@ -76,12 +76,14 @@
   border-radius: var(--radius-lg);
   background-color: var(--brand-500);
   color: white;
+  box-shadow: var(--glow-brand);
 }
 
 .team-icon.active {
   border-radius: var(--radius-lg);
   background-color: var(--brand-500);
   color: white;
+  box-shadow: 0 0 var(--spacing-sm) var(--brand-alpha-25);
 }
 
 .team-separator {
