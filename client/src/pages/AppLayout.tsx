@@ -196,7 +196,6 @@ export default function AppLayout() {
             </>
           )}
           <div className="content-header-actions">
-            <SearchBar onJumpToMessage={handleJumpToMessage} />
             {activeDM.is_group && (
               <button
                 className={`header-action-btn ${showDMMembers ? 'active' : ''}`}
@@ -206,6 +205,7 @@ export default function AppLayout() {
                 <Group width={20} height={20} strokeWidth={2} />
               </button>
             )}
+            <SearchBar onJumpToMessage={handleJumpToMessage} />
           </div>
         </>
       );
@@ -229,7 +229,6 @@ export default function AppLayout() {
             </>
           )}
           <div className="content-header-actions">
-            <SearchBar onJumpToMessage={handleJumpToMessage} />
             <button
               className={`header-action-btn ${showMembers ? 'active' : ''}`}
               onClick={() => setShowMembers(v => !v)}
@@ -237,6 +236,7 @@ export default function AppLayout() {
             >
               <Group width={20} height={20} strokeWidth={2} />
             </button>
+            <SearchBar onJumpToMessage={handleJumpToMessage} />
           </div>
         </>
       );
@@ -245,7 +245,6 @@ export default function AppLayout() {
       <>
         <span className="content-header-name title">{t('app.name')}</span>
         <div className="content-header-actions">
-          <SearchBar onJumpToMessage={handleJumpToMessage} />
           <button
             className={`header-action-btn ${showMembers ? 'active' : ''}`}
             onClick={() => setShowMembers(!showMembers)}
@@ -253,6 +252,7 @@ export default function AppLayout() {
           >
             <Group width={20} height={20} strokeWidth={2} />
           </button>
+          <SearchBar onJumpToMessage={handleJumpToMessage} />
         </div>
       </>
     );
