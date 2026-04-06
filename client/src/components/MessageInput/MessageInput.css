@@ -12,9 +12,10 @@
   -webkit-backdrop-filter: blur(var(--glass-blur-light));
   backdrop-filter: blur(var(--glass-blur-light));
   border: 1px solid var(--glass-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 -2px 12px var(--overlay-light);
 }
 
 .message-input-composer:focus-within {
@@ -133,6 +134,7 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   font-family: inherit;
+  transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
 }
 
 .toolbar-btn:hover {

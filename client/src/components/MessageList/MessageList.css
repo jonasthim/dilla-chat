@@ -114,6 +114,7 @@
   padding: 0.125rem 0;
   line-height: 1.375rem;
   min-height: 1.375rem;
+  transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .message-item.deleted {
@@ -222,7 +223,7 @@
   padding: 2px;
   gap: 0;
   z-index: 1;
-  box-shadow: 0 2px 8px 0 var(--overlay-light);
+  box-shadow: 0 4px 12px var(--overlay-dark);
 }
 
 .message-item:hover .message-actions,

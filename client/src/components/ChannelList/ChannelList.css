@@ -78,6 +78,7 @@
   font-weight: var(--font-weight-medium);
   gap: 6px;
   position: relative;
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .channel-item::before {
@@ -261,7 +262,7 @@
   height: 16px;
   padding: 0 var(--spacing-xs);
   border-radius: var(--radius-full);
-  background: var(--brand-500);
+  background: var(--accent);
   color: #fff;
   font-size: var(--font-size-micro);
   font-weight: var(--font-weight-semibold);
