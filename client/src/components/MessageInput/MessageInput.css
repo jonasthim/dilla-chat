@@ -5,12 +5,6 @@
   position: relative;
   padding: 0;
   z-index: 10;
-  margin-top: calc(-1 * var(--spacing-2xl));
-  pointer-events: none;
-}
-
-.message-input-wrapper > * {
-  pointer-events: auto;
 }
 
 .message-input-composer {
