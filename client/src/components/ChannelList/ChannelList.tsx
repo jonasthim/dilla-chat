@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SoundHigh, Plus, MicrophoneMute, HeadsetWarning, AppWindow } from 'iconoir-react';
+import { SoundHigh, Plus, MicrophoneMute, HeadsetWarning, AppWindow, VideoCamera } from 'iconoir-react';
 import { useTeamStore, type Channel } from '../../stores/teamStore';
 import { useVoiceStore } from '../../stores/voiceStore';
 import { useUnreadStore } from '../../stores/unreadStore';
@@ -22,7 +22,7 @@ interface Props {
 export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
   const { t } = useTranslation();
   const { channels, activeTeamId, activeChannelId, setActiveChannel, removeChannel } = useTeamStore();
-  const { currentChannelId: voiceChannelId, connected: voiceConnected, peers: voicePeers, voiceOccupants, joinChannel: voiceJoin, muted: localMuted, deafened: localDeafened, screenSharing: localScreenSharing } = useVoiceStore();
+  const { currentChannelId: voiceChannelId, connected: voiceConnected, peers: voicePeers, voiceOccupants, joinChannel: voiceJoin, muted: localMuted, deafened: localDeafened, screenSharing: localScreenSharing, webcamSharing: localWebcamSharing } = useVoiceStore();
   const { counts: unreadCounts } = useUnreadStore();
   const authTeams = useAuthStore((s) => s.teams);
   const currentUserId = (activeTeamId ? authTeams.get(activeTeamId)?.user?.id : '') ?? '';
@@ -162,6 +162,7 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
                       const isMuted = isLocal ? localMuted : peer.muted;
                       const isDeafened = isLocal ? localDeafened : peer.deafened;
                       const isScreenSharing = isLocal ? localScreenSharing : peer.screen_sharing;
+                      const isWebcamSharing = isLocal ? localWebcamSharing : false;
                       return (
                         <div
                           key={peer.user_id}
@@ -174,6 +175,7 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
                           <span className="voice-user-name">{peer.username}</span>
                           {isMuted && <MicrophoneMute width={14} height={14} strokeWidth={2} className="voice-user-icon" />}
                           {isDeafened && <HeadsetWarning width={14} height={14} strokeWidth={2} className="voice-user-icon" />}
+                          {isWebcamSharing && <VideoCamera width={14} height={14} strokeWidth={2} className="voice-user-icon" />}
                           {isScreenSharing && <AppWindow width={14} height={14} strokeWidth={2} className="voice-user-icon screen-sharing" />}
                         </div>
                       );
