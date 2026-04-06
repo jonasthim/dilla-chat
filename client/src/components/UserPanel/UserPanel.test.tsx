@@ -6,12 +6,12 @@ import { useTeamStore } from '../../stores/teamStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useVoiceStore } from '../../stores/voiceStore';
 
-vi.mock('iconoir-react', () => ({
-  Settings: () => <span data-testid="icon-settings" />,
-  Microphone: () => <span data-testid="icon-mic" />,
-  MicrophoneMute: () => <span data-testid="icon-mic-mute" />,
-  Headset: () => <span data-testid="icon-headset" />,
-  HeadsetWarning: () => <span data-testid="icon-headset-warning" />,
+vi.mock('@tabler/icons-react', () => ({
+  IconSettings: () => <span data-testid="icon-settings" />,
+  IconMicrophone: () => <span data-testid="icon-mic" />,
+  IconMicrophoneOff: () => <span data-testid="icon-mic-mute" />,
+  IconHeadphones: () => <span data-testid="icon-headset" />,
+  IconHeadphonesOff: () => <span data-testid="icon-headset-warning" />,
 }));
 
 vi.mock('../../services/websocket', () => ({

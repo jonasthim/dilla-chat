@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link as LinkIcon } from 'iconoir-react';
+import { IconLink } from '@tabler/icons-react';
 import { type FormatType, applyFormatting } from './formatting';
 import {
   BoldIcon,
@@ -56,7 +56,7 @@ export default function FormattingToolbar({ textareaRef, setValue }: Readonly<Fo
         title={t('format.link', 'Link')}
         onClick={() => handleFormat('link')}
       >
-        <LinkIcon width={18} height={18} strokeWidth={2} />
+        <IconLink size={18} stroke={1.75} />
       </button>
       <button
         className="toolbar-btn clickable"

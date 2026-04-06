@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SoundHigh, Plus, MicrophoneMute, HeadsetWarning, AppWindow, VideoCamera } from 'iconoir-react';
+import { IconVolume, IconPlus, IconMicrophoneOff, IconHeadphonesOff, IconScreenShare, IconVideo } from '@tabler/icons-react';
 import { useTeamStore, type Channel } from '../../stores/teamStore';
 import { useVoiceStore } from '../../stores/voiceStore';
 import { useUnreadStore } from '../../stores/unreadStore';
@@ -96,7 +96,7 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
               onClick={(e) => { e.stopPropagation(); onCreateChannel(cat); }}
               title={t('channels.create')}
             >
-              <Plus width={16} height={16} strokeWidth={2} />
+              <IconPlus size={16} stroke={1.75} />
             </button>
           )}
         </div>
@@ -147,7 +147,7 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
                     }
                   }}
                 >
-                  <span className={`channel-icon ${isVoice && voicePeerList.length > 0 ? 'voice-active' : ''}`}>{isVoice ? <SoundHigh width={16} height={16} strokeWidth={2} /> : <span className="channel-tilde">~</span>}</span>
+                  <span className={`channel-icon ${isVoice && voicePeerList.length > 0 ? 'voice-active' : ''}`}>{isVoice ? <IconVolume size={16} stroke={1.75} /> : <span className="channel-tilde">~</span>}</span>
                   <span className={`channel-name truncate${hasUnread ? ' channel-name--unread' : ''}`}>{ch.name}</span>
                   {hasUnread && (
                     <span className="channel-unread-badge" aria-label={`${unreadCount} unread messages`}>
@@ -173,10 +173,10 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
                             {peer.username.slice(0, 1).toUpperCase()}
                           </span>
                           <span className="voice-user-name">{peer.username}</span>
-                          {isMuted && <MicrophoneMute width={14} height={14} strokeWidth={2} className="voice-user-icon" />}
-                          {isDeafened && <HeadsetWarning width={14} height={14} strokeWidth={2} className="voice-user-icon" />}
-                          {isWebcamSharing && <VideoCamera width={14} height={14} strokeWidth={2} className="voice-user-icon webcam-sharing" />}
-                          {isScreenSharing && <AppWindow width={14} height={14} strokeWidth={2} className="voice-user-icon screen-sharing" />}
+                          {isMuted && <IconMicrophoneOff size={14} stroke={1.75} className="voice-user-icon" />}
+                          {isDeafened && <IconHeadphonesOff size={14} stroke={1.75} className="voice-user-icon" />}
+                          {isWebcamSharing && <IconVideo size={14} stroke={1.75} className="voice-user-icon webcam-sharing" />}
+                          {isScreenSharing && <IconScreenShare size={14} stroke={1.75} className="voice-user-icon screen-sharing" />}
                         </div>
                       );
                     })}

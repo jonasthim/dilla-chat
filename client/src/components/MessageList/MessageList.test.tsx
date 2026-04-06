@@ -4,14 +4,14 @@ import MessageList from './MessageList';
 import { useMessageStore, type Message } from '../../stores/messageStore';
 
 // Mock dependencies
-vi.mock('iconoir-react', () => ({
-  Emoji: () => <span data-testid="icon-emoji" />,
-  Plus: () => <span data-testid="icon-plus" />,
-  Reply: () => <span data-testid="icon-reply" />,
-  Threads: () => <span data-testid="icon-threads" />,
-  EditPencil: () => <span data-testid="icon-edit" />,
-  Trash: () => <span data-testid="icon-trash" />,
-  ChatBubble: () => <span data-testid="icon-chat-bubble" />,
+vi.mock('@tabler/icons-react', () => ({
+  IconMoodSmile: () => <span data-testid="icon-emoji" />,
+  IconPlus: () => <span data-testid="icon-plus" />,
+  IconArrowBackUp: () => <span data-testid="icon-reply" />,
+  IconMessages: () => <span data-testid="icon-threads" />,
+  IconEdit: () => <span data-testid="icon-edit" />,
+  IconTrash: () => <span data-testid="icon-trash" />,
+  IconMessage: () => <span data-testid="icon-chat-bubble" />,
 }));
 
 vi.mock('react-markdown', () => ({

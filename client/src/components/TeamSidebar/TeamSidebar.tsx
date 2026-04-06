@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'iconoir-react';
+import { IconPlus } from '@tabler/icons-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
 import './TeamSidebar.css';
@@ -85,7 +85,7 @@ export default function TeamSidebar() {
         onClick={() => navigate('/join')}
         title={t('sidebar.addTeam')}
       >
-        <Plus width={20} height={20} strokeWidth={2} />
+        <IconPlus size={20} stroke={1.75} />
       </button>
     </div>
   );

@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Emoji, Plus, Reply, Threads, EditPencil, Trash, ChatBubble } from 'iconoir-react';
+import { IconMoodSmile, IconPlus, IconArrowBackUp, IconMessages, IconEdit, IconTrash, IconMessage } from '@tabler/icons-react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { useMessageStore, type Message } from '../../stores/messageStore';
 import Reactions from '../Reactions/Reactions';
@@ -184,8 +184,8 @@ export default function MessageList({
                           title={t('reactions.addReaction', 'Add Reaction')}
                         >
                           <span className="message-action-icon">
-                            <Emoji width={16} height={16} strokeWidth={2} />
-                            <Plus width={10} height={10} strokeWidth={2} />
+                            <IconMoodSmile size={16} stroke={1.75} />
+                            <IconPlus size={10} stroke={1.75} />
                           </span>
                         </button>
                       )}
@@ -195,7 +195,7 @@ export default function MessageList({
                           onClick={() => onReply(msg)}
                           title={t('messages.reply', 'Reply')}
                         >
-                          <Reply width={20} height={20} strokeWidth={2} />
+                          <IconArrowBackUp size={20} stroke={1.75} />
                         </button>
                       )}
                       {onCreateThread && (
@@ -204,7 +204,7 @@ export default function MessageList({
                           onClick={() => onCreateThread(msg)}
                           title={t('thread.createThread', 'Create Thread')}
                         >
-                          <Threads width={20} height={20} strokeWidth={2} />
+                          <IconMessages size={20} stroke={1.75} />
                         </button>
                       )}
                       {msg.authorId === currentUserId && onEdit && (
@@ -213,7 +213,7 @@ export default function MessageList({
                           onClick={() => onEdit(msg)}
                           title={t('messages.edit', 'Edit Message')}
                         >
-                          <EditPencil width={20} height={20} strokeWidth={2} />
+                          <IconEdit size={20} stroke={1.75} />
                         </button>
                       )}
                       {msg.authorId === currentUserId && onDelete && (
@@ -222,7 +222,7 @@ export default function MessageList({
                           onClick={() => onDelete(msg)}
                           title={t('messages.delete', 'Delete Message')}
                         >
-                          <Trash width={20} height={20} strokeWidth={2} />
+                          <IconTrash size={20} stroke={1.75} />
                         </button>
                       )}
                     </div>
@@ -260,7 +260,7 @@ export default function MessageList({
                       onClick={() => onOpenThread?.(msg.id)}
                     >
                       <span className="thread-indicator-icon">
-                        <ChatBubble width={16} height={16} strokeWidth={2} />
+                        <IconMessage size={16} stroke={1.75} />
                       </span>
                       <span className="thread-indicator-count">
                         {threadInfo[msg.id].count === 1

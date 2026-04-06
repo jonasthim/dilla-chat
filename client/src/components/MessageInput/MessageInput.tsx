@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent, type ChangeEvent, type DragEvent, type ClipboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Emoji, Hourglass } from 'iconoir-react';
+import { IconMoodSmile, IconHourglass } from '@tabler/icons-react';
 import EmojiPicker from '../EmojiPicker/EmojiPicker';
 import type { Attachment } from '../../services/api';
 import TypingIndicator from './TypingIndicator';
@@ -289,7 +289,7 @@ export default function MessageInput({
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
             >
-              {uploading ? <Hourglass width={18} height={18} strokeWidth={2} /> : <PlusCircleIcon />}
+              {uploading ? <IconHourglass size={18} stroke={1.75} /> : <PlusCircleIcon />}
             </button>
             <div style={{ position: 'relative' }}>
               {showEmojiPicker && (
@@ -300,7 +300,7 @@ export default function MessageInput({
                 />
               )}
               <button ref={emojiBtnRef} className="toolbar-btn clickable" title={t('messages.emoji', 'Emoji')} onClick={() => setShowEmojiPicker(v => !v)} disabled={uploading}>
-                <Emoji width={18} height={18} strokeWidth={1.75} />
+                <IconMoodSmile size={18} stroke={1.75} />
               </button>
             </div>
           </div>

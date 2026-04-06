@@ -5,12 +5,12 @@ import { useTeamStore } from '../../stores/teamStore';
 import { useVoiceStore } from '../../stores/voiceStore';
 import { useUnreadStore } from '../../stores/unreadStore';
 
-vi.mock('iconoir-react', () => ({
-  SoundHigh: () => <span data-testid="SoundHigh" />,
-  Plus: () => <span data-testid="Plus" />,
-  MicrophoneMute: () => <span data-testid="MicrophoneMute" />,
-  HeadsetWarning: () => <span data-testid="HeadsetWarning" />,
-  AppWindow: () => <span data-testid="AppWindow" />,
+vi.mock('@tabler/icons-react', () => ({
+  IconVolume: () => <span data-testid="SoundHigh" />,
+  IconPlus: () => <span data-testid="Plus" />,
+  IconMicrophoneOff: () => <span data-testid="MicrophoneMute" />,
+  IconHeadphonesOff: () => <span data-testid="HeadsetWarning" />,
+  IconScreenShare: () => <span data-testid="AppWindow" />,
 }));
 
 vi.mock('../../services/api', () => ({

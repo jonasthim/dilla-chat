@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Xmark } from 'iconoir-react';
+import { IconX } from '@tabler/icons-react';
 import { shortcuts } from '../../utils/keyboardShortcuts';
 import './ShortcutsModal.css';
 
@@ -16,7 +16,7 @@ export default function ShortcutsModal({ onClose }: Readonly<Props>) {
       <div className="shortcuts-modal">
         <div className="shortcuts-header">
           <h2 id="shortcuts-title">{t('shortcuts.title', 'Keyboard Shortcuts')}</h2>
-          <button className="shortcuts-close" onClick={onClose}><Xmark width={20} height={20} strokeWidth={2} /></button>
+          <button className="shortcuts-close" onClick={onClose}><IconX size={20} stroke={1.75} /></button>
         </div>
         <div className="shortcuts-list">
           {shortcuts.map((s) => (
