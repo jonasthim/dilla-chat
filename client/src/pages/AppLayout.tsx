@@ -106,7 +106,7 @@ export default function AppLayout() {
   const [channelWidth, setChannelWidth] = useState(240);
 
   const handleChannelResize = useCallback((delta: number) => {
-    setChannelWidth(prev => Math.min(Math.max(prev + delta, 200), 400));
+    setChannelWidth(prev => Math.min(Math.max(prev + delta, 240), 400));
   }, []);
 
   // Get current user info from auth store
@@ -385,7 +385,7 @@ export default function AppLayout() {
 
   const channelSidebarContent = (
     <div
-      className={`channel-sidebar flex flex-col shrink-0 min-h-0 overflow-hidden bg-glass-secondary backdrop-blur-glass border-r border-glass-border ${isMobile ? 'w-full border-r-0' : ''}`}
+      className={`channel-sidebar flex flex-col shrink-0 min-h-0 overflow-hidden bg-glass-secondary backdrop-blur-glass border-r border-glass-border ${isMobile ? 'w-full border-r-0' : 'min-w-60'}`}
       style={isMobile ? undefined : { width: channelWidth }}
     >
       <div className="flex flex-col border-b border-divider shrink-0 box-border shadow-[0_1px_2px_var(--overlay-light)]">
