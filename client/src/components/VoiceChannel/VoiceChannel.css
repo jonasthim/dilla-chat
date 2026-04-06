@@ -214,8 +214,6 @@
 .voice-tile.has-webcam {
   padding: 0;
   overflow: hidden;
-  min-height: 180px;
-  aspect-ratio: 4 / 3;
 }
 
 .voice-tile-webcam-fill {
