@@ -107,7 +107,7 @@ export default function AppLayout() {
   const [channelWidth, setChannelWidth] = useState(240);
 
   const handleChannelResize = useCallback((delta: number) => {
-    setChannelWidth(prev => Math.min(Math.max(prev + delta, 180), 340));
+    setChannelWidth(prev => Math.min(Math.max(prev + delta, 240), 400));
   }, []);
 
   // Get current user info from auth store
@@ -435,7 +435,7 @@ export default function AppLayout() {
       <div className={`app-layout-main ${isMobile ? 'mobile' : ''}`}>
       {!isMobile && (
         <>
-          <div className="left-panels">
+          <div className="left-panels" style={{ width: 72 + channelWidth }}>
             <div className="left-panels-top">
               <TeamSidebar />
               {channelSidebarContent}
