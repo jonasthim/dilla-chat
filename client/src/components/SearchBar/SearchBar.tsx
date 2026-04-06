@@ -108,7 +108,7 @@ export default function SearchBar({ onJumpToMessage }: Readonly<Props>) {
   return (
     <div className="relative" ref={containerRef}>
       <div
-        className={`flex items-center bg-input border border-transparent rounded-lg px-sm h-7 w-[200px] max-md:w-[140px] transition-all duration-200 ease-out box-border ${focused ? 'w-[300px] max-md:w-[200px] border-brand shadow-[0_0_0_2px_var(--brand-alpha-12)]' : ''}`}
+        className={`flex items-center bg-input border border-transparent rounded-lg px-sm h-7 w-[240px] max-md:w-[140px] transition-all duration-200 ease-out box-border ${focused ? 'border-brand shadow-[0_0_0_2px_var(--brand-alpha-12)]' : ''}`}
         data-focused={focused || undefined}
       >
         <Search className="text-foreground-muted shrink-0" width={16} height={16} strokeWidth={2} />
