@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Xmark } from 'iconoir-react';
 import { useMessageStore, type Message } from '../../stores/messageStore';
@@ -87,11 +88,17 @@ export default function SearchBar({ onJumpToMessage }: Readonly<Props>) {
     inputRef.current?.focus();
   };
 
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   // Close dropdown on click outside
   useEffect(() => {
     if (!showDropdown) return;
     const handleClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setFocused(false);
       }
     };
@@ -126,8 +133,15 @@ export default function SearchBar({ onJumpToMessage }: Readonly<Props>) {
         )}
       </div>
 
-      {showDropdown && (
-        <div className="absolute top-[calc(100%+6px)] right-0 w-[420px] max-md:w-[calc(100vw-16px)] max-md:max-w-[420px] md:max-lg:w-[min(420px,calc(100vw-340px))] max-h-[60vh] overflow-y-auto bg-glass-floating backdrop-blur-glass-heavy border border-glass-border shadow-glass-elevated rounded-lg z-dropdown p-sm">
+      {showDropdown && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed w-[420px] max-md:w-[calc(100vw-16px)] max-md:max-w-[420px] md:max-lg:w-[min(420px,calc(100vw-340px))] max-h-[60vh] overflow-y-auto bg-glass-floating backdrop-blur-glass-heavy border border-glass-border shadow-glass-elevated rounded-lg z-dropdown p-sm"
+          style={{
+            top: (containerRef.current?.getBoundingClientRect().bottom ?? 0) + 6,
+            right: window.innerWidth - (containerRef.current?.getBoundingClientRect().right ?? 0),
+          }}
+        >
           {results.length === 0 ? (
             <div className="text-center py-xl px-lg text-foreground-muted text-base">
               {t('search.noResults', 'No results found')}
@@ -167,7 +181,8 @@ export default function SearchBar({ onJumpToMessage }: Readonly<Props>) {
               ))}
             </>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
