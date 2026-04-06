@@ -1,8 +1,6 @@
 .team-sidebar {
   width: var(--team-sidebar-width);
-  background: var(--glass-bg-tertiary);
-  -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
-  backdrop-filter: blur(var(--glass-blur-heavy));
+  background: var(--bg-tertiary);
   display: flex;
   flex-direction: column;
   align-items: center;

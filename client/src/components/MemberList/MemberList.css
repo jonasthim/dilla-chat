@@ -1,13 +1,11 @@
 .member-list {
   width: var(--member-sidebar-width);
-  background: var(--glass-bg-secondary);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  backdrop-filter: blur(var(--glass-blur));
+  background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   padding: var(--spacing-xl) 0 var(--spacing-sm);
-  border-left: 1px solid var(--glass-border);
+  box-shadow: -1px 0 0 var(--divider);
 }
 
 .member-list-header {

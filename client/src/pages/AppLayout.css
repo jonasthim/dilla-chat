@@ -21,7 +21,7 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-primary);
+  background: var(--bg-tertiary);
 }
 
 /* When TitleBar is present (Tauri), offset content below it.
@@ -48,18 +48,14 @@
 }
 
 .left-panels-bottom {
-  background: var(--bg-tertiary);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
   flex-shrink: 0;
-  border-top: 1px solid var(--divider);
 }
 
 /* Channel sidebar (second column) */
 .channel-sidebar {
   width: var(--channel-sidebar-width);
-  background: var(--glass-bg-secondary);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  backdrop-filter: blur(var(--glass-blur));
-  border-right: 1px solid var(--glass-border);
+  background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -93,6 +89,7 @@
   min-height: 0;
   overflow: hidden;
   background: var(--bg-primary);
+  box-shadow: -1px 0 0 var(--divider);
 }
 
 /* Header bar */
@@ -102,14 +99,11 @@
   display: flex;
   align-items: center;
   padding: 0 var(--spacing-lg);
-  background: var(--glass-bg-primary);
-  -webkit-backdrop-filter: blur(var(--glass-blur-light));
-  backdrop-filter: blur(var(--glass-blur-light));
+  background: var(--bg-primary);
   border-bottom: 1px solid var(--divider);
   flex-shrink: 0;
   gap: var(--spacing-sm);
   box-sizing: border-box;
-  box-shadow: 0 1px 2px var(--overlay-light);
 }
 
 .content-header-icon {
@@ -160,7 +154,7 @@
   color: var(--interactive-normal);
   cursor: pointer;
   padding: var(--spacing-xs);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-xl);
   transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
 }
@@ -218,7 +212,7 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
@@ -234,7 +228,6 @@
   border-bottom: 1px solid var(--divider);
   flex-shrink: 0;
   box-sizing: border-box;
-  box-shadow: 0 1px 2px var(--overlay-light);
 }
 
 .channel-sidebar-header-top {
@@ -253,7 +246,7 @@
 .sidebar-settings-btn {
   padding: var(--spacing-xs);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   background: none;
   color: var(--interactive-normal);
   cursor: pointer;
@@ -279,7 +272,7 @@
   flex: 1;
   padding: 6px 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--interactive-normal);
   cursor: pointer;
