@@ -476,8 +476,8 @@ export default function AppLayout() {
       )}
 
       {(!isMobile || mobileTab === 'chat') && (
-      <div id="main-content" className="flex-1 flex flex-col min-w-0 overflow-hidden max-md:min-h-0">
-        <div className="h-[var(--header-height)] min-h-[var(--header-height)] flex items-center px-lg bg-glass backdrop-blur-glass-light border-b border-divider shrink-0 gap-sm box-border shadow-[0_1px_2px_var(--overlay-light)] max-md:px-2 max-md:gap-1">
+      <div id="main-content" className="flex-1 flex flex-col min-w-0 max-md:min-h-0">
+        <div className="h-[var(--header-height)] min-h-[var(--header-height)] flex items-center px-lg bg-glass backdrop-blur-glass-light border-b border-divider shrink-0 gap-sm box-border shadow-[0_1px_2px_var(--overlay-light)] max-md:px-2 max-md:gap-1 relative z-sticky">
           {renderContentHeader()}
         </div>
 
