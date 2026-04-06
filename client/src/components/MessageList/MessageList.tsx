@@ -39,6 +39,17 @@ const markdownComponents = {
 
 const START_INDEX = 100000;
 
+function formatDateDivider(dateStr: string): string {
+  const date = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
 export default function MessageList({
   channelId,
   channelName = '',
@@ -130,39 +141,58 @@ export default function MessageList({
           </>
         ),
       }}
-      itemContent={(_index, group) => {
+      itemContent={(index, group) => {
         const firstMsg = group.messages[0];
         const isSystem = firstMsg.type === 'system';
 
+        const currentDate = new Date(firstMsg.createdAt).toDateString();
+        const groupIndex = index - firstItemIndex;
+        const prevGroup = groupIndex > 0 ? groups[groupIndex - 1] : null;
+        const prevDate = prevGroup ? new Date(prevGroup.messages[0].createdAt).toDateString() : null;
+        const showDateDivider = !prevDate || prevDate !== currentDate;
+
         if (isSystem) {
           return (
-            <div className="message-system">
-              <span className="message-system-text">{firstMsg.content}</span>
-            </div>
+            <>
+              {showDateDivider && (
+                <div className="date-divider">
+                  <span className="date-divider-text">{formatDateDivider(firstMsg.createdAt)}</span>
+                </div>
+              )}
+              <div className="message-system">
+                <span className="message-system-text">{firstMsg.content}</span>
+              </div>
+            </>
           );
         }
 
         return (
-          <div className="message-group">
-            <div className="message-group-avatar">
-              <div
-                className="message-avatar"
-                style={{ backgroundColor: usernameColor(group.username) }}
-              >
-                {getInitials(group.username)}
+          <>
+            {showDateDivider && (
+              <div className="date-divider">
+                <span className="date-divider-text">{formatDateDivider(firstMsg.createdAt)}</span>
               </div>
-            </div>
-            <div className="message-group-content">
-              <div className="message-group-header">
-                <span
-                  className="message-username"
-                  style={{ color: usernameColor(group.username) }}
+            )}
+            <div className="message-group">
+              <div className="message-group-avatar">
+                <div
+                  className="message-avatar"
+                  style={{ backgroundColor: usernameColor(group.username) }}
                 >
-                  {group.username}
-                </span>
-                <span className="message-timestamp">{formatTime(firstMsg.createdAt)}</span>
+                  {getInitials(group.username)}
+                </div>
               </div>
-              {group.messages.map((msg) => (
+              <div className="message-group-content">
+                <div className="message-group-header">
+                  <span
+                    className="message-username"
+                    style={{ color: usernameColor(group.username) }}
+                  >
+                    {group.username}
+                  </span>
+                  <span className="message-timestamp">{formatTime(firstMsg.createdAt)}</span>
+                </div>
+                {group.messages.map((msg) => (
                 <div
                   key={msg.id}
                   id={`msg-${msg.id}`}
@@ -296,9 +326,10 @@ export default function MessageList({
                     </button>
                   )}
                 </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          </>
         );
       }}
     />
