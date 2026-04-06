@@ -38,6 +38,7 @@
   flex-direction: column;
   height: 100%;
   flex-shrink: 0;
+  width: calc(var(--team-sidebar-width) + var(--channel-sidebar-width));
 }
 
 .left-panels-top {
