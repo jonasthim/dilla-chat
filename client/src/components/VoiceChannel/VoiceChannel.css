@@ -98,7 +98,7 @@
 .voice-tile-avatar {
   width: 64px;
   height: 64px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-lg);
   background: var(--bg-accent);
   color: white;
   display: flex;
@@ -348,7 +348,7 @@
 .fullscreen-thumbnail-avatar {
   width: 40px;
   height: 40px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   background: var(--bg-accent);
   color: white;
   display: flex;

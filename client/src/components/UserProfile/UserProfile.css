@@ -35,7 +35,7 @@ dialog.user-profile-popover {
 .user-profile-avatar {
   width: 64px;
   height: 64px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-lg);
   background: var(--bg-accent);
   color: white;
   display: flex;

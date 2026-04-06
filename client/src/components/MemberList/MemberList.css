@@ -126,7 +126,7 @@
 .member-profile-avatar {
   width: 80px;
   height: 80px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-lg);
   background: var(--bg-accent);
   color: white;
   display: flex;
