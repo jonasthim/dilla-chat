@@ -1,8 +1,10 @@
 .voice-controls {
-  padding: 10px 12px 6px 12px;
-  overflow: visible;
-  animation: voice-slide-in 0.25s var(--ease-spring);
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  gap: var(--spacing-sm);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  animation: voice-slide-in var(--duration-slow) var(--ease-spring);
 }
 
 .voice-controls + .user-panel {
@@ -137,7 +139,7 @@
   color: var(--interactive-normal);
   cursor: pointer;
   padding: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   width: 32px;
   height: 32px;
   display: flex;
@@ -174,9 +176,10 @@
 }
 
 .voice-btn.disconnect {
-  color: var(--text-danger);
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
 }
 
 .voice-btn.disconnect:hover {
-  background: var(--bg-modifier-hover);
+  background: rgba(239, 68, 68, 0.25);
 }
