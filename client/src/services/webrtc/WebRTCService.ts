@@ -96,7 +96,8 @@ class WebRTCService {
         console.log('[Voice] Using TURN relay (no IP leaks)');
       }
     } catch {
-      console.log('[Voice] TURN not available, using STUN');
+      // TURN credentials endpoint not available — expected when no TURN
+      // server is configured. Voice falls back to STUN (peer-to-peer).
     }
 
     // Create peer connection
