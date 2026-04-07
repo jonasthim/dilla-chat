@@ -116,19 +116,19 @@ describe('ChannelList', () => {
   });
 
   it('shows context menu on right click', () => {
-    const { container } = render(<ChannelList />);
+    render(<ChannelList />);
     const channelItem = screen.getByText('general').closest('.channel-item')!;
     fireEvent.contextMenu(channelItem);
-    expect(container.querySelector('.channel-context-menu')).toBeInTheDocument();
+    expect(document.body.querySelector('.channel-context-menu')).toBeInTheDocument();
     expect(screen.getByText('Edit Channel')).toBeInTheDocument();
     expect(screen.getByText('Delete Channel')).toBeInTheDocument();
   });
 
   it('shows context menu on Shift+F10 keyboard shortcut', () => {
-    const { container } = render(<ChannelList />);
+    render(<ChannelList />);
     const channelBtn = screen.getByText('general').closest('button')!;
     fireEvent.keyDown(channelBtn, { key: 'F10', shiftKey: true });
-    expect(container.querySelector('.channel-context-menu')).toBeInTheDocument();
+    expect(document.body.querySelector('.channel-context-menu')).toBeInTheDocument();
   });
 
   it('renders empty list when no team is active', () => {
@@ -250,12 +250,12 @@ describe('ChannelList', () => {
   });
 
   it('closes context menu on document click', () => {
-    const { container } = render(<ChannelList />);
+    render(<ChannelList />);
     const channelItem = screen.getByText('general').closest('.channel-item')!;
     fireEvent.contextMenu(channelItem);
-    expect(container.querySelector('.channel-context-menu')).toBeInTheDocument();
+    expect(document.body.querySelector('.channel-context-menu')).toBeInTheDocument();
     fireEvent.click(document);
-    expect(container.querySelector('.channel-context-menu')).not.toBeInTheDocument();
+    expect(document.body.querySelector('.channel-context-menu')).not.toBeInTheDocument();
   });
 
   describe('unread badge rendering', () => {

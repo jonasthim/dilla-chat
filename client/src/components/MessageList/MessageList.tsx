@@ -81,7 +81,7 @@ export default function MessageList({
   const groups = groupMessages(channelMessages);
 
   const { members: membersMap, activeTeamId } = useTeamStore();
-  const teamPresences = usePresenceStore((s) => (activeTeamId ? s.teamPresences.get(activeTeamId) : undefined)) ?? {};
+  const teamPresences = usePresenceStore((s) => (activeTeamId ? s.presences[activeTeamId] : undefined)) ?? {};
   const { setActiveDM } = useDMStore();
   const teamMembers = (activeTeamId ? membersMap.get(activeTeamId) : undefined) ?? [];
 
@@ -90,7 +90,16 @@ export default function MessageList({
     const member = teamMembers.find((m) => m.userId === authorId);
     if (!member) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setProfilePopup({ member, x: rect.left + 40, y: rect.top });
+    // Position popup to the right of the clicked element, vertically aligned to its top
+    const POPUP_WIDTH = 300;
+    const GAP = 12;
+    let x = rect.right + GAP;
+    // If it would overflow viewport, place it to the left instead
+    if (x + POPUP_WIDTH > window.innerWidth - 16) {
+      x = Math.max(16, rect.left - POPUP_WIDTH - GAP);
+    }
+    const y = Math.min(rect.top, window.innerHeight - 360);
+    setProfilePopup({ member, x, y });
   }, [teamMembers]);
 
   const handleSendMessage = useCallback(async (member: Member) => {

@@ -180,6 +180,11 @@
   display: block;
 }
 
+.message-input-textarea:focus {
+  box-shadow: none;
+  border-color: transparent;
+}
+
 .message-input-textarea::placeholder {
   color: var(--text-muted);
 }

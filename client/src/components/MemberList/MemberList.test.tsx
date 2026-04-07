@@ -134,11 +134,13 @@ describe('MemberList', () => {
     expect(screen.getByTestId('user-profile')).toBeInTheDocument();
   });
 
-  it('closes popup on close button click', () => {
+  it('closes popup on outside mousedown', async () => {
     render(<MemberList />);
     fireEvent.click(screen.getByText('Alice'));
     expect(screen.getByTestId('user-profile')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Close'));
+    // Wait for the setTimeout(0) that defers registering the document listener
+    await new Promise((r) => setTimeout(r, 0));
+    fireEvent.mouseDown(document.body);
     expect(screen.queryByTestId('user-profile')).not.toBeInTheDocument();
   });
 
@@ -217,12 +219,12 @@ describe('MemberList', () => {
     expect(names[1]).toBe('Zebra');
   });
 
-  it('closes popup on document click', () => {
+  it('closes popup on document mousedown', async () => {
     render(<MemberList />);
     fireEvent.click(screen.getByText('Alice'));
     expect(screen.getByTestId('user-profile')).toBeInTheDocument();
-    // Simulate document click
-    fireEvent.click(document);
+    await new Promise((r) => setTimeout(r, 0));
+    fireEvent.mouseDown(document.body);
     expect(screen.queryByTestId('user-profile')).not.toBeInTheDocument();
   });
 

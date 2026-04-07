@@ -51,7 +51,6 @@
 
 .member-item:hover {
   background: var(--bg-modifier-hover);
-  box-shadow: inset 3px 0 0 var(--brand-alpha-25);
 }
 
 .member-item.offline {
@@ -73,16 +72,30 @@
   position: relative;
 }
 
-.member-avatar[data-status="online"] {
-  box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 3.5px var(--success);
+.member-avatar[data-status="online"]::after,
+.member-avatar[data-status="idle"]::after,
+.member-avatar[data-status="dnd"]::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--bg-secondary);
+  box-sizing: border-box;
 }
 
-.member-avatar[data-status="idle"] {
-  box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 3.5px var(--warning);
+.member-avatar[data-status="online"]::after {
+  background: var(--success);
 }
 
-.member-avatar[data-status="dnd"] {
-  box-shadow: 0 0 0 2px var(--bg-secondary), 0 0 0 3.5px var(--danger);
+.member-avatar[data-status="idle"]::after {
+  background: var(--warning);
+}
+
+.member-avatar[data-status="dnd"]::after {
+  background: var(--danger);
 }
 
 .member-info {
