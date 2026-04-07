@@ -27,8 +27,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 30% 40%, var(--brand-alpha-20) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 70% at 70% 70%, var(--accent-alpha-08) 0%, transparent 70%);
+    radial-gradient(ellipse 80% 60% at 30% 40%, var(--brand-alpha-30) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 70% at 70% 70%, var(--accent-alpha-15) 0%, transparent 70%);
   animation: public-brand-drift 16s ease-in-out infinite alternate;
   pointer-events: none;
 }
@@ -36,13 +36,13 @@
 @keyframes public-brand-drift {
   0% {
     background:
-      radial-gradient(ellipse 80% 60% at 30% 40%, var(--brand-alpha-20) 0%, transparent 70%),
-      radial-gradient(ellipse 60% 70% at 70% 70%, var(--accent-alpha-08) 0%, transparent 70%);
+      radial-gradient(ellipse 80% 60% at 30% 40%, var(--brand-alpha-30) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 70% at 70% 70%, var(--accent-alpha-15) 0%, transparent 70%);
   }
   100% {
     background:
-      radial-gradient(ellipse 70% 70% at 40% 50%, var(--brand-alpha-15) 0%, transparent 70%),
-      radial-gradient(ellipse 80% 50% at 60% 30%, var(--accent-alpha-10) 0%, transparent 70%);
+      radial-gradient(ellipse 70% 70% at 40% 50%, var(--brand-alpha-25) 0%, transparent 70%),
+      radial-gradient(ellipse 80% 50% at 60% 30%, var(--accent-alpha-20) 0%, transparent 70%);
   }
 }
 
@@ -112,7 +112,7 @@
   max-width: 420px;
   background: var(--glass-bg-primary);
   border: 1px solid var(--glass-border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 2.5rem 2rem;
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));

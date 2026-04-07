@@ -70,14 +70,25 @@
 
 .voice-tile {
   background: var(--bg-secondary);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: var(--spacing-xl) var(--spacing-lg);
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--spacing-sm);
-  transition: box-shadow 0.15s ease;
+  transition: box-shadow var(--duration-fast) var(--ease-out);
   position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Webcam tile: invisible spacer maintains avatar-equivalent height */
+.voice-tile:has(.voice-tile-webcam-fill)::before {
+  content: '';
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
 }
 
 .voice-tile.speaking {
@@ -210,18 +221,33 @@
 }
 
 /* Webcam replaces avatar — circular crop */
-.voice-tile-webcam-avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: var(--radius-full);
+/* Webcam replaces avatar — same tile layout */
+/* Webcam fills entire tile — absolute so it doesn't affect tile size */
+.voice-tile-webcam-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   background: var(--bg-tertiary);
   transform: scaleX(-1);
-  box-shadow: 0 0 0 2px var(--bg-modifier-accent, var(--white-overlay-light));
+  border-radius: inherit;
+  z-index: 0;
 }
 
-.voice-tile.speaking .voice-tile-webcam-avatar {
-  box-shadow: 0 0 0 2px var(--status-online);
+.voice-tile-overlay {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-top: auto;
+}
+
+/* When webcam active: name/icons overlay on top of video */
+.voice-tile:has(.voice-tile-webcam-fill) .voice-tile-overlay {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
 /* Fullscreen screen share overlay */

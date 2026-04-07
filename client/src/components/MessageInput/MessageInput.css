@@ -3,18 +3,31 @@
 .message-input-wrapper {
   flex-shrink: 0;
   position: relative;
-  padding: 0 var(--spacing-lg) var(--spacing-lg);
+  padding: 0;
   z-index: 10;
 }
 
+.message-input-wrapper::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--spacing-2xl));
+  left: 0;
+  right: 0;
+  height: var(--spacing-2xl);
+  background: linear-gradient(to bottom, transparent, var(--bg-primary));
+  pointer-events: none;
+}
+
 .message-input-composer {
-  background: var(--glass-bg-primary);
-  -webkit-backdrop-filter: blur(var(--glass-blur-light));
-  backdrop-filter: blur(var(--glass-blur-light));
+  background: var(--glass-bg-secondary);
+  -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
+  backdrop-filter: blur(var(--glass-blur-heavy));
   border: 1px solid var(--glass-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 -4px 20px var(--overlay-dark);
+  margin: 0 var(--spacing-lg) var(--spacing-lg);
 }
 
 .message-input-composer:focus-within {
@@ -78,7 +91,7 @@
   border: none;
   box-sizing: border-box;
   color: var(--text-normal);
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
   font-family: inherit;
   padding: 0;
   margin: 0;
@@ -107,7 +120,7 @@
 .toolbar-group {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--spacing-xs);
 }
 
 .toolbar-divider {
@@ -133,6 +146,8 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   font-family: inherit;
+  border-radius: var(--radius-md);
+  transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
 }
 
 .toolbar-btn:hover {
@@ -169,18 +184,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   flex-shrink: 0;
-  transition: color 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .toolbar-send-btn.has-content {
-  color: var(--brand-500);
+  background: var(--brand-500);
+  color: white;
   cursor: pointer;
 }
 
 .toolbar-send-btn.has-content:hover {
-  color: var(--brand-560);
+  background: var(--brand-560);
+  color: white;
 }
 
 .toolbar-send-btn svg {
@@ -302,8 +319,8 @@
 
 /* ===== Responsive ===== */
 @media (max-width: 767px) {
-  .message-input-wrapper {
-    padding: 0 var(--spacing-sm) var(--spacing-sm);
+  .message-input-composer {
+    margin: 0 var(--spacing-sm) var(--spacing-sm);
   }
 
   .message-input-textarea {

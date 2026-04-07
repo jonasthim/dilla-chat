@@ -1,13 +1,11 @@
 .member-list {
   width: var(--member-sidebar-width);
-  background: var(--glass-bg-secondary);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  backdrop-filter: blur(var(--glass-blur));
+  background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   padding: var(--spacing-xl) 0 var(--spacing-sm);
-  border-left: 1px solid var(--glass-border);
+  box-shadow: -1px 0 0 var(--divider);
 }
 
 .member-list-header {
@@ -39,10 +37,10 @@
   margin: 1px 8px 0;
   gap: var(--spacing-md);
   cursor: pointer;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   height: 42px;
   box-sizing: border-box;
-  transition: background-color 0.15s ease;
+  transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .member-item:hover {
@@ -50,7 +48,7 @@
 }
 
 .member-item.offline {
-  opacity: 0.4;
+  opacity: 0.55;
 }
 
 .member-avatar {

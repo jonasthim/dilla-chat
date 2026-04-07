@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SoundHigh, Plus, MicrophoneMute, HeadsetWarning, AppWindow } from 'iconoir-react';
+import { SoundHigh, Plus, MicrophoneMute, HeadsetWarning, AppWindow, VideoCamera } from 'iconoir-react';
 import { useTeamStore, type Channel } from '../../stores/teamStore';
 import { useVoiceStore } from '../../stores/voiceStore';
 import { useUnreadStore } from '../../stores/unreadStore';
+import { useAuthStore } from '../../stores/authStore';
 import { api } from '../../services/api';
 import EditChannel from '../EditChannel/EditChannel';
 import './ChannelList.css';
@@ -21,8 +22,10 @@ interface Props {
 export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
   const { t } = useTranslation();
   const { channels, activeTeamId, activeChannelId, setActiveChannel, removeChannel } = useTeamStore();
-  const { currentChannelId: voiceChannelId, connected: voiceConnected, peers: voicePeers, voiceOccupants, joinChannel: voiceJoin } = useVoiceStore();
+  const { currentChannelId: voiceChannelId, connected: voiceConnected, peers: voicePeers, voiceOccupants, joinChannel: voiceJoin, muted: localMuted, deafened: localDeafened, screenSharing: localScreenSharing, webcamSharing: localWebcamSharing } = useVoiceStore();
   const { counts: unreadCounts } = useUnreadStore();
+  const authTeams = useAuthStore((s) => s.teams);
+  const currentUserId = (activeTeamId ? authTeams.get(activeTeamId)?.user?.id : '') ?? '';
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
@@ -104,9 +107,24 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
             // Show rich peer data if connected, otherwise show occupants from server
             const voicePeerValues = Object.values(voicePeers);
             let voicePeerList: typeof voicePeerValues;
-            if (isVoiceConnected) voicePeerList = voicePeerValues;
-            else if (isVoice) voicePeerList = voiceOccupants[ch.id] ?? [];
-            else voicePeerList = [];
+            if (isVoiceConnected) {
+              // WebRTC peers = remote users only. Add local user with store state.
+              const localUsername = (activeTeamId ? authTeams.get(activeTeamId)?.user?.username : '') ?? 'You';
+              const localEntry = {
+                user_id: currentUserId,
+                username: localUsername,
+                muted: localMuted,
+                deafened: localDeafened,
+                screen_sharing: localScreenSharing,
+                speaking: false,
+                voiceLevel: 0,
+              };
+              voicePeerList = [localEntry, ...voicePeerValues.filter(p => p.user_id !== currentUserId)];
+            } else if (isVoice) {
+              voicePeerList = voiceOccupants[ch.id] ?? [];
+            } else {
+              voicePeerList = [];
+            }
 
             const unreadCount = unreadCounts[ch.id] ?? 0;
             const hasUnread = !isVoice && unreadCount > 0;
@@ -139,21 +157,29 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
                 </button>
                 {voicePeerList.length > 0 && (
                   <div className="voice-channel-users">
-                    {voicePeerList.map((peer) => (
-                      <div
-                        key={peer.user_id}
-                        className={`voice-channel-user ${peer.speaking ? 'speaking' : ''}`}
-                        style={{ '--voice-level': peer.voiceLevel ?? 0 } as React.CSSProperties}
-                      >
-                        <span className="voice-user-avatar">
-                          {peer.username.slice(0, 1).toUpperCase()}
-                        </span>
-                        <span className="voice-user-name">{peer.username}</span>
-                        {peer.muted && <MicrophoneMute width={14} height={14} strokeWidth={2} className="voice-user-icon" />}
-                        {peer.deafened && <HeadsetWarning width={14} height={14} strokeWidth={2} className="voice-user-icon" />}
-                        {peer.screen_sharing && <AppWindow width={14} height={14} strokeWidth={2} className="voice-user-icon screen-sharing" />}
-                      </div>
-                    ))}
+                    {voicePeerList.map((peer) => {
+                      const isLocal = peer.user_id === currentUserId;
+                      const isMuted = isLocal ? localMuted : peer.muted;
+                      const isDeafened = isLocal ? localDeafened : peer.deafened;
+                      const isScreenSharing = isLocal ? localScreenSharing : peer.screen_sharing;
+                      const isWebcamSharing = isLocal ? localWebcamSharing : false;
+                      return (
+                        <div
+                          key={peer.user_id}
+                          className={`voice-channel-user ${peer.speaking ? 'speaking' : ''}`}
+                          style={{ '--voice-level': peer.voiceLevel ?? 0 } as React.CSSProperties}
+                        >
+                          <span className="voice-user-avatar">
+                            {peer.username.slice(0, 1).toUpperCase()}
+                          </span>
+                          <span className="voice-user-name">{peer.username}</span>
+                          {isMuted && <MicrophoneMute width={14} height={14} strokeWidth={2} className="voice-user-icon" />}
+                          {isDeafened && <HeadsetWarning width={14} height={14} strokeWidth={2} className="voice-user-icon" />}
+                          {isWebcamSharing && <VideoCamera width={14} height={14} strokeWidth={2} className="voice-user-icon webcam-sharing" />}
+                          {isScreenSharing && <AppWindow width={14} height={14} strokeWidth={2} className="voice-user-icon screen-sharing" />}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
