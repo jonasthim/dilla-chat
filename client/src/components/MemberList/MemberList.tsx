@@ -90,9 +90,20 @@ export default function MemberList() {
 
   useEffect(() => {
     if (!popup) return;
-    const close = () => setPopup(null);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
+    const close = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Don't close if clicking inside the user profile popup
+      if (target.closest('.user-profile-popover')) return;
+      setPopup(null);
+    };
+    // Defer registration so the click that opened the popup doesn't immediately close it
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', close);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', close);
+    };
   }, [popup]);
 
   const getInitials = (m: Member) =>
