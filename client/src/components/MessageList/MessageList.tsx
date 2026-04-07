@@ -85,7 +85,7 @@ export default function MessageList({
   const { setActiveDM } = useDMStore();
   const teamMembers = (activeTeamId ? membersMap.get(activeTeamId) : undefined) ?? [];
 
-  const handleUserClick = useCallback((e: React.MouseEvent, authorId: string) => {
+  const handleUserClick = (e: React.MouseEvent, authorId: string) => {
     e.stopPropagation();
     const member = teamMembers.find((m) => m.userId === authorId);
     if (!member) return;
@@ -100,9 +100,9 @@ export default function MessageList({
     }
     const y = Math.min(rect.top, window.innerHeight - 360);
     setProfilePopup({ member, x, y });
-  }, [teamMembers]);
+  };
 
-  const handleSendMessage = useCallback(async (member: Member) => {
+  const handleSendMessage = async (member: Member) => {
     if (!activeTeamId || member.userId === currentUserId) return;
     try {
       const dm = await api.createDM(activeTeamId, [member.userId]) as { id: string };
@@ -111,7 +111,7 @@ export default function MessageList({
     } catch {
       // ignore
     }
-  }, [activeTeamId, currentUserId, setActiveDM]);
+  };
 
   useEffect(() => {
     if (!profilePopup) return;
@@ -131,7 +131,9 @@ export default function MessageList({
 
   // Reset pill state on channel change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset scroll pill state when switching channels
     setNewMessageCount(0);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset scroll pill state when switching channels
     setAtBottom(true);
   }, [channelId]);
 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { IconVolume, IconPlus, IconMicrophoneOff, IconHeadphonesOff, IconScreenShare, IconVideo } from '@tabler/icons-react';
@@ -54,10 +54,10 @@ export default function ChannelList({ onCreateChannel }: Readonly<Props>) {
     return !isUnread && !isActiveVoice;
   });
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, channel: Channel) => {
+  const handleContextMenu = (e: React.MouseEvent, channel: Channel) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, channel });
-  }, []);
+  };
 
   useEffect(() => {
     const close = () => setContextMenu(null);

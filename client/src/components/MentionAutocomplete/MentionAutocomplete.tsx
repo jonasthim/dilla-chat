@@ -25,6 +25,7 @@ export default function MentionAutocomplete({ users, query, position, onSelect, 
     .slice(0, 8);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset cursor when filter query changes
     setSelectedIndex(0);
   }, [query]);
 
