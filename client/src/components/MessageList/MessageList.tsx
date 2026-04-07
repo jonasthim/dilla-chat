@@ -234,6 +234,12 @@ export default function MessageList({
                   className="message-avatar"
                   style={{ backgroundColor: usernameColor(group.username) }}
                   onClick={(e) => handleUserClick(e, group.authorId)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleUserClick(e as unknown as React.MouseEvent, group.authorId);
+                    }
+                  }}
                   role="button"
                   tabIndex={0}
                 >
@@ -246,6 +252,12 @@ export default function MessageList({
                     className="message-username"
                     style={{ color: usernameColor(group.username) }}
                     onClick={(e) => handleUserClick(e, group.authorId)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleUserClick(e as unknown as React.MouseEvent, group.authorId);
+                      }
+                    }}
                     role="button"
                     tabIndex={0}
                   >
