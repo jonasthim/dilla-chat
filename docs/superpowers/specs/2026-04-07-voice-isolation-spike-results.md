@@ -491,3 +491,75 @@ themselves are not the blocker for Phase 1.
 but the plan's milestone-1 ONNX integration design needs to be reworked
 **before** spike 0b.2 (latency benchmark) can be meaningfully executed. Bring
 this back to the planner.
+
+## SFrame integration verification (Milestone 1, Task 1.10)
+
+**Date:** 2026-04-08  
+**Outcome:** **A** — voice isolation pipeline can wrap `MediaStreamTrack` before `addTrack`. Plan is unblocked.
+
+### Files inspected
+
+- `client/src/services/webrtc/voiceEncryption.ts`
+- `client/src/types/webrtc-encoded-transform.d.ts`
+- `client/src/services/webrtc/WebRTCService.ts`
+
+### Findings
+
+Dilla's SFrame implementation uses the **Encoded Transforms API**
+(`RTCRtpScriptTransform`) for both encryption and decryption. The transforms
+are attached to `RTCRtpSender.transform` and `RTCRtpReceiver.transform`,
+which means SFrame operates on already-encoded RTP frames — i.e. **after**
+the browser audio encoder, not at the `MediaStreamTrack` layer.
+
+Key evidence (`voiceEncryption.ts`):
+
+```ts
+const transform = new RTCRtpScriptTransform(this.encryptWorker, { operation: 'encrypt' });
+sender.transform = transform;
+// ...
+const transform = new RTCRtpScriptTransform(worker, { operation: 'decrypt' });
+receiver.transform = transform;
+```
+
+In `WebRTCService.ts` the order is:
+
+1. `getUserMedia` → raw `MediaStreamTrack` (line 52)
+2. `pc.addTrack(track, this.localStream)` (line 109)
+3. `encryption.setupE2EEncryption(this.pc, this.localUserId)` (line 115)
+
+So a voice isolation wrapper inserted between steps 1 and 2 produces a
+cleaned `MediaStreamTrack` that the browser audio encoder consumes. SFrame
+then encrypts the encoded frames — independent of, and downstream of, the
+DFN3 pipeline.
+
+### Pipeline trace (Outcome A)
+
+**Outgoing:**
+```
+getUserMedia → MediaStreamTrack
+             → voiceIsolation.processOutgoing  (DFN3 wrapper)
+             → cleaned MediaStreamTrack
+             → pc.addTrack
+             → browser audio encoder
+             → RTCRtpSender.transform (SFrame encrypt)
+             → SFU
+```
+
+**Incoming:**
+```
+SFU → RTCRtpReceiver.transform (SFrame decrypt)
+    → browser audio decoder
+    → MediaStreamTrack (from `track` event)
+    → voiceIsolation.processIncoming
+    → cleaned MediaStreamTrack
+    → audio output
+```
+
+### Verdict
+
+Plan can proceed. Milestone 3 (dispatcher + WebRTCService integration) will
+wrap the local track between `getUserMedia` and `addTrack`, and wire
+incoming-stream processing into the existing `track` event handler that
+currently calls `applyDecryptTransform` (line 138).
+
+No re-spec required.
