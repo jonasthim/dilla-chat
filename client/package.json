@@ -68,6 +68,7 @@
     "fake-indexeddb": "^6.2.5",
     "globals": "^16.5.0",
     "jsdom": "^29.0.1",
+    "onnxruntime-node": "^1.24.3",
     "prettier": "^3.8.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.2",
