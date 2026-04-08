@@ -57,3 +57,6 @@ ehthumbs.db
 *.log
 *.pid
 tmp/
+
+# === Voice models (generated) ===
+server-rs/assets/voice-models/manifest.json
