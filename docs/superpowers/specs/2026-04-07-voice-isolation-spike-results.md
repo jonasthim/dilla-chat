@@ -688,3 +688,127 @@ Pending user input. The v2 ONNX files are committed and serve as the
 active path. The TypeScript wiring is correct. The streaming SNR
 limitation is documented. The PR (#123) remains in draft until a
 shipping decision is made among the four pragmatic alternatives above.
+
+---
+
+## Spike 0d — DFN3 streaming has a 2-frame time-shift baked into training
+
+**Date:** 2026-04-09 (continuation of spike 0c, same session)
+
+After spike 0c flagged the v2 export as architecturally limited, I dove
+deeper into DFN3's actual model.py to figure out what state was missing
+from the wrapper. Hypothesis going in: deeper conv layers (`erb_conv1/2/3`,
+`df_conv1`) need their own temporal context buffers. **This hypothesis was
+wrong** — `conv_kernel = (1, 3)` per the DFN3 config means those convs
+are 1×3 (T×F) = no temporal kernel. They need no context.
+
+The actual root cause is much more interesting:
+
+```python
+# df/deepfilternet3.py, in DfNet3.__init__:
+if p.conv_lookahead > 0:
+    assert p.conv_lookahead >= p.df_lookahead
+    self.pad_feat = nn.ConstantPad2d((0, 0, -p.conv_lookahead, p.conv_lookahead), 0.0)
+```
+
+The actual loaded DFN3 checkpoint has `conv_lookahead = 2`, so:
+
+```
+pad_feat = ConstantPad2d((0, 0, -2, 2), 0.0)
+```
+
+This is a **time shift**: it slices 2 frames off the start of the T axis
+and pads 2 zero frames at the end. The encoder is trained to receive
+input from frames `[t+2, t+3, t+4, ...]` to produce output at time `t`.
+
+Our `StreamingEncoder` wrapper bypasses `pad_feat` entirely:
+
+```python
+def forward(self, feat_erb, feat_spec, erb_ctx, spec_ctx, h_enc):
+    erb_full = torch.cat([erb_ctx, feat_erb], dim=2)  # bypass pad_feat
+    spec_full = torch.cat([spec_ctx, feat_spec], dim=2)
+    e0 = self.enc.erb_conv0(erb_full)
+    ...
+```
+
+The wrapper feeds the encoder real past frames via `erb_ctx`, but it
+**never accounts for the 2-frame look-ahead the model was trained with**.
+At training time, when the model is asked for the output at time `t`,
+the encoder GRU sees an input that has been pre-shifted so it actually
+contains the features from time `t+2`. The encoder weights have learned
+this temporal relationship.
+
+In our streaming wrapper, when we call with `feat_erb = features at
+time t`, the encoder thinks we asked for the output of time `t-2` (since
+its weights interpret the input as already-shifted-by-2). The result is
+that the GRU's hidden state evolves at the wrong rate relative to the
+input, producing systematically wrong masks. This matches the observed
+~2x over-suppression: the GRU is consistently 2 frames out of phase with
+the actual signal it's modeling.
+
+There's also a parallel `df_lookahead = 2` for the deep filter stage,
+which the wrapper doesn't handle either. The DF op is supposed to see 2
+future frames per call; our wrapper feeds it the current frame as if it
+were the 2-frames-future frame, with similar phase-misalignment effects.
+
+### Why per-conv-context-capture would NOT have helped
+
+I almost spent a day on the wrong fix. The deeper conv layers in DFN3 are
+1×3 (no T context) so they don't have hidden state to capture. Adding
+context buffers for `erb_conv1/2/3` and `df_conv1` would have produced
+no behavioral change.
+
+### The real fix shape
+
+To make T=1 streaming match libDF's output exactly, the wrapper would
+need to:
+
+1. Buffer 2 frames of input on the wrapper input side (call them
+   "lookahead pending frames")
+2. When the user calls with frame `t`, push it into the buffer
+3. Call the encoder with the frame from `t-2` (the oldest in the
+   buffer), pretending it's the "future-shifted" input the model expects
+4. Emit the output with a 2-frame delay relative to the input
+5. At end of stream, flush the buffer with zero-pad to match libDF's
+   `+conv_lookahead` zero-pad behavior
+
+**This is possible but it's a non-trivial refactor of the entire
+streaming protocol** — the inferenceWorker would need to track an
+emit-delay, the dispatcher would need to know about the warmup period,
+and the regression test would need to align outputs with the
+correctly-delayed reference.
+
+### Why frame batching (Phase 1 option 1) sidesteps this entirely
+
+With a batched encoder call of N frames (e.g., N=8), the 2-frame time
+shift becomes an internal **within-batch reordering**: the encoder
+receives `[frame_0, frame_1, ..., frame_7]`, the trained weights
+interpret it as if `frame_2` was the "current output time" for the GRU's
+first emission, and the natural batch-time-axis handles all the
+phase-alignment automatically. No special buffer protocol, no
+emit-delay tracking, no warmup state — just call the encoder with N
+frames and slice the outputs.
+
+The cost is `N × 10ms` of additional algorithmic latency on top of the
+existing 40 ms. At N=8: total ≈ 120 ms mouth-to-ear, still well within
+live-call territory (the human acceptability threshold for two-way
+voice is roughly 200 ms).
+
+### Updated recommendation: ship Phase 1 with option 1 (frame batching)
+
+After diving 3+ hours into option 4 (full per-layer state capture), the
+realistic conclusion is:
+
+- The "missing state" isn't per-layer — it's **a temporal alignment
+  baked into training-time data shaping** that's awkward to replicate
+  in T=1 streaming inference.
+- The proper fix is a wrapper that mimics libDF's exact buffering
+  scheme. That's a multi-day deep dive into libDF's `tract.rs` and
+  careful streaming protocol design.
+- Frame batching is a 1-day fix that produces correct output at the
+  cost of 80 ms of extra latency.
+
+**Phase 1 should ship with frame batching at N=8** (120 ms total
+latency). The "do it properly with T=1 streaming" work belongs in
+Phase 2 alongside the parallel research workstream the spec already
+documents.
