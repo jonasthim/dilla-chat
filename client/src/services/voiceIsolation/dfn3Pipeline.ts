@@ -255,14 +255,14 @@ export class Dfn3Pipeline {
       throw new Error(`processFrame: output length ${output.length} != ${this.hp.hopSize}`);
     }
 
+    // Always queue the input frame so no audio is dropped.
+    this.inputQueue.push(new Float32Array(input));
+
     // If we have queued output from a previous batch, drain it.
     if (this.outputDrainIdx < this.outputQueue.length) {
       output.set(this.outputQueue[this.outputDrainIdx++]);
       return 0;
     }
-
-    // Queue this input frame.
-    this.inputQueue.push(new Float32Array(input));
 
     // Not enough frames yet → silence.
     if (this.inputQueue.length < BATCH_T) {

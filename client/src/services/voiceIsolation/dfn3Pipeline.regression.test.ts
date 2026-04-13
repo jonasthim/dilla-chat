@@ -236,42 +236,17 @@ async function fixturesPresent(): Promise<boolean> {
 }
 
 describe('DFN3 numerical regression vs upstream Python reference', () => {
-  // Streaming SNR regression — STATE-THREADED via the v2 re-export.
+  // Streaming SNR regression — uses upstream ONNX with BATCH_T=32 batching.
   //
-  // History:
-  //  - v1: the DFN3 ONNX exports hid GRU hidden state inside the graph. Per-
-  //    frame (T=1) calls reset recurrent state every invocation, so the ERB
-  //    decoder under-suppressed by ~2x. SNR vs `df.enhance()` ~= -0.80 dB.
-  //  - v2: `scripts/reexport-dfn3-onnx.py` re-writes the three sub-graphs
-  //    with explicit `erb_ctx / spec_ctx / h_enc / h_erb / c0_ctx / h_df`
-  //    inputs and matching `*_out` outputs. `OrtNodeBackend` above threads
-  //    those state tensors across frames — verified in isolation (see the
-  //    direct ORT sanity checks in the wiring commit message: feeding the
-  //    same frame twice with threaded state vs zero state produces
-  //    meaningfully different `emb` outputs, max diff ~0.56).
+  // The pipeline batches BATCH_T input frames, runs the encoder + decoders
+  // once per batch, then applies ERB gains + deep filter + iSTFT per frame.
+  // GRU state resets at batch boundaries (no state threading), which is
+  // acceptable at BATCH_T=32 (~320 ms of context per batch).
   //
-  // **Known remaining issue**: even with state threaded end-to-end, the SNR
-  // against the Python reference is still ~-0.84 dB. The state IS being
-  // threaded and the per-frame `h_enc_out` values are non-zero and varying,
-  // but the ERB mask output still over-attenuates by ~2x (ours RMS 0.024 vs
-  // reference 0.055). The root cause appears to be in the re-export itself,
-  // not the TypeScript wiring — the re-export script's PyTorch-level
-  // verification (`verify_streaming_equivalence`, max diff 1e-4) passes, but
-  // that only checks the wrapper; the ONNX exporter may be baking constants
-  // (e.g. the `node_view_2` Reshape hard-codes `[1, 1, 512]`, which also
-  // breaks batched T>1 evaluation with the same graph).
-  //
-  // The wiring is ready for a correct re-export: when a fixed
-  // scripts/reexport-dfn3-onnx.py lands and the committed `.onnx` files are
-  // regenerated, this test should pass without further TS changes. Until
-  // then it stays skipped so CI stays green. The smoke-level sanity test
-  // further down still runs and catches gross regressions.
-  // Remaining bug is in the TypeScript DSP pipeline (STFT/ERB/gain/DF/iSTFT),
-  // not the ONNX or state threading. With T=full-clip via a direct batched
-  // oracle test (bypassing our TS DSP) the model achieves 56 dB. Our pipeline
-  // achieves -1.5 dB even at T=300. Needs per-frame intermediate-value
-  // comparison against the Python reference to localize the divergence.
-  it.skip(
+  // The test aligns our output with the Python reference via a hop-level
+  // lag search to account for the BATCH_T-frame queuing delay, then checks
+  // that the SNR exceeds 6 dB ("audibly indistinguishable").
+  it(
     `matches df.enhance() within ${SNR_THRESHOLD_DB} dB SNR`,
     async () => {
       if (!(await fixturesPresent())) {
@@ -324,51 +299,57 @@ describe('DFN3 numerical regression vs upstream Python reference', () => {
       expect(nans).toBe(0);
       expect(peak).toBeLessThan(2.0); // no runaway gain
 
-      // Trim warm-up samples (the pipeline has ~50 ms / 4-frame algorithmic
-      // delay; the upstream reference has the same delay so we line them up
-      // by skipping the first 5 hops on both sides).
-      const warmup = 5 * HOP;
-      const ourBody = out.subarray(warmup);
-      const refBody = reference.samples.subarray(warmup, warmup + ourBody.length);
-
-      const snr = snrDb(ourBody, refBody);
-
-      // Diagnostics — RMS of input, our output, and the reference (full
-      // body). Useful for catching obvious scale or polarity bugs.
+      // Our pipeline introduces more delay than the Python reference due to
+      // BATCH_T input queuing plus rolling-buffer offsets. Find the best
+      // sample-level alignment via lag search over a wide range.
       const rms = (a: Float32Array): number => {
         let s = 0;
         for (let i = 0; i < a.length; i++) s += a[i] * a[i];
         return Math.sqrt(s / Math.max(a.length, 1));
       };
-      const inRms = rms(noisy.samples.subarray(warmup, warmup + ourBody.length));
+
+      let bestSnr = -Infinity;
+      let bestLag = 0;
+      // Search ±50 hops in hop-sized steps
+      for (let lagHops = -50; lagHops <= 50; lagHops++) {
+        const lag = lagHops * HOP;
+        // lag > 0: our output is ahead of ref → shift ref forward
+        // lag < 0: our output is behind ref → shift our output forward
+        const absL = Math.abs(lag);
+        const oStart = lag < 0 ? absL : 0;
+        const rStart = lag > 0 ? lag : 0;
+        const len = Math.min(out.length - oStart, reference.samples.length - rStart);
+        if (len <= HOP * 5) continue; // need enough data
+        // Skip first 5 hops of the aligned region for warmup
+        const skip = 5 * HOP;
+        const o = out.subarray(oStart + skip, oStart + len);
+        const r = reference.samples.subarray(rStart + skip, rStart + len);
+        const s = snrDb(o, r);
+        if (s > bestSnr) {
+          bestSnr = s;
+          bestLag = lagHops;
+        }
+      }
+
+      const bestLagSamples = bestLag * HOP;
+      const oStart = bestLagSamples < 0 ? -bestLagSamples : 0;
+      const rStart = bestLagSamples > 0 ? bestLagSamples : 0;
+      const skip = 5 * HOP;
+      const alignedLen = Math.min(out.length - oStart, reference.samples.length - rStart) - skip;
+      const ourBody = out.subarray(oStart + skip, oStart + skip + alignedLen);
+      const refBody = reference.samples.subarray(rStart + skip, rStart + skip + alignedLen);
+      const snr = snrDb(ourBody, refBody);
+
+      const inRms = rms(noisy.samples.subarray(oStart + skip, oStart + skip + alignedLen));
       const ourRms = rms(ourBody);
       const refRms = rms(refBody);
       console.log(
         `[regression] RMS in=${inRms.toFixed(5)} ours=${ourRms.toFixed(5)} ref=${refRms.toFixed(5)}`,
       );
+      console.log(`[regression] best lag: ${bestLag} hops (${bestLagSamples} samples)`);
       console.log(`[regression] DFN3 TS-port SNR vs Python reference: ${snr.toFixed(2)} dB`);
 
-      // Try lag search (-10..+10 hops) in case our pipeline delay differs
-      // from the upstream by a small integer number of frames.
-      let bestSnr = snr;
-      let bestLag = 0;
-      for (let lag = -10; lag <= 10; lag++) {
-        if (lag === 0) continue;
-        const len = Math.min(ourBody.length, reference.samples.length - warmup - Math.abs(lag));
-        if (len <= 0) continue;
-        const o = lag >= 0 ? ourBody.subarray(0, len) : ourBody.subarray(-lag, -lag + len);
-        const r = reference.samples.subarray(warmup + Math.max(lag, 0), warmup + Math.max(lag, 0) + len);
-        const s = snrDb(o, r);
-        if (s > bestSnr) {
-          bestSnr = s;
-          bestLag = lag;
-        }
-      }
-      if (bestLag !== 0) {
-        console.log(`[regression] best SNR with lag ${bestLag}: ${bestSnr.toFixed(2)} dB`);
-      }
-
-      expect(Math.max(snr, bestSnr)).toBeGreaterThanOrEqual(SNR_THRESHOLD_DB);
+      expect(snr).toBeGreaterThanOrEqual(SNR_THRESHOLD_DB);
     },
     120_000,
   );
@@ -660,7 +641,7 @@ describe('DFN3 numerical regression vs upstream Python reference', () => {
         for (let i = 0; i < a.length; i++) s += a[i] * a[i];
         return Math.sqrt(s / Math.max(a.length, 1));
       };
-      const inRms = rms(noisy.samples.subarray(warmup, warmup + ourBody.length));
+      const inRms = rms(noisy.samples.subarray(trimStart, trimStart + ourBody.length));
       const ourRms = rms(ourBody);
       const refRms = rms(refBody);
       console.log(

@@ -270,9 +270,9 @@
 .voice-ns-popover {
   position: absolute;
   bottom: calc(100% + var(--spacing-sm));
-  right: 0;
+  left: 0;
   z-index: 1000;
-  width: 240px;
+  min-width: 240px;
   padding: var(--spacing-md);
   background: var(--bg-floating, var(--bg-secondary));
   border: 1px solid var(--white-overlay-subtle);
