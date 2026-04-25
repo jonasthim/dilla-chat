@@ -2,6 +2,8 @@
 FROM node:22-alpine AS client-builder
 WORKDIR /build/client
 COPY client/package.json client/package-lock.json ./
+# Postinstall (copy-ort-wasm.cjs) needs scripts/ available during `npm ci`.
+COPY client/scripts ./scripts
 RUN npm ci
 COPY client/ ./
 # Resolve the public/brand symlink (points to ../../branding outside client/)
