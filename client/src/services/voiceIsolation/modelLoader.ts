@@ -14,12 +14,11 @@ const DB_NAME = 'dilla-voice-models';
 const STORE_NAME = 'models';
 
 export class ManifestError extends Error {
-  constructor(
-    message: string,
-    public readonly cause?: unknown,
-  ) {
+  readonly cause?: unknown;
+  constructor(message: string, cause?: unknown) {
     super(message);
     this.name = 'ManifestError';
+    this.cause = cause;
   }
 }
 
@@ -171,7 +170,7 @@ export async function validateChecksum(
   bytes: Uint8Array,
   expectedHex: string,
 ): Promise<void> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
   const actual = Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');

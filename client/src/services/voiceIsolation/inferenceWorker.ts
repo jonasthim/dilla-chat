@@ -114,9 +114,11 @@ class OrtBackend implements Dfn3InferenceBackend {
   // resets are acceptable because each 8-frame batch has enough context
   // for the GRU to warm up within 2-3 frames.
 
-  constructor(
-    private readonly sessions: Dfn3SessionTrio,
-  ) {}
+  private readonly sessions: Dfn3SessionTrio;
+
+  constructor(sessions: Dfn3SessionTrio) {
+    this.sessions = sessions;
+  }
 
   async runEncoder(inputs: EncoderInputs): Promise<EncoderOutputs> {
     const { nbErb, nbDf } = DFN3_HYPERPARAMS;

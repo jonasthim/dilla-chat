@@ -191,10 +191,10 @@ export class Dfn3Pipeline {
   private readonly outputQueue: Float32Array[] = [];
   private outputDrainIdx = 0;
 
-  constructor(
-    private readonly backend: Dfn3InferenceBackend,
-    hp: Dfn3Hyperparameters = DFN3_HYPERPARAMS,
-  ) {
+  private readonly backend: Dfn3InferenceBackend;
+
+  constructor(backend: Dfn3InferenceBackend, hp: Dfn3Hyperparameters = DFN3_HYPERPARAMS) {
+    this.backend = backend;
     this.hp = hp;
     this.nFreqs = (hp.fftSize >> 1) + 1;
     this.alpha = calcNormAlpha(hp.sampleRate, hp.hopSize, hp.normTau);
