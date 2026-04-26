@@ -118,7 +118,6 @@ async function run() {
   const T = 1;
   const NB_ERB = 32;
   const NB_DF = 96;
-  const NB_FREQ = 481;
   const DF_ORDER = 5;
 
   // ---- Encoder ---------------------------------------------------------------

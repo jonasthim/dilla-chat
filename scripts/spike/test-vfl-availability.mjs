@@ -33,7 +33,6 @@ const SR = 16000;
 const MASK_NFFT = 1200;
 const MASK_HOP = 160;
 const MASK_WIN = 400;
-const MASK_FREQ = MASK_NFFT / 2 + 1; // 601
 const MIN_LEVEL_DB = -100.0;
 const REF_LEVEL_DB = 20.0;
 
