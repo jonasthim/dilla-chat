@@ -226,9 +226,14 @@ async function fixturesPresent(): Promise<boolean> {
   try {
     await fs.access(NOISY_PATH);
     await fs.access(REF_PATH);
-    await fs.access(path.join(MODEL_DIR, 'enc.onnx'));
-    await fs.access(path.join(MODEL_DIR, 'erb_dec.onnx'));
-    await fs.access(path.join(MODEL_DIR, 'df_dec.onnx'));
+    // Models are stored in Git LFS. In environments without LFS smudging
+    // (e.g. default actions/checkout), the paths exist but contain ~130-byte
+    // pointer files instead of real ONNX. Reject those so the test skips
+    // gracefully rather than failing on a protobuf parse error.
+    for (const name of ['enc.onnx', 'erb_dec.onnx', 'df_dec.onnx']) {
+      const stat = await fs.stat(path.join(MODEL_DIR, name));
+      if (stat.size < 1024) return false;
+    }
     return true;
   } catch {
     return false;
