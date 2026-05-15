@@ -33,6 +33,11 @@ set -Eeuo pipefail
 : "${UNPRIVILEGED:=1}"
 : "${IPV4:=dhcp}"                  # or "10.0.0.50/24,gw=10.0.0.1"
 : "${DILLA_PORT:=8080}"
+# Public hostname the server is reached at (e.g. "dilla.example.com").
+# Used as the WebAuthn rp.id — must match the origin a browser sees, or
+# passkey registration fails with "OriginRpMismatch". Leave empty if you
+# only ever hit the LXC directly by IP for local testing.
+: "${DILLA_DOMAIN:=}"
 : "${RELEASE_TAG:=nightly}"
 : "${RELEASE_REPO:=dilla-chat/dilla-chat}"
 # Released binaries are built on ubuntu-latest (currently 24.04, glibc 2.39),
@@ -240,6 +245,7 @@ pct exec "$CTID" -- bash -c "
 DILLA_PORT=${DILLA_PORT}
 DILLA_DATA_DIR=/var/lib/dilla
 DILLA_DB_PASSPHRASE=${db_passphrase}
+${DILLA_DOMAIN:+DILLA_DOMAIN=${DILLA_DOMAIN}}
 EOF
   chown root:dilla /etc/dilla/dilla.env
   chmod 0640 /etc/dilla/dilla.env

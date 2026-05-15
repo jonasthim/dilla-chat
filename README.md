@@ -282,7 +282,9 @@ CTID=210 CT_HOSTNAME=chat MEMORY=2048 DISK_GB=16 IPV4="10.0.0.50/24,gw=10.0.0.1"
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
 ```
 
-Common knobs: `CTID`, `CT_HOSTNAME`, `STORAGE` (auto-detected), `BRIDGE`, `IPV4`, `CORES`, `MEMORY`, `SWAP`, `DISK_GB`, `DILLA_PORT`, `RELEASE_TAG`, `TEMPLATE_PREFIX` (default `ubuntu-24.04-standard` to match the build glibc). The full list is documented in the comment header at the top of [`scripts/install-proxmox-lxc.sh`](scripts/install-proxmox-lxc.sh).
+Common knobs: `CTID`, `CT_HOSTNAME`, `STORAGE` (auto-detected), `BRIDGE`, `IPV4`, `CORES`, `MEMORY`, `SWAP`, `DISK_GB`, `DILLA_PORT`, `DILLA_DOMAIN` (public hostname behind your reverse proxy — required for passkey registration), `RELEASE_TAG`, `TEMPLATE_PREFIX` (default `ubuntu-24.04-standard` to match the build glibc). The full list is documented in the comment header at the top of [`scripts/install-proxmox-lxc.sh`](scripts/install-proxmox-lxc.sh).
+
+If you front the LXC with a reverse proxy, set `DILLA_DOMAIN` to the public hostname (e.g. `chat.example.com`) — it becomes the WebAuthn `rp.id`. If it's missing or doesn't match the URL the browser sees, passkey enrolment fails with `OriginRpMismatch`.
 
 After the script finishes:
 
