@@ -109,7 +109,7 @@ export async function initializeVoiceIsolation(
       await new Promise<void>((resolve, reject) => {
         const handler = (e: MessageEvent): void => {
           const data = e.data as { type?: string; sessionId?: string; error?: string } | undefined;
-          if (!data || data.sessionId !== sessionId) return;
+          if (data?.sessionId !== sessionId) return;
           if (data.type === 'models-loaded') {
             worker!.removeEventListener('message', handler);
             resolve();
@@ -229,11 +229,9 @@ export function tearDownAll(): void {
     } catch {
       /* ignore */
     }
-    try {
-      void context.audioContext.close();
-    } catch {
+    context.audioContext.close().catch(() => {
       /* ignore */
-    }
+    });
     context = null;
   }
 }

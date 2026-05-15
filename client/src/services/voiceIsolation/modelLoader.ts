@@ -191,7 +191,7 @@ function openDb(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error ?? new Error('IndexedDB open failed'));
   });
 }
 
@@ -212,7 +212,7 @@ async function getCached(sub: SubGraphName, version: number): Promise<Uint8Array
         const result = req.result as Uint8Array | undefined;
         resolve(result ?? null);
       };
-      req.onerror = () => reject(req.error);
+      req.onerror = () => reject(req.error ?? new Error('IndexedDB get failed'));
     });
   } finally {
     db.close();
@@ -226,7 +226,7 @@ async function putCached(sub: SubGraphName, version: number, bytes: Uint8Array):
       const tx = db.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).put(bytes, cacheKey(sub, version));
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      tx.onerror = () => reject(tx.error ?? new Error('IndexedDB put failed'));
     });
   } finally {
     db.close();
