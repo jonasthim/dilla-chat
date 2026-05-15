@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+#
+# Proxmox LXC installer for the Dilla server.
+#
+# Run on the PVE host as root:
+#
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
+#
+# Or with overrides:
+#
+#   CTID=210 HOSTNAME=chat MEMORY=2048 \
+#     bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
+#
+# Creates an unprivileged Debian 12 container, downloads the latest
+# release binary from GitHub, and installs it as a systemd service.
+# Exposes the Dilla HTTP/WS port on the LXC's IP address — terminate
+# TLS with your own reverse proxy (Caddy, nginx, Cloudflare Tunnel, …).
+
+set -Eeuo pipefail
+
+# ---- Defaults ---------------------------------------------------------------
+
+: "${CTID:=}"                      # auto-pick if empty
+: "${HOSTNAME:=dilla}"
+: "${STORAGE:=local-lvm}"          # rootfs target
+: "${TEMPLATE_STORE:=local}"       # template cache
+: "${BRIDGE:=vmbr0}"
+: "${CORES:=2}"
+: "${MEMORY:=1024}"                # MiB
+: "${SWAP:=512}"                   # MiB
+: "${DISK_GB:=8}"
+: "${UNPRIVILEGED:=1}"
+: "${IPV4:=dhcp}"                  # or "10.0.0.50/24,gw=10.0.0.1"
+: "${DILLA_PORT:=8080}"
+: "${RELEASE_TAG:=nightly}"
+: "${RELEASE_REPO:=dilla-chat/dilla-chat}"
+
+readonly TIMER_LIMIT=120
+
+C_RED=$'\033[0;31m'
+C_GREEN=$'\033[0;32m'
+C_YELLOW=$'\033[0;33m'
+C_BLUE=$'\033[0;34m'
+C_RESET=$'\033[0m'
+
+info()  { echo "${C_BLUE}[*]${C_RESET} $*"; }
+ok()    { echo "${C_GREEN}[+]${C_RESET} $*"; }
+warn()  { echo "${C_YELLOW}[!]${C_RESET} $*" >&2; }
+die()   { echo "${C_RED}[!]${C_RESET} $*" >&2; exit 1; }
+
+trap 'die "Aborted on line $LINENO"' ERR
+
+# ---- Pre-flight -------------------------------------------------------------
+
+[[ $EUID -eq 0 ]]            || die "Run as root on the Proxmox host."
+command -v pct >/dev/null    || die "pct not found — this must run on a Proxmox VE host."
+command -v pveam >/dev/null  || die "pveam not found — Proxmox VE tools missing."
+
+# ---- Pick a CTID ------------------------------------------------------------
+
+if [[ -z "$CTID" ]]; then
+  CTID=$(pvesh get /cluster/nextid)
+fi
+
+if pct status "$CTID" &>/dev/null; then
+  die "CTID $CTID is already in use."
+fi
+
+# ---- Locate or download a Debian 12 template --------------------------------
+
+info "Refreshing template index…"
+pveam update >/dev/null
+
+template_name=$(
+  pveam available --section system \
+    | awk '/^[[:space:]]*system[[:space:]]+debian-12-standard/ {print $2}' \
+    | sort -V | tail -n1
+)
+[[ -n "$template_name" ]] || die "No debian-12-standard template available from pveam."
+
+template_path="${TEMPLATE_STORE}:vztmpl/${template_name}"
+local_path="/var/lib/vz/template/cache/${template_name}"
+
+if [[ ! -f "$local_path" ]]; then
+  info "Downloading template ${template_name} to ${TEMPLATE_STORE}…"
+  pveam download "$TEMPLATE_STORE" "$template_name"
+else
+  ok "Template ${template_name} already cached."
+fi
+
+# ---- Create the container ---------------------------------------------------
+
+info "Creating LXC ${CTID} (${HOSTNAME})…"
+
+db_passphrase=$(head -c 32 /dev/urandom | base64 | tr -d '+/=' | head -c 32)
+
+pct create "$CTID" "$template_path" \
+  --hostname "$HOSTNAME" \
+  --cores "$CORES" \
+  --memory "$MEMORY" \
+  --swap "$SWAP" \
+  --rootfs "${STORAGE}:${DISK_GB}" \
+  --net0 "name=eth0,bridge=${BRIDGE},ip=${IPV4}" \
+  --unprivileged "$UNPRIVILEGED" \
+  --features "nesting=1" \
+  --onboot 1 \
+  --start 0 \
+  >/dev/null
+
+ok "Created CT ${CTID}."
+
+info "Starting CT ${CTID}…"
+pct start "$CTID"
+
+# Wait for network/dns inside the container.
+for ((i = 0; i < TIMER_LIMIT; i++)); do
+  if pct exec "$CTID" -- getent hosts github.com &>/dev/null; then
+    break
+  fi
+  sleep 1
+done
+pct exec "$CTID" -- getent hosts github.com &>/dev/null \
+  || die "Container has no network connectivity to github.com after ${TIMER_LIMIT}s."
+
+# ---- Bootstrap inside the container ----------------------------------------
+
+info "Installing dependencies inside CT ${CTID}…"
+pct exec "$CTID" -- bash -c '
+  set -Eeuo pipefail
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -qq
+  apt-get install -y -qq --no-install-recommends ca-certificates curl >/dev/null
+'
+
+arch=$(pct exec "$CTID" -- dpkg --print-architecture)
+case "$arch" in
+  amd64) bin_asset=dilla-server-linux-amd64 ;;
+  arm64) bin_asset=dilla-server-linux-arm64 ;;
+  *)     die "Unsupported container architecture: $arch" ;;
+esac
+
+asset_url="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${bin_asset}"
+
+info "Downloading ${bin_asset} from ${RELEASE_TAG} release…"
+pct exec "$CTID" -- bash -c "
+  set -Eeuo pipefail
+  curl --fail --location --silent --show-error \
+    -o /usr/local/bin/dilla-server '${asset_url}'
+  chmod 0755 /usr/local/bin/dilla-server
+"
+
+info "Provisioning user, data dir, and systemd unit…"
+pct exec "$CTID" -- bash -c "
+  set -Eeuo pipefail
+  if ! id dilla &>/dev/null; then
+    useradd --system --home-dir /var/lib/dilla --shell /usr/sbin/nologin dilla
+  fi
+  install -d -o dilla -g dilla -m 0750 /var/lib/dilla /etc/dilla
+
+  umask 077
+  cat >/etc/dilla/dilla.env <<EOF
+DILLA_PORT=${DILLA_PORT}
+DILLA_DATA_DIR=/var/lib/dilla
+DILLA_DB_PASSPHRASE=${db_passphrase}
+EOF
+  chown root:dilla /etc/dilla/dilla.env
+  chmod 0640 /etc/dilla/dilla.env
+
+  cat >/etc/systemd/system/dilla.service <<'EOF'
+[Unit]
+Description=Dilla federated chat server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dilla
+Group=dilla
+EnvironmentFile=/etc/dilla/dilla.env
+ExecStart=/usr/local/bin/dilla-server
+Restart=on-failure
+RestartSec=5
+ReadWritePaths=/var/lib/dilla
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable --now dilla.service
+"
+
+# ---- Wait for the service to come up ---------------------------------------
+
+info "Waiting for dilla-server to start…"
+for ((i = 0; i < TIMER_LIMIT; i++)); do
+  if pct exec "$CTID" -- systemctl is-active --quiet dilla.service; then
+    break
+  fi
+  sleep 1
+done
+pct exec "$CTID" -- systemctl is-active --quiet dilla.service \
+  || die "dilla.service failed to start. Check 'pct exec ${CTID} -- journalctl -u dilla -n 100'."
+
+container_ip=$(pct exec "$CTID" -- bash -c "hostname -I | awk '{print \$1}'" || true)
+
+ok "Dilla is running in CT ${CTID}."
+echo
+echo "  Container ID:  ${CTID}"
+echo "  Hostname:      ${HOSTNAME}"
+[[ -n "${container_ip:-}" ]] && echo "  Address:       http://${container_ip}:${DILLA_PORT}"
+echo "  Logs:          pct exec ${CTID} -- journalctl -u dilla -f"
+echo "  Shell:         pct enter ${CTID}"
+echo "  Env file:      /etc/dilla/dilla.env (inside the CT)"
+echo
+echo "Next: terminate TLS with your reverse proxy of choice and point it"
+echo "at the address above. Edit /etc/dilla/dilla.env to set DILLA_PEERS,"
+echo "DILLA_TLS_CERT/KEY, or other DILLA_* options."
