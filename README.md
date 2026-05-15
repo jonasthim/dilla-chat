@@ -278,11 +278,11 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/ma
 Override defaults via environment variables:
 
 ```bash
-CTID=210 HOSTNAME=chat MEMORY=2048 DISK_GB=16 IPV4="10.0.0.50/24,gw=10.0.0.1" \
+CTID=210 CT_HOSTNAME=chat MEMORY=2048 DISK_GB=16 IPV4="10.0.0.50/24,gw=10.0.0.1" \
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
 ```
 
-Common knobs: `CTID`, `HOSTNAME`, `STORAGE`, `BRIDGE`, `IPV4`, `CORES`, `MEMORY`, `SWAP`, `DISK_GB`, `DILLA_PORT`, `RELEASE_TAG`. The full list is documented in the comment header at the top of [`scripts/install-proxmox-lxc.sh`](scripts/install-proxmox-lxc.sh).
+Common knobs: `CTID`, `CT_HOSTNAME`, `STORAGE` (auto-detected), `BRIDGE`, `IPV4`, `CORES`, `MEMORY`, `SWAP`, `DISK_GB`, `DILLA_PORT`, `RELEASE_TAG`. The full list is documented in the comment header at the top of [`scripts/install-proxmox-lxc.sh`](scripts/install-proxmox-lxc.sh).
 
 After the script finishes:
 

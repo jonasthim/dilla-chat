@@ -8,7 +8,7 @@
 #
 # Or with overrides:
 #
-#   CTID=210 HOSTNAME=chat MEMORY=2048 \
+#   CTID=210 CT_HOSTNAME=chat MEMORY=2048 \
 #     bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
 #
 # Creates an unprivileged Debian 12 container, downloads the latest
@@ -21,8 +21,9 @@ set -Eeuo pipefail
 # ---- Defaults ---------------------------------------------------------------
 
 : "${CTID:=}"                      # auto-pick if empty
-: "${HOSTNAME:=dilla}"
-: "${STORAGE:=local-lvm}"          # rootfs target
+# NB: HOSTNAME is a bash builtin (set to the host's hostname). Use CT_HOSTNAME.
+: "${CT_HOSTNAME:=dilla}"
+: "${STORAGE:=}"                   # auto-detect first active rootdir storage if empty
 : "${TEMPLATE_STORE:=local}"       # template cache
 : "${BRIDGE:=vmbr0}"
 : "${CORES:=2}"
@@ -66,6 +67,25 @@ if pct status "$CTID" &>/dev/null; then
   die "CTID $CTID is already in use."
 fi
 
+# ---- Pick a rootfs storage --------------------------------------------------
+
+if [[ -z "$STORAGE" ]]; then
+  # Auto-detect: first active storage that supports rootdir/container content.
+  # Prefer well-known defaults if present.
+  available=$(pvesm status -content rootdir 2>/dev/null | awk 'NR>1 && $3=="active" {print $1}')
+  [[ -n "$available" ]] || die "No active storage with content type 'rootdir' found. Set STORAGE=… explicitly."
+  for preferred in local-lvm local-zfs local; do
+    if grep -qx "$preferred" <<<"$available"; then
+      STORAGE="$preferred"
+      break
+    fi
+  done
+  [[ -n "$STORAGE" ]] || STORAGE=$(head -n1 <<<"$available")
+  ok "Using auto-detected rootfs storage: ${STORAGE}"
+elif ! pvesm status -storage "$STORAGE" &>/dev/null; then
+  die "Storage '${STORAGE}' does not exist. Available rootdir storages: $(pvesm status -content rootdir 2>/dev/null | awk 'NR>1 {print $1}' | xargs)"
+fi
+
 # ---- Locate or download a Debian 12 template --------------------------------
 
 info "Refreshing template index…"
@@ -90,12 +110,12 @@ fi
 
 # ---- Create the container ---------------------------------------------------
 
-info "Creating LXC ${CTID} (${HOSTNAME})…"
+info "Creating LXC ${CTID} (${CT_HOSTNAME})…"
 
 db_passphrase=$(head -c 32 /dev/urandom | base64 | tr -d '+/=' | head -c 32)
 
 pct create "$CTID" "$template_path" \
-  --hostname "$HOSTNAME" \
+  --hostname "$CT_HOSTNAME" \
   --cores "$CORES" \
   --memory "$MEMORY" \
   --swap "$SWAP" \
@@ -211,7 +231,7 @@ container_ip=$(pct exec "$CTID" -- bash -c "hostname -I | awk '{print \$1}'" || 
 ok "Dilla is running in CT ${CTID}."
 echo
 echo "  Container ID:  ${CTID}"
-echo "  Hostname:      ${HOSTNAME}"
+echo "  Hostname:      ${CT_HOSTNAME}"
 [[ -n "${container_ip:-}" ]] && echo "  Address:       http://${container_ip}:${DILLA_PORT}"
 echo "  Logs:          pct exec ${CTID} -- journalctl -u dilla -f"
 echo "  Shell:         pct enter ${CTID}"
