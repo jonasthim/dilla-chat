@@ -23,6 +23,7 @@ Dilla is a privacy-first chat platform you run on your own infrastructure. Your 
   - [5. Invite Others](#5-invite-others)
 - [Federation — Connecting Multiple Servers](#federation--connecting-multiple-servers)
 - [Docker](#docker)
+- [Proxmox LXC](#proxmox-lxc)
 - [Configuration Reference](#configuration-reference)
 - [Building from Source](#building-from-source)
 - [Project Structure](#project-structure)
@@ -261,6 +262,36 @@ services:
 volumes:
   dilla-data:
 ```
+
+---
+
+## Proxmox LXC
+
+One-shot installer for Proxmox VE: creates an unprivileged Debian 12 container, downloads the latest release binary, and installs Dilla as a hardened systemd service.
+
+Run on the **PVE host** as root:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
+```
+
+Override defaults via environment variables:
+
+```bash
+CTID=210 HOSTNAME=chat MEMORY=2048 DISK_GB=16 IPV4="10.0.0.50/24,gw=10.0.0.1" \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
+```
+
+Common knobs: `CTID`, `HOSTNAME`, `STORAGE`, `BRIDGE`, `IPV4`, `CORES`, `MEMORY`, `SWAP`, `DISK_GB`, `DILLA_PORT`, `RELEASE_TAG`. The full list is documented in the comment header at the top of [`scripts/install-proxmox-lxc.sh`](scripts/install-proxmox-lxc.sh).
+
+After the script finishes:
+
+- Web UI is reachable on `http://<container-ip>:8080`.
+- Logs: `pct exec <CTID> -- journalctl -u dilla -f`
+- Shell into the container: `pct enter <CTID>`
+- Edit settings: `/etc/dilla/dilla.env` inside the container, then `systemctl restart dilla`.
+
+TLS is intentionally out of scope — terminate it with whatever reverse proxy you already run (Caddy, nginx, Cloudflare Tunnel, …) and point it at the container.
 
 ---
 
