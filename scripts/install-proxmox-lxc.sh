@@ -38,20 +38,63 @@ set -Eeuo pipefail
 
 readonly TIMER_LIMIT=120
 
-C_RED=$'\033[0;31m'
-C_GREEN=$'\033[0;32m'
-C_YELLOW=$'\033[0;33m'
-C_BLUE=$'\033[0;34m'
-C_RESET=$'\033[0m'
+# Color palette matches community-scripts/ProxmoxVE for a familiar look.
+YW=$'\033[33m'; GN=$'\033[1;92m'; RD=$'\033[01;31m'; BL=$'\033[36m'
+DGN=$'\033[32m'; CL=$'\033[m'; BFR=$'\r\033[K'
+CM=$' ✓\033[0m'; CROSS=$' ✗\033[0m'; HOLD=' '
 
-info()  { echo "${C_BLUE}[*]${C_RESET} $*"; }
-ok()    { echo "${C_GREEN}[+]${C_RESET} $*"; }
-warn()  { echo "${C_YELLOW}[!]${C_RESET} $*" >&2; }
-die()   { echo "${C_RED}[!]${C_RESET} $*" >&2; exit 1; }
+SPINNER_PID=""
 
-trap 'die "Aborted on line $LINENO"' ERR
+spinner_start() {
+  local i=0 frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+  while :; do
+    printf "\r ${YW}%s${CL} %s" "${frames:i++%${#frames}:1}" "$1"
+    sleep 0.1
+  done
+}
+
+start_spinner() {
+  [[ -t 1 ]] || { echo " ${HOLD}${YW}$1...${CL}"; return; }
+  spinner_start "$1" &
+  SPINNER_PID=$!
+  disown 2>/dev/null || true
+}
+
+stop_spinner() {
+  [[ -n "$SPINNER_PID" ]] || return 0
+  kill "$SPINNER_PID" 2>/dev/null || true
+  wait "$SPINNER_PID" 2>/dev/null || true
+  SPINNER_PID=""
+  printf "%s" "$BFR"
+}
+
+msg_info()  { stop_spinner; start_spinner "$1"; }
+msg_ok()    { stop_spinner; echo -e "${BFR}${CM}${GN} $1${CL}"; }
+msg_error() { stop_spinner; echo -e "${BFR}${CROSS}${RD} $1${CL}" >&2; }
+msg_warn()  { stop_spinner; echo -e " ${YW}!${CL} $1" >&2; }
+die()       { msg_error "$1"; exit 1; }
+
+trap 'stop_spinner; die "Aborted on line $LINENO"' ERR
+trap 'stop_spinner' EXIT
+
+show_header() {
+  cat <<'EOF'
+
+    ____  _ ____
+   / __ \(_) / /___ _
+  / / / / / / / __ `/
+ / /_/ / / / / /_/ /
+/_____/_/_/_/\__,_/
+
+EOF
+  echo -e "${DGN}      Dilla LXC Installer${CL}"
+  echo -e "${BL}      federated · end-to-end encrypted chat${CL}"
+  echo
+}
 
 # ---- Pre-flight -------------------------------------------------------------
+
+show_header
 
 [[ $EUID -eq 0 ]]            || die "Run as root on the Proxmox host."
 command -v pct >/dev/null    || die "pct not found — this must run on a Proxmox VE host."
@@ -81,15 +124,16 @@ if [[ -z "$STORAGE" ]]; then
     fi
   done
   [[ -n "$STORAGE" ]] || STORAGE=$(head -n1 <<<"$available")
-  ok "Using auto-detected rootfs storage: ${STORAGE}"
+  msg_ok "Using auto-detected rootfs storage: ${STORAGE}"
 elif ! pvesm status -storage "$STORAGE" &>/dev/null; then
   die "Storage '${STORAGE}' does not exist. Available rootdir storages: $(pvesm status -content rootdir 2>/dev/null | awk 'NR>1 {print $1}' | xargs)"
 fi
 
 # ---- Locate or download a Debian 12 template --------------------------------
 
-info "Refreshing template index…"
+msg_info "Refreshing template index"
 pveam update >/dev/null
+msg_ok "Template index refreshed"
 
 template_name=$(
   pveam available --section system \
@@ -102,15 +146,16 @@ template_path="${TEMPLATE_STORE}:vztmpl/${template_name}"
 local_path="/var/lib/vz/template/cache/${template_name}"
 
 if [[ ! -f "$local_path" ]]; then
-  info "Downloading template ${template_name} to ${TEMPLATE_STORE}…"
-  pveam download "$TEMPLATE_STORE" "$template_name"
+  msg_info "Downloading ${template_name} to ${TEMPLATE_STORE}"
+  pveam download "$TEMPLATE_STORE" "$template_name" >/dev/null 2>&1
+  msg_ok "Downloaded ${template_name}"
 else
-  ok "Template ${template_name} already cached."
+  msg_ok "Template ${template_name} cached"
 fi
 
 # ---- Create the container ---------------------------------------------------
 
-info "Creating LXC ${CTID} (${CT_HOSTNAME})…"
+msg_info "Creating LXC ${CTID} (${CT_HOSTNAME})"
 
 db_passphrase=$(head -c 32 /dev/urandom | base64 | tr -d '+/=' | head -c 32)
 
@@ -126,10 +171,9 @@ pct create "$CTID" "$template_path" \
   --onboot 1 \
   --start 0 \
   >/dev/null
+msg_ok "Created CT ${CTID}"
 
-ok "Created CT ${CTID}."
-
-info "Starting CT ${CTID}…"
+msg_info "Starting CT ${CTID} and waiting for network"
 pct start "$CTID"
 
 # Wait for network/dns inside the container.
@@ -141,16 +185,18 @@ for ((i = 0; i < TIMER_LIMIT; i++)); do
 done
 pct exec "$CTID" -- getent hosts github.com &>/dev/null \
   || die "Container has no network connectivity to github.com after ${TIMER_LIMIT}s."
+msg_ok "Container is online"
 
 # ---- Bootstrap inside the container ----------------------------------------
 
-info "Installing dependencies inside CT ${CTID}…"
+msg_info "Installing dependencies inside CT ${CTID}"
 pct exec "$CTID" -- bash -c '
   set -Eeuo pipefail
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
   apt-get install -y -qq --no-install-recommends ca-certificates curl >/dev/null
 '
+msg_ok "Installed dependencies"
 
 arch=$(pct exec "$CTID" -- dpkg --print-architecture)
 case "$arch" in
@@ -161,15 +207,16 @@ esac
 
 asset_url="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${bin_asset}"
 
-info "Downloading ${bin_asset} from ${RELEASE_TAG} release…"
+msg_info "Downloading ${bin_asset} from ${RELEASE_TAG} release"
 pct exec "$CTID" -- bash -c "
   set -Eeuo pipefail
   curl --fail --location --silent --show-error \
     -o /usr/local/bin/dilla-server '${asset_url}'
   chmod 0755 /usr/local/bin/dilla-server
 "
+msg_ok "Installed dilla-server binary"
 
-info "Provisioning user, data dir, and systemd unit…"
+msg_info "Provisioning user, data dir, and systemd unit"
 pct exec "$CTID" -- bash -c "
   set -Eeuo pipefail
   if ! id dilla &>/dev/null; then
@@ -213,10 +260,11 @@ EOF
   systemctl daemon-reload
   systemctl enable --now dilla.service
 "
+msg_ok "Provisioned systemd unit"
 
 # ---- Wait for the service to come up ---------------------------------------
 
-info "Waiting for dilla-server to start…"
+msg_info "Waiting for dilla-server to come up"
 for ((i = 0; i < TIMER_LIMIT; i++)); do
   if pct exec "$CTID" -- systemctl is-active --quiet dilla.service; then
     break
@@ -225,18 +273,23 @@ for ((i = 0; i < TIMER_LIMIT; i++)); do
 done
 pct exec "$CTID" -- systemctl is-active --quiet dilla.service \
   || die "dilla.service failed to start. Check 'pct exec ${CTID} -- journalctl -u dilla -n 100'."
+msg_ok "dilla-server is active"
 
 container_ip=$(pct exec "$CTID" -- bash -c "hostname -I | awk '{print \$1}'" || true)
 
-ok "Dilla is running in CT ${CTID}."
 echo
-echo "  Container ID:  ${CTID}"
-echo "  Hostname:      ${CT_HOSTNAME}"
-[[ -n "${container_ip:-}" ]] && echo "  Address:       http://${container_ip}:${DILLA_PORT}"
-echo "  Logs:          pct exec ${CTID} -- journalctl -u dilla -f"
-echo "  Shell:         pct enter ${CTID}"
-echo "  Env file:      /etc/dilla/dilla.env (inside the CT)"
+echo -e " ${GN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${CL}"
+echo -e " ${GN}  Dilla is up in CT ${CTID}${CL}"
+echo -e " ${GN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${CL}"
 echo
-echo "Next: terminate TLS with your reverse proxy of choice and point it"
-echo "at the address above. Edit /etc/dilla/dilla.env to set DILLA_PEERS,"
-echo "DILLA_TLS_CERT/KEY, or other DILLA_* options."
+echo -e "   ${YW}Container ID${CL} : ${CTID}"
+echo -e "   ${YW}Hostname${CL}     : ${CT_HOSTNAME}"
+[[ -n "${container_ip:-}" ]] && echo -e "   ${YW}Address${CL}      : ${BL}http://${container_ip}:${DILLA_PORT}${CL}"
+echo -e "   ${YW}Logs${CL}         : pct exec ${CTID} -- journalctl -u dilla -f"
+echo -e "   ${YW}Shell${CL}        : pct enter ${CTID}"
+echo -e "   ${YW}Env file${CL}     : /etc/dilla/dilla.env (inside the CT)"
+echo
+echo -e " ${DGN}Next:${CL} terminate TLS with your reverse proxy of choice and point"
+echo -e "       it at the address above. Edit /etc/dilla/dilla.env to set"
+echo -e "       DILLA_PEERS, DILLA_TLS_CERT/KEY, or other DILLA_* options."
+echo
