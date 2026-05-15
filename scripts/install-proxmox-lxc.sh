@@ -197,7 +197,11 @@ msg_ok "Container is online"
 # ---- Bootstrap inside the container ----------------------------------------
 
 msg_info "Installing dependencies inside CT ${CTID}"
-pct exec "$CTID" -- bash -c '
+# pct exec inherits the host's LANG (typically en_US.UTF-8), but minimal LXC
+# templates only ship C.UTF-8 — leaving inherited LANG set makes perl-based
+# apt maintainer scripts emit "locale: Cannot set LC_*" warnings. Pin the
+# locale we know exists.
+pct exec "$CTID" -- env LANG=C.UTF-8 LC_ALL=C.UTF-8 bash -c '
   set -Eeuo pipefail
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
