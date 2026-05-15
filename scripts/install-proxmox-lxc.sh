@@ -35,6 +35,11 @@ set -Eeuo pipefail
 : "${DILLA_PORT:=8080}"
 : "${RELEASE_TAG:=nightly}"
 : "${RELEASE_REPO:=dilla-chat/dilla-chat}"
+# Released binaries are built on ubuntu-latest (currently 24.04, glibc 2.39),
+# so the container needs ≥ that glibc to load them. Ubuntu 24.04 LTS matches.
+# Override with TEMPLATE_PREFIX=debian-13-standard once the release pipeline
+# moves to a lower glibc floor.
+: "${TEMPLATE_PREFIX:=ubuntu-24.04-standard}"
 
 readonly TIMER_LIMIT=120
 
@@ -129,7 +134,7 @@ elif ! pvesm status -storage "$STORAGE" &>/dev/null; then
   die "Storage '${STORAGE}' does not exist. Available rootdir storages: $(pvesm status -content rootdir 2>/dev/null | awk 'NR>1 {print $1}' | xargs)"
 fi
 
-# ---- Locate or download a Debian 12 template --------------------------------
+# ---- Locate or download the LXC template ------------------------------------
 
 msg_info "Refreshing template index"
 pveam update >/dev/null
@@ -137,10 +142,12 @@ msg_ok "Template index refreshed"
 
 template_name=$(
   pveam available --section system \
-    | awk '/^[[:space:]]*system[[:space:]]+debian-12-standard/ {print $2}' \
+    | awk -v prefix="$TEMPLATE_PREFIX" \
+        '$1=="system" && index($2, prefix)==1 {print $2}' \
     | sort -V | tail -n1
 )
-[[ -n "$template_name" ]] || die "No debian-12-standard template available from pveam."
+[[ -n "$template_name" ]] \
+  || die "No template matching '${TEMPLATE_PREFIX}' available from pveam. Override with TEMPLATE_PREFIX=…"
 
 template_path="${TEMPLATE_STORE}:vztmpl/${template_name}"
 local_path="/var/lib/vz/template/cache/${template_name}"
