@@ -76,16 +76,15 @@ async fn main() {
     // Create router and start server.
     let app = api::create_router(state);
 
-    // Wire OTel HTTP middleware if enabled.
-    let app = if cfg.otel_enabled {
-        let metrics = std::sync::Arc::new(observability::Metrics::new());
-        app.layer(axum::middleware::from_fn_with_state(
-            metrics,
-            observability::http_middleware,
-        ))
-    } else {
-        app
-    };
+    // HTTP middleware: emits one `tracing::info!` per request (the access log
+    // operators see via `journalctl -u dilla`) and records OTel spans/metrics
+    // on top. Metric/span calls become noops when OTel is disabled, so this
+    // is essentially free in that mode but still gives us the access log.
+    let metrics = std::sync::Arc::new(observability::Metrics::new());
+    let app = app.layer(axum::middleware::from_fn_with_state(
+        metrics,
+        observability::http_middleware,
+    ));
 
     start_server(&cfg, app).await;
 }
