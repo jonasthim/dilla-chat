@@ -33,6 +33,11 @@ set -Eeuo pipefail
 : "${UNPRIVILEGED:=1}"
 : "${IPV4:=dhcp}"                  # or "10.0.0.50/24,gw=10.0.0.1"
 : "${DILLA_PORT:=8080}"
+# Public hostname the server is reached at (e.g. "dilla.example.com").
+# Used as the WebAuthn rp.id — must match the origin a browser sees, or
+# passkey registration fails with "OriginRpMismatch". Leave empty if you
+# only ever hit the LXC directly by IP for local testing.
+: "${DILLA_DOMAIN:=}"
 : "${RELEASE_TAG:=nightly}"
 : "${RELEASE_REPO:=dilla-chat/dilla-chat}"
 # Released binaries are built on ubuntu-latest (currently 24.04, glibc 2.39),
@@ -97,6 +102,37 @@ EOF
   echo
 }
 
+# ---- whiptail helpers -------------------------------------------------------
+
+# Track which variables were explicitly passed via env so we don't re-prompt
+# for them in advanced mode.
+declare -A user_set
+for v in CTID CT_HOSTNAME STORAGE BRIDGE CORES MEMORY SWAP DISK_GB IPV4 \
+         DILLA_PORT DILLA_DOMAIN TEMPLATE_PREFIX RELEASE_TAG; do
+  [[ -n "${!v}" ]] && user_set[$v]=1
+done
+
+WT_TITLE="Dilla LXC Installer"
+
+wt_yesno() {
+  whiptail --backtitle "$WT_TITLE" --title "$1" --yesno "$2" 12 70
+}
+
+wt_input() {
+  # $1 title, $2 prompt, $3 default → echoes user input, returns 1 on cancel
+  local title="$1" prompt="$2" default="$3" out
+  out=$(whiptail --backtitle "$WT_TITLE" --title "$title" \
+                 --inputbox "$prompt" 12 70 "$default" 3>&1 1>&2 2>&3) || return 1
+  echo "$out"
+}
+
+wt_menu() {
+  # $1 title, $2 prompt, then alternating tag/desc pairs
+  local title="$1" prompt="$2"; shift 2
+  whiptail --backtitle "$WT_TITLE" --title "$title" \
+           --menu "$prompt" 16 70 6 "$@" 3>&1 1>&2 2>&3
+}
+
 # ---- Pre-flight -------------------------------------------------------------
 
 show_header
@@ -104,6 +140,75 @@ show_header
 [[ $EUID -eq 0 ]]            || die "Run as root on the Proxmox host."
 command -v pct >/dev/null    || die "pct not found — this must run on a Proxmox VE host."
 command -v pveam >/dev/null  || die "pveam not found — Proxmox VE tools missing."
+command -v whiptail >/dev/null || die "whiptail not found — install with 'apt install whiptail'."
+
+# ---- Mode selection ---------------------------------------------------------
+
+INSTALL_MODE="noninteractive"
+if [[ -t 0 ]]; then
+  choice=$(wt_menu "Setup Mode" \
+    "Choose how to configure the new container." \
+    "default"  "Use sensible defaults (only ask for the public domain)" \
+    "advanced" "Walk through every option" \
+    "cancel"   "Abort the installer" \
+  ) || die "Cancelled."
+  case "$choice" in
+    default)  INSTALL_MODE="default" ;;
+    advanced) INSTALL_MODE="advanced" ;;
+    *)        die "Cancelled." ;;
+  esac
+fi
+
+# Prompt only when interactive AND the variable wasn't pre-set via env.
+prompt_for() {
+  # $1 var name, $2 title, $3 prompt, $4 default
+  local name="$1" title="$2" prompt="$3" default="$4"
+  [[ -n "${user_set[$name]:-}" ]] && return 0
+  [[ "$INSTALL_MODE" != "advanced" ]] && return 0
+  local out
+  out=$(wt_input "$title" "$prompt" "$default") || die "Cancelled."
+  printf -v "$name" '%s' "$out"
+}
+
+# Domain is special: required in default mode too, with an explicit
+# "testing" escape hatch.
+prompt_for_domain() {
+  [[ -n "${user_set[DILLA_DOMAIN]:-}" ]] && return 0
+  [[ "$INSTALL_MODE" == "noninteractive" ]] && return 0
+  local choice
+  choice=$(wt_menu "Public Domain" \
+    "WebAuthn (passkeys) requires the server's rp.id to match the URL\nthe browser sees. Pick how this LXC will be reached:" \
+    "domain"  "I have a public domain (recommended)" \
+    "testing" "Local testing only via SSH tunnel to localhost" \
+  ) || die "Cancelled."
+  if [[ "$choice" == "testing" ]]; then
+    DILLA_DOMAIN="localhost"
+    return
+  fi
+  while :; do
+    local entered
+    entered=$(wt_input "Public Domain" \
+      "Hostname your reverse proxy serves Dilla on,\ne.g. chat.example.com" "") \
+      || die "Cancelled."
+    if [[ "$entered" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]] \
+       || [[ "$entered" == "localhost" ]]; then
+      DILLA_DOMAIN="$entered"
+      return
+    fi
+    whiptail --backtitle "$WT_TITLE" --title "Invalid domain" \
+             --msgbox "'$entered' doesn't look like a valid hostname.\nTry again." 10 60 || true
+  done
+}
+
+prompt_for CT_HOSTNAME    "Hostname"          "Container hostname"                       "$CT_HOSTNAME"
+prompt_for CTID           "Container ID"      "Numeric CTID (leave blank for next free)" "$CTID"
+prompt_for CORES          "CPU cores"         "Number of CPU cores"                      "$CORES"
+prompt_for MEMORY         "Memory (MiB)"      "Memory limit in MiB"                      "$MEMORY"
+prompt_for DISK_GB        "Disk (GiB)"        "Root disk size in GiB"                    "$DISK_GB"
+prompt_for BRIDGE         "Network bridge"    "Proxmox bridge to attach eth0 to"         "$BRIDGE"
+prompt_for IPV4           "IPv4 address"      "Either 'dhcp' or 'A.B.C.D/24,gw=GW.IP'"   "$IPV4"
+prompt_for DILLA_PORT     "Dilla port"        "HTTP/WS port the dilla-server listens on" "$DILLA_PORT"
+prompt_for_domain
 
 # ---- Pick a CTID ------------------------------------------------------------
 
@@ -132,6 +237,28 @@ if [[ -z "$STORAGE" ]]; then
   msg_ok "Using auto-detected rootfs storage: ${STORAGE}"
 elif ! pvesm status -storage "$STORAGE" &>/dev/null; then
   die "Storage '${STORAGE}' does not exist. Available rootdir storages: $(pvesm status -content rootdir 2>/dev/null | awk 'NR>1 {print $1}' | xargs)"
+fi
+
+# ---- Confirmation summary ---------------------------------------------------
+
+if [[ "$INSTALL_MODE" != "noninteractive" ]]; then
+  domain_label="${DILLA_DOMAIN:-(none — passkeys will require a domain later)}"
+  [[ "$DILLA_DOMAIN" == "localhost" ]] && domain_label="localhost (testing — SSH-tunnel only)"
+  summary="\
+CTID         : ${CTID}
+Hostname     : ${CT_HOSTNAME}
+Storage      : ${STORAGE}
+Cores / RAM  : ${CORES} cores / ${MEMORY} MiB
+Disk         : ${DISK_GB} GiB
+Network      : ${BRIDGE} / ${IPV4}
+Dilla port   : ${DILLA_PORT}
+Domain       : ${domain_label}
+Template     : ${TEMPLATE_PREFIX}*
+Release tag  : ${RELEASE_TAG}"
+  whiptail --backtitle "$WT_TITLE" --title "Confirm" \
+           --yes-button "Install" --no-button "Abort" \
+           --yesno "About to create the container with these settings:\n\n${summary}\n\nProceed?" 22 70 \
+    || die "Cancelled."
 fi
 
 # ---- Locate or download the LXC template ------------------------------------
@@ -197,7 +324,11 @@ msg_ok "Container is online"
 # ---- Bootstrap inside the container ----------------------------------------
 
 msg_info "Installing dependencies inside CT ${CTID}"
-pct exec "$CTID" -- bash -c '
+# pct exec inherits the host's LANG (typically en_US.UTF-8), but minimal LXC
+# templates only ship C.UTF-8 — leaving inherited LANG set makes perl-based
+# apt maintainer scripts emit "locale: Cannot set LC_*" warnings. Pin the
+# locale we know exists.
+pct exec "$CTID" -- env LANG=C.UTF-8 LC_ALL=C.UTF-8 bash -c '
   set -Eeuo pipefail
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
@@ -236,6 +367,7 @@ pct exec "$CTID" -- bash -c "
 DILLA_PORT=${DILLA_PORT}
 DILLA_DATA_DIR=/var/lib/dilla
 DILLA_DB_PASSPHRASE=${db_passphrase}
+${DILLA_DOMAIN:+DILLA_DOMAIN=${DILLA_DOMAIN}}
 EOF
   chown root:dilla /etc/dilla/dilla.env
   chmod 0640 /etc/dilla/dilla.env
@@ -291,12 +423,26 @@ echo -e " ${GN}━━━━━━━━━━━━━━━━━━━━━�
 echo
 echo -e "   ${YW}Container ID${CL} : ${CTID}"
 echo -e "   ${YW}Hostname${CL}     : ${CT_HOSTNAME}"
-[[ -n "${container_ip:-}" ]] && echo -e "   ${YW}Address${CL}      : ${BL}http://${container_ip}:${DILLA_PORT}${CL}"
+[[ -n "${container_ip:-}" ]] && echo -e "   ${YW}Local URL${CL}    : ${BL}http://${container_ip}:${DILLA_PORT}${CL}"
 echo -e "   ${YW}Logs${CL}         : pct exec ${CTID} -- journalctl -u dilla -f"
 echo -e "   ${YW}Shell${CL}        : pct enter ${CTID}"
 echo -e "   ${YW}Env file${CL}     : /etc/dilla/dilla.env (inside the CT)"
 echo
-echo -e " ${DGN}Next:${CL} terminate TLS with your reverse proxy of choice and point"
-echo -e "       it at the address above. Edit /etc/dilla/dilla.env to set"
-echo -e "       DILLA_PEERS, DILLA_TLS_CERT/KEY, or other DILLA_* options."
+
+if [[ "$DILLA_DOMAIN" == "localhost" ]]; then
+  echo -e " ${YW}Testing mode:${CL} access Dilla via SSH tunnel so the browser sees"
+  echo -e "       'http://localhost' (the only origin WebAuthn allows over HTTP):"
+  echo
+  echo -e "         ${BL}ssh -L ${DILLA_PORT}:${container_ip:-CT_IP}:${DILLA_PORT} \\${CL}"
+  echo -e "         ${BL}    user@your-pve-host${CL}"
+  echo
+  echo -e "       …then open ${BL}http://localhost:${DILLA_PORT}${CL} in your browser."
+elif [[ -n "$DILLA_DOMAIN" ]]; then
+  echo -e " ${DGN}Next:${CL} point your reverse proxy at ${BL}${container_ip:-<ct-ip>}:${DILLA_PORT}${CL}"
+  echo -e "       and serve it as ${BL}https://${DILLA_DOMAIN}${CL}."
+else
+  echo -e " ${YW}No DILLA_DOMAIN set${CL} — passkey registration will fail until you"
+  echo -e "       front the LXC with a reverse proxy on a domain and append"
+  echo -e "       'DILLA_DOMAIN=<your-domain>' to /etc/dilla/dilla.env."
+fi
 echo

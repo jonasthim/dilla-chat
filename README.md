@@ -267,7 +267,7 @@ volumes:
 
 ## Proxmox LXC
 
-One-shot installer for Proxmox VE: creates an unprivileged Debian 12 container, downloads the latest release binary, and installs Dilla as a hardened systemd service.
+One-shot installer for Proxmox VE: creates an unprivileged Ubuntu 24.04 container, downloads the latest release binary, and installs Dilla as a hardened systemd service.
 
 Run on the **PVE host** as root:
 
@@ -275,14 +275,26 @@ Run on the **PVE host** as root:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
 ```
 
-Override defaults via environment variables:
+When run interactively, you'll get a `whiptail` menu just like the [community-scripts/ProxmoxVE](https://github.com/community-scripts/ProxmoxVE) installers:
+
+- **Default** — sane defaults for everything; only asks for the public domain.
+- **Advanced** — walk through every option (CTID, hostname, cores, RAM, disk, bridge, IPv4, port, then domain).
+
+Domain prompt offers two paths:
+
+- Enter a real public hostname (e.g. `chat.example.com`) — becomes the WebAuthn `rp.id`. Front the LXC with your own reverse proxy on that name.
+- Pick **Testing** — sets `rp.id=localhost`, intended for local SSH-tunnelled previews. Passkey registration only works while you're hitting the server through `http://localhost:<port>`.
+
+If `rp.id` doesn't match the URL the browser sees, passkey enrolment fails with `OriginRpMismatch`.
+
+Skip the prompts entirely by passing values as env vars (any var you set wins; the rest still default):
 
 ```bash
-CTID=210 CT_HOSTNAME=chat MEMORY=2048 DISK_GB=16 IPV4="10.0.0.50/24,gw=10.0.0.1" \
+CTID=210 CT_HOSTNAME=chat DILLA_DOMAIN=chat.example.com MEMORY=2048 \
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
 ```
 
-Common knobs: `CTID`, `CT_HOSTNAME`, `STORAGE` (auto-detected), `BRIDGE`, `IPV4`, `CORES`, `MEMORY`, `SWAP`, `DISK_GB`, `DILLA_PORT`, `RELEASE_TAG`, `TEMPLATE_PREFIX` (default `ubuntu-24.04-standard` to match the build glibc). The full list is documented in the comment header at the top of [`scripts/install-proxmox-lxc.sh`](scripts/install-proxmox-lxc.sh).
+Common knobs: `CTID`, `CT_HOSTNAME`, `STORAGE` (auto-detected), `BRIDGE`, `IPV4`, `CORES`, `MEMORY`, `SWAP`, `DISK_GB`, `DILLA_PORT`, `DILLA_DOMAIN`, `RELEASE_TAG`, `TEMPLATE_PREFIX`. The full list is documented at the top of [`scripts/install-proxmox-lxc.sh`](scripts/install-proxmox-lxc.sh).
 
 After the script finishes:
 
