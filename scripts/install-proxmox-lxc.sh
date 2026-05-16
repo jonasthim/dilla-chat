@@ -11,7 +11,14 @@
 #   CTID=210 CT_HOSTNAME=chat MEMORY=2048 \
 #     bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
 #
-# Creates an unprivileged Debian 12 container, downloads the latest
+# To update an already-installed container in-place:
+#
+#   ACTION=update CTID=121 \
+#     bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
+#
+# Interactively, the script asks "Install / Update / Cancel" first.
+#
+# Creates an unprivileged Ubuntu 24.04 container, downloads the latest
 # release binary from GitHub, and installs it as a systemd service.
 # Exposes the Dilla HTTP/WS port on the LXC's IP address — terminate
 # TLS with your own reverse proxy (Caddy, nginx, Cloudflare Tunnel, …).
@@ -133,6 +140,195 @@ wt_menu() {
            --menu "$prompt" 16 70 6 "$@" 3>&1 1>&2 2>&3
 }
 
+# ---- In-container update helper --------------------------------------------
+
+# Body of /usr/local/bin/update inside the LXC. Single-quoted heredoc so
+# nothing here is expanded by the outer (host-side) shell — the script
+# sees its own literal text. Invoke from inside the CT via `pct enter`
+# (or `pct exec <id> -- update`).
+read -r -d '' IN_CT_UPDATE_SCRIPT <<'IN_CT_UPDATE_EOF' || true
+#!/usr/bin/env bash
+# Dilla in-container update helper. Atomically swaps the dilla-server
+# binary for the latest release artifact, restarts the service, and
+# rolls back if the new binary fails to come up.
+#
+# Usage (inside the LXC, as root):
+#
+#   update                  # pull RELEASE_TAG=nightly
+#   update --tag v1.2.3     # pull a specific tag
+#   RELEASE_TAG=v1.2.3 update
+#
+# Re-running with the same tag short-circuits via cmp(1).
+
+set -Eeuo pipefail
+
+: "${RELEASE_TAG:=nightly}"
+: "${RELEASE_REPO:=dilla-chat/dilla-chat}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tag)   RELEASE_TAG="$2"; shift 2 ;;
+    --repo)  RELEASE_REPO="$2"; shift 2 ;;
+    -h|--help)
+      sed -n '2,16p' "$0"
+      exit 0
+      ;;
+    *) echo "unknown option: $1" >&2; exit 2 ;;
+  esac
+done
+
+GN=$'\033[1;92m'; RD=$'\033[01;31m'; YW=$'\033[33m'; CL=$'\033[m'
+ok()   { echo -e " ${GN}✓${CL} $*"; }
+warn() { echo -e " ${YW}!${CL} $*" >&2; }
+die()  { echo -e " ${RD}✗${CL} $*" >&2; exit 1; }
+
+[[ $EUID -eq 0 ]] || die "Run as root (try: sudo update)."
+
+ARCH=$(dpkg --print-architecture)
+case "$ARCH" in
+  amd64) BIN_ASSET=dilla-server-linux-amd64 ;;
+  arm64) BIN_ASSET=dilla-server-linux-arm64 ;;
+  *)     die "Unsupported architecture: $ARCH" ;;
+esac
+
+ASSET_URL="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${BIN_ASSET}"
+
+echo " ⤓ Downloading ${BIN_ASSET} from ${RELEASE_TAG}…"
+curl --fail --location --silent --show-error \
+  -o /usr/local/bin/dilla-server.new "$ASSET_URL"
+chmod 0755 /usr/local/bin/dilla-server.new
+
+if cmp -s /usr/local/bin/dilla-server /usr/local/bin/dilla-server.new 2>/dev/null; then
+  ok "Already up to date (${RELEASE_TAG})."
+  rm -f /usr/local/bin/dilla-server.new
+  exit 0
+fi
+
+cp /usr/local/bin/dilla-server /usr/local/bin/dilla-server.bak
+mv /usr/local/bin/dilla-server.new /usr/local/bin/dilla-server
+systemctl restart dilla.service
+
+for _ in $(seq 1 120); do
+  systemctl is-active --quiet dilla.service && {
+    rm -f /usr/local/bin/dilla-server.bak
+    ok "Updated to ${RELEASE_TAG}."
+    exit 0
+  }
+  sleep 1
+done
+
+warn "Service didn't come back up — rolling back."
+mv /usr/local/bin/dilla-server.bak /usr/local/bin/dilla-server
+systemctl restart dilla.service || true
+die "Update failed. Old binary restored. Check 'journalctl -u dilla -n 100'."
+IN_CT_UPDATE_EOF
+
+install_update_helper() {
+  # $1 = CTID
+  local ctid="$1"
+  pct exec "$ctid" -- bash -c '
+    cat >/usr/local/bin/update
+    chmod 0755 /usr/local/bin/update
+  ' <<<"$IN_CT_UPDATE_SCRIPT"
+}
+
+# ---- Detect existing Dilla containers ---------------------------------------
+
+list_dilla_cts() {
+  # Echoes "<ctid> <hostname> <status>" for every container that has
+  # /usr/local/bin/dilla-server. Returns empty on no matches.
+  local id status hostname
+  while read -r id status _; do
+    [[ "$id" =~ ^[0-9]+$ ]] || continue
+    # Only running CTs respond to `pct exec`. Skip stopped ones (they can't
+    # be updated without being started first, which we don't want to do
+    # silently).
+    [[ "$status" == "running" ]] || continue
+    if pct exec "$id" -- test -x /usr/local/bin/dilla-server 2>/dev/null; then
+      hostname=$(pct config "$id" 2>/dev/null | awk '/^hostname:/ {print $2}')
+      echo "$id ${hostname:-unknown} $status"
+    fi
+  done < <(pct list 2>/dev/null | tail -n +2)
+}
+
+run_update() {
+  local ctid="$1"
+  msg_info "Inspecting CT ${ctid}"
+  pct status "$ctid" &>/dev/null || die "CT ${ctid} doesn't exist."
+  pct exec "$ctid" -- test -x /usr/local/bin/dilla-server 2>/dev/null \
+    || die "/usr/local/bin/dilla-server not found in CT ${ctid} — nothing to update."
+  local arch
+  arch=$(pct exec "$ctid" -- dpkg --print-architecture 2>/dev/null) \
+    || die "Failed to query architecture from CT ${ctid}."
+  local bin_asset
+  case "$arch" in
+    amd64) bin_asset=dilla-server-linux-amd64 ;;
+    arm64) bin_asset=dilla-server-linux-arm64 ;;
+    *)     die "Unsupported container architecture: $arch" ;;
+  esac
+  msg_ok "CT ${ctid} architecture: ${arch}"
+
+  local asset_url="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${bin_asset}"
+
+  msg_info "Installing in-container update helper"
+  install_update_helper "$ctid"
+  msg_ok "Installed /usr/local/bin/update inside CT ${ctid}"
+
+  msg_info "Downloading ${bin_asset} from ${RELEASE_TAG} release"
+  pct exec "$ctid" -- env LANG=C.UTF-8 LC_ALL=C.UTF-8 bash -c "
+    set -Eeuo pipefail
+    curl --fail --location --silent --show-error \
+      -o /usr/local/bin/dilla-server.new '${asset_url}'
+    chmod 0755 /usr/local/bin/dilla-server.new
+  "
+  msg_ok "Downloaded new binary"
+
+  if pct exec "$ctid" -- cmp -s /usr/local/bin/dilla-server /usr/local/bin/dilla-server.new 2>/dev/null; then
+    msg_ok "Already up to date — no swap needed"
+    pct exec "$ctid" -- rm -f /usr/local/bin/dilla-server.new
+    return 0
+  fi
+
+  msg_info "Swapping binary, restarting service"
+  pct exec "$ctid" -- bash -c '
+    set -Eeuo pipefail
+    cp /usr/local/bin/dilla-server /usr/local/bin/dilla-server.bak
+    mv /usr/local/bin/dilla-server.new /usr/local/bin/dilla-server
+    systemctl restart dilla.service
+  '
+  msg_ok "Restarted dilla.service"
+
+  msg_info "Verifying service is active"
+  local i
+  for ((i = 0; i < TIMER_LIMIT; i++)); do
+    if pct exec "$ctid" -- systemctl is-active --quiet dilla.service 2>/dev/null; then
+      break
+    fi
+    sleep 1
+  done
+  if ! pct exec "$ctid" -- systemctl is-active --quiet dilla.service 2>/dev/null; then
+    msg_warn "Service did not come back up — rolling back binary."
+    pct exec "$ctid" -- bash -c '
+      mv /usr/local/bin/dilla-server.bak /usr/local/bin/dilla-server
+      systemctl restart dilla.service
+    ' || true
+    die "Update failed. Old binary restored. Check 'pct exec ${ctid} -- journalctl -u dilla -n 100'."
+  fi
+  # Success — drop the backup.
+  pct exec "$ctid" -- rm -f /usr/local/bin/dilla-server.bak
+  msg_ok "dilla-server is active on the new binary"
+
+  echo
+  echo -e " ${GN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${CL}"
+  echo -e " ${GN}  CT ${ctid} updated to ${RELEASE_TAG}${CL}"
+  echo -e " ${GN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${CL}"
+  echo
+  echo -e "   ${YW}Logs${CL}  : pct exec ${ctid} -- journalctl -u dilla -f"
+  echo -e "   ${YW}Status${CL}: pct exec ${ctid} -- systemctl status dilla --no-pager"
+  echo -e "   ${YW}Next${CL}  : ${BL}pct enter ${ctid}${CL}, then just ${BL}update${CL} — same flow without the host wrapper."
+  echo
+}
+
 # ---- Pre-flight -------------------------------------------------------------
 
 show_header
@@ -142,7 +338,48 @@ command -v pct >/dev/null    || die "pct not found — this must run on a Proxmo
 command -v pveam >/dev/null  || die "pveam not found — Proxmox VE tools missing."
 command -v whiptail >/dev/null || die "whiptail not found — install with 'apt install whiptail'."
 
-# ---- Mode selection ---------------------------------------------------------
+# ---- Action: install or update ---------------------------------------------
+
+: "${ACTION:=}"   # may be pre-set: ACTION=install | update
+
+if [[ -z "$ACTION" ]]; then
+  if [[ -t 0 ]]; then
+    ACTION=$(wt_menu "Action" \
+      "What would you like to do?" \
+      "install" "Set up Dilla in a new LXC" \
+      "update"  "Update Dilla in an existing LXC" \
+      "cancel"  "Abort" \
+    ) || die "Cancelled."
+    [[ "$ACTION" == "cancel" ]] && die "Cancelled."
+  else
+    ACTION="install"
+  fi
+fi
+
+if [[ "$ACTION" == "update" ]]; then
+  if [[ -z "$CTID" ]]; then
+    if [[ ! -t 0 ]]; then
+      die "ACTION=update requires CTID to be set when running non-interactively."
+    fi
+    mapfile -t dilla_cts < <(list_dilla_cts)
+    if (( ${#dilla_cts[@]} == 0 )); then
+      die "No running container with /usr/local/bin/dilla-server found."
+    fi
+    # Build the whiptail menu items.
+    menu_args=()
+    for line in "${dilla_cts[@]}"; do
+      read -r id hostname _ <<<"$line"
+      menu_args+=("$id" "$hostname")
+    done
+    CTID=$(wt_menu "Select Container" \
+      "Pick the Dilla container to update:" "${menu_args[@]}") \
+      || die "Cancelled."
+  fi
+  run_update "$CTID"
+  exit 0
+fi
+
+# ---- Mode selection (install flow) -----------------------------------------
 
 INSTALL_MODE="noninteractive"
 if [[ -t 0 ]]; then
@@ -401,6 +638,10 @@ EOF
 "
 msg_ok "Provisioned systemd unit"
 
+msg_info "Installing in-container update helper"
+install_update_helper "$CTID"
+msg_ok "Installed /usr/local/bin/update inside CT ${CTID}"
+
 # ---- Wait for the service to come up ---------------------------------------
 
 msg_info "Waiting for dilla-server to come up"
@@ -427,6 +668,7 @@ echo -e "   ${YW}Hostname${CL}     : ${CT_HOSTNAME}"
 echo -e "   ${YW}Logs${CL}         : pct exec ${CTID} -- journalctl -u dilla -f"
 echo -e "   ${YW}Shell${CL}        : pct enter ${CTID}"
 echo -e "   ${YW}Env file${CL}     : /etc/dilla/dilla.env (inside the CT)"
+echo -e "   ${YW}Update${CL}       : pct exec ${CTID} -- update   (or 'update' inside ${BL}pct enter${CL})"
 echo
 
 if [[ "$DILLA_DOMAIN" == "localhost" ]]; then

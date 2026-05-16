@@ -275,10 +275,28 @@ Run on the **PVE host** as root:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
 ```
 
-When run interactively, you'll get a `whiptail` menu just like the [community-scripts/ProxmoxVE](https://github.com/community-scripts/ProxmoxVE) installers:
+When run interactively, you'll get a `whiptail` menu just like the [community-scripts/ProxmoxVE](https://github.com/community-scripts/ProxmoxVE) installers — first **Install / Update / Cancel**, then for installs:
 
 - **Default** — sane defaults for everything; only asks for the public domain.
 - **Advanced** — walk through every option (CTID, hostname, cores, RAM, disk, bridge, IPv4, port, then domain).
+
+The **Update** path scans for running containers that have `/usr/local/bin/dilla-server`, lets you pick one, downloads the latest release binary, atomic-swaps it, restarts the service, and rolls back automatically if the new binary fails to come up. Non-interactive form:
+
+```bash
+ACTION=update CTID=121 \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
+```
+
+Inside the container, the installer also leaves a `/usr/local/bin/update` helper so you can update without the host-side wrapper:
+
+```bash
+pct enter 121
+# then:
+update                 # pull RELEASE_TAG=nightly (the install default)
+update --tag v1.2.3    # pin a specific release tag
+```
+
+Same atomic-swap + rollback semantics as the host-side flow.
 
 Domain prompt offers two paths:
 
