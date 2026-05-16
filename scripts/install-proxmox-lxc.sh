@@ -33,12 +33,16 @@ set -Eeuo pipefail
 : "${STORAGE:=}"                   # auto-detect first active rootdir storage if empty
 : "${TEMPLATE_STORE:=local}"       # template cache
 : "${BRIDGE:=vmbr0}"
+: "${VLAN:=}"                      # tagged VLAN id (empty = untagged)
 : "${CORES:=2}"
 : "${MEMORY:=1024}"                # MiB
 : "${SWAP:=512}"                   # MiB
 : "${DISK_GB:=8}"
 : "${UNPRIVILEGED:=1}"
 : "${IPV4:=dhcp}"                  # or "10.0.0.50/24,gw=10.0.0.1"
+: "${IPV6:=auto}"                  # auto | dhcp | none | "fd00::5/64,gw=fd00::1"
+: "${DNS:=}"                       # space-separated; empty = inherit PVE host
+: "${SEARCH_DOMAIN:=}"             # empty = inherit PVE host
 : "${DILLA_PORT:=8080}"
 # Public hostname the server is reached at (e.g. "dilla.example.com").
 # Used as the WebAuthn rp.id — must match the origin a browser sees, or
@@ -114,8 +118,9 @@ EOF
 # Track which variables were explicitly passed via env so we don't re-prompt
 # for them in advanced mode.
 declare -A user_set
-for v in CTID CT_HOSTNAME STORAGE BRIDGE CORES MEMORY SWAP DISK_GB IPV4 \
-         DILLA_PORT DILLA_DOMAIN TEMPLATE_PREFIX RELEASE_TAG; do
+for v in CTID CT_HOSTNAME STORAGE BRIDGE VLAN CORES MEMORY SWAP DISK_GB \
+         IPV4 IPV6 DNS SEARCH_DOMAIN DILLA_PORT DILLA_DOMAIN \
+         TEMPLATE_PREFIX RELEASE_TAG; do
   [[ -n "${!v}" ]] && user_set[$v]=1
 done
 
@@ -441,11 +446,22 @@ prompt_for CT_HOSTNAME    "Hostname"          "Container hostname"              
 prompt_for CTID           "Container ID"      "Numeric CTID (leave blank for next free)" "$CTID"
 prompt_for CORES          "CPU cores"         "Number of CPU cores"                      "$CORES"
 prompt_for MEMORY         "Memory (MiB)"      "Memory limit in MiB"                      "$MEMORY"
+prompt_for SWAP           "Swap (MiB)"        "Swap allowance in MiB (0 to disable)"     "$SWAP"
 prompt_for DISK_GB        "Disk (GiB)"        "Root disk size in GiB"                    "$DISK_GB"
 prompt_for BRIDGE         "Network bridge"    "Proxmox bridge to attach eth0 to"         "$BRIDGE"
+prompt_for VLAN           "VLAN tag"          "Tagged VLAN id (leave blank for untagged)" "$VLAN"
 prompt_for IPV4           "IPv4 address"      "Either 'dhcp' or 'A.B.C.D/24,gw=GW.IP'"   "$IPV4"
+prompt_for IPV6           "IPv6 address"      "auto | dhcp | none | 'fd00::5/64,gw=fd00::1'" "$IPV6"
+prompt_for DNS            "DNS servers"       "Space-separated (blank = inherit from PVE host)" "$DNS"
+prompt_for SEARCH_DOMAIN  "Search domain"     "DNS search domain (blank = inherit)"      "$SEARCH_DOMAIN"
 prompt_for DILLA_PORT     "Dilla port"        "HTTP/WS port the dilla-server listens on" "$DILLA_PORT"
 prompt_for_domain
+
+# Validate VLAN if set: must be 1..4094.
+if [[ -n "$VLAN" ]]; then
+  [[ "$VLAN" =~ ^[0-9]+$ ]] && (( VLAN >= 1 && VLAN <= 4094 )) \
+    || die "VLAN must be an integer in 1..4094 (got '$VLAN')."
+fi
 
 # ---- Pick a CTID ------------------------------------------------------------
 
@@ -481,13 +497,18 @@ fi
 if [[ "$INSTALL_MODE" != "noninteractive" ]]; then
   domain_label="${DILLA_DOMAIN:-(none — passkeys will require a domain later)}"
   [[ "$DILLA_DOMAIN" == "localhost" ]] && domain_label="localhost (testing — SSH-tunnel only)"
+  vlan_label="${VLAN:-untagged}"
+  dns_label="${DNS:-(inherit PVE host)}"
   summary="\
 CTID         : ${CTID}
 Hostname     : ${CT_HOSTNAME}
 Storage      : ${STORAGE}
-Cores / RAM  : ${CORES} cores / ${MEMORY} MiB
+Cores        : ${CORES}
+RAM / Swap   : ${MEMORY} MiB / ${SWAP} MiB
 Disk         : ${DISK_GB} GiB
-Network      : ${BRIDGE} / ${IPV4}
+Bridge / VLAN: ${BRIDGE} / ${vlan_label}
+IPv4 / IPv6  : ${IPV4} / ${IPV6}
+DNS          : ${dns_label}
 Dilla port   : ${DILLA_PORT}
 Domain       : ${domain_label}
 Template     : ${TEMPLATE_PREFIX}*
@@ -530,13 +551,24 @@ msg_info "Creating LXC ${CTID} (${CT_HOSTNAME})"
 
 db_passphrase=$(head -c 32 /dev/urandom | base64 | tr -d '+/=' | head -c 32)
 
+# Compose net0 with optional VLAN tag + IPv6 spec.
+net0="name=eth0,bridge=${BRIDGE},ip=${IPV4}"
+[[ -n "$VLAN" ]]                        && net0+=",tag=${VLAN}"
+[[ "$IPV6" != "none" && -n "$IPV6" ]]   && net0+=",ip6=${IPV6}"
+
+# Optional DNS extras — pct only honours --nameserver / --searchdomain if set.
+dns_args=()
+[[ -n "$DNS" ]]            && dns_args+=(--nameserver "$DNS")
+[[ -n "$SEARCH_DOMAIN" ]]  && dns_args+=(--searchdomain "$SEARCH_DOMAIN")
+
 pct create "$CTID" "$template_path" \
   --hostname "$CT_HOSTNAME" \
   --cores "$CORES" \
   --memory "$MEMORY" \
   --swap "$SWAP" \
   --rootfs "${STORAGE}:${DISK_GB}" \
-  --net0 "name=eth0,bridge=${BRIDGE},ip=${IPV4}" \
+  --net0 "$net0" \
+  "${dns_args[@]}" \
   --unprivileged "$UNPRIVILEGED" \
   --features "nesting=1" \
   --onboot 1 \
