@@ -140,6 +140,98 @@ wt_menu() {
            --menu "$prompt" 16 70 6 "$@" 3>&1 1>&2 2>&3
 }
 
+# ---- In-container update helper --------------------------------------------
+
+# Body of /usr/local/bin/update inside the LXC. Single-quoted heredoc so
+# nothing here is expanded by the outer (host-side) shell — the script
+# sees its own literal text. Invoke from inside the CT via `pct enter`
+# (or `pct exec <id> -- update`).
+read -r -d '' IN_CT_UPDATE_SCRIPT <<'IN_CT_UPDATE_EOF' || true
+#!/usr/bin/env bash
+# Dilla in-container update helper. Atomically swaps the dilla-server
+# binary for the latest release artifact, restarts the service, and
+# rolls back if the new binary fails to come up.
+#
+# Usage (inside the LXC, as root):
+#
+#   update                  # pull RELEASE_TAG=nightly
+#   update --tag v1.2.3     # pull a specific tag
+#   RELEASE_TAG=v1.2.3 update
+#
+# Re-running with the same tag short-circuits via cmp(1).
+
+set -Eeuo pipefail
+
+: "${RELEASE_TAG:=nightly}"
+: "${RELEASE_REPO:=dilla-chat/dilla-chat}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tag)   RELEASE_TAG="$2"; shift 2 ;;
+    --repo)  RELEASE_REPO="$2"; shift 2 ;;
+    -h|--help)
+      sed -n '2,16p' "$0"
+      exit 0
+      ;;
+    *) echo "unknown option: $1" >&2; exit 2 ;;
+  esac
+done
+
+GN=$'\033[1;92m'; RD=$'\033[01;31m'; YW=$'\033[33m'; CL=$'\033[m'
+ok()   { echo -e " ${GN}✓${CL} $*"; }
+warn() { echo -e " ${YW}!${CL} $*" >&2; }
+die()  { echo -e " ${RD}✗${CL} $*" >&2; exit 1; }
+
+[[ $EUID -eq 0 ]] || die "Run as root (try: sudo update)."
+
+ARCH=$(dpkg --print-architecture)
+case "$ARCH" in
+  amd64) BIN_ASSET=dilla-server-linux-amd64 ;;
+  arm64) BIN_ASSET=dilla-server-linux-arm64 ;;
+  *)     die "Unsupported architecture: $ARCH" ;;
+esac
+
+ASSET_URL="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${BIN_ASSET}"
+
+echo " ⤓ Downloading ${BIN_ASSET} from ${RELEASE_TAG}…"
+curl --fail --location --silent --show-error \
+  -o /usr/local/bin/dilla-server.new "$ASSET_URL"
+chmod 0755 /usr/local/bin/dilla-server.new
+
+if cmp -s /usr/local/bin/dilla-server /usr/local/bin/dilla-server.new 2>/dev/null; then
+  ok "Already up to date (${RELEASE_TAG})."
+  rm -f /usr/local/bin/dilla-server.new
+  exit 0
+fi
+
+cp /usr/local/bin/dilla-server /usr/local/bin/dilla-server.bak
+mv /usr/local/bin/dilla-server.new /usr/local/bin/dilla-server
+systemctl restart dilla.service
+
+for _ in $(seq 1 120); do
+  systemctl is-active --quiet dilla.service && {
+    rm -f /usr/local/bin/dilla-server.bak
+    ok "Updated to ${RELEASE_TAG}."
+    exit 0
+  }
+  sleep 1
+done
+
+warn "Service didn't come back up — rolling back."
+mv /usr/local/bin/dilla-server.bak /usr/local/bin/dilla-server
+systemctl restart dilla.service || true
+die "Update failed. Old binary restored. Check 'journalctl -u dilla -n 100'."
+IN_CT_UPDATE_EOF
+
+install_update_helper() {
+  # $1 = CTID
+  local ctid="$1"
+  pct exec "$ctid" -- bash -c '
+    cat >/usr/local/bin/update
+    chmod 0755 /usr/local/bin/update
+  ' <<<"$IN_CT_UPDATE_SCRIPT"
+}
+
 # ---- Detect existing Dilla containers ---------------------------------------
 
 list_dilla_cts() {
@@ -177,6 +269,10 @@ run_update() {
   msg_ok "CT ${ctid} architecture: ${arch}"
 
   local asset_url="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${bin_asset}"
+
+  msg_info "Installing in-container update helper"
+  install_update_helper "$ctid"
+  msg_ok "Installed /usr/local/bin/update inside CT ${ctid}"
 
   msg_info "Downloading ${bin_asset} from ${RELEASE_TAG} release"
   pct exec "$ctid" -- env LANG=C.UTF-8 LC_ALL=C.UTF-8 bash -c "
@@ -229,6 +325,7 @@ run_update() {
   echo
   echo -e "   ${YW}Logs${CL}  : pct exec ${ctid} -- journalctl -u dilla -f"
   echo -e "   ${YW}Status${CL}: pct exec ${ctid} -- systemctl status dilla --no-pager"
+  echo -e "   ${YW}Next${CL}  : ${BL}pct enter ${ctid}${CL}, then just ${BL}update${CL} — same flow without the host wrapper."
   echo
 }
 
@@ -541,6 +638,10 @@ EOF
 "
 msg_ok "Provisioned systemd unit"
 
+msg_info "Installing in-container update helper"
+install_update_helper "$CTID"
+msg_ok "Installed /usr/local/bin/update inside CT ${CTID}"
+
 # ---- Wait for the service to come up ---------------------------------------
 
 msg_info "Waiting for dilla-server to come up"
@@ -567,6 +668,7 @@ echo -e "   ${YW}Hostname${CL}     : ${CT_HOSTNAME}"
 echo -e "   ${YW}Logs${CL}         : pct exec ${CTID} -- journalctl -u dilla -f"
 echo -e "   ${YW}Shell${CL}        : pct enter ${CTID}"
 echo -e "   ${YW}Env file${CL}     : /etc/dilla/dilla.env (inside the CT)"
+echo -e "   ${YW}Update${CL}       : pct exec ${CTID} -- update   (or 'update' inside ${BL}pct enter${CL})"
 echo
 
 if [[ "$DILLA_DOMAIN" == "localhost" ]]; then

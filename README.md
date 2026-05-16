@@ -287,6 +287,17 @@ ACTION=update CTID=121 \
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
 ```
 
+Inside the container, the installer also leaves a `/usr/local/bin/update` helper so you can update without the host-side wrapper:
+
+```bash
+pct enter 121
+# then:
+update                 # pull RELEASE_TAG=nightly (the install default)
+update --tag v1.2.3    # pin a specific release tag
+```
+
+Same atomic-swap + rollback semantics as the host-side flow.
+
 Domain prompt offers two paths:
 
 - Enter a real public hostname (e.g. `chat.example.com`) — becomes the WebAuthn `rp.id`. Front the LXC with your own reverse proxy on that name.
