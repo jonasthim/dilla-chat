@@ -22,8 +22,8 @@ export default function InvitesTab({ teamId }: Readonly<{ teamId: string }>) {
     try {
       const maxUsesNum = Number(maxUses) || undefined;
       const expiryHours = Number(expiry) || undefined;
-      const result = (await api.createInvite(teamId, maxUsesNum, expiryHours)) as { invite: Invite };
-      setInvites((prev) => [result.invite, ...prev]);
+      const invite = (await api.createInvite(teamId, maxUsesNum, expiryHours)) as Invite;
+      setInvites((prev) => [invite, ...prev]);
     } catch {
       // Invite creation may fail due to permissions; UI stays functional.
     } finally {
