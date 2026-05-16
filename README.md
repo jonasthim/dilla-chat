@@ -278,7 +278,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/ma
 When run interactively, you'll get a `whiptail` menu just like the [community-scripts/ProxmoxVE](https://github.com/community-scripts/ProxmoxVE) installers — first **Install / Update / Cancel**, then for installs:
 
 - **Default** — sane defaults for everything; only asks for the public domain.
-- **Advanced** — walk through every option (CTID, hostname, cores, RAM, disk, bridge, IPv4, port, then domain).
+- **Advanced** — walk through every option (CTID, hostname, cores, RAM, swap, disk, bridge, VLAN, IPv4, IPv6, DNS, search domain, port, then domain).
 
 The **Update** path scans for running containers that have `/usr/local/bin/dilla-server`, lets you pick one, downloads the latest release binary, atomic-swaps it, restarts the service, and rolls back automatically if the new binary fails to come up. Non-interactive form:
 
@@ -312,7 +312,7 @@ CTID=210 CT_HOSTNAME=chat DILLA_DOMAIN=chat.example.com MEMORY=2048 \
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/dilla-chat/dilla-chat/main/scripts/install-proxmox-lxc.sh)"
 ```
 
-Common knobs: `CTID`, `CT_HOSTNAME`, `STORAGE` (auto-detected), `BRIDGE`, `IPV4`, `CORES`, `MEMORY`, `SWAP`, `DISK_GB`, `DILLA_PORT`, `DILLA_DOMAIN`, `RELEASE_TAG`, `TEMPLATE_PREFIX`. The full list is documented at the top of [`scripts/install-proxmox-lxc.sh`](scripts/install-proxmox-lxc.sh).
+Common knobs: `CTID`, `CT_HOSTNAME`, `STORAGE` (auto-detected), `BRIDGE`, `VLAN` (tagged VLAN id), `IPV4`, `IPV6`, `DNS`, `SEARCH_DOMAIN`, `CORES`, `MEMORY`, `SWAP`, `DISK_GB`, `DILLA_PORT`, `DILLA_DOMAIN`, `RELEASE_TAG`, `TEMPLATE_PREFIX`. The full list is documented at the top of [`scripts/install-proxmox-lxc.sh`](scripts/install-proxmox-lxc.sh).
 
 After the script finishes:
 
