@@ -22,7 +22,7 @@ vi.mock('../services/api', () => ({
     unbanMember: vi.fn().mockResolvedValue({}),
     updateMember: vi.fn().mockResolvedValue({}),
     listInvites: vi.fn().mockResolvedValue([]),
-    createInvite: vi.fn().mockResolvedValue({ invite: { id: 'inv-1', token: 'abc', created_by: 'admin', uses: 0, max_uses: null, expires_at: null } }),
+    createInvite: vi.fn().mockResolvedValue({ id: 'inv-1', token: 'abc', created_by: 'admin', uses: 0, max_uses: null, expires_at: null }),
     revokeInvite: vi.fn().mockResolvedValue({}),
   },
 }));
@@ -444,10 +444,8 @@ describe('TeamSettings', () => {
   it('creates invite with specific options and shows it in table', async () => {
     const { api } = await import('../services/api');
     vi.mocked(api.createInvite).mockResolvedValueOnce({
-      invite: {
-        id: 'inv-1', token: 'abc123', created_by: 'admin',
-        uses: 0, max_uses: 10, expires_at: '2025-06-01T00:00:00Z',
-      },
+      id: 'inv-1', token: 'abc123', created_by: 'admin',
+      uses: 0, max_uses: 10, expires_at: '2025-06-01T00:00:00Z',
     });
     navigateToTab('invites');
     fireEvent.click(screen.getByText('Create Invite'));
@@ -618,7 +616,7 @@ describe('TeamSettings', () => {
     navigateToTab('invites');
     fireEvent.click(screen.getByText('Create Invite'));
     expect(screen.getByText('Creating...')).toBeInTheDocument();
-    resolveCreate!({ invite: { id: 'inv-1', token: 'abc', created_by: 'admin', uses: 0, max_uses: null, expires_at: null } });
+    resolveCreate!({ id: 'inv-1', token: 'abc', created_by: 'admin', uses: 0, max_uses: null, expires_at: null });
   });
 
   it('removes member role when toggling off', async () => {
