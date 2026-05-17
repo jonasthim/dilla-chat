@@ -197,11 +197,30 @@ case "$ARCH" in
 esac
 
 ASSET_URL="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${BIN_ASSET}"
+SUMS_URL="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/SHA256SUMS.txt"
 
 echo " ⤓ Downloading ${BIN_ASSET} from ${RELEASE_TAG}…"
 curl --fail --location --silent --show-error \
   -o /usr/local/bin/dilla-server.new "$ASSET_URL"
 chmod 0755 /usr/local/bin/dilla-server.new
+
+# Integrity check against the SHA256SUMS.txt published alongside the
+# release. Catches truncated downloads, accidental asset swaps, and any
+# CDN-side corruption. Does NOT defend against a release-key compromise
+# (an attacker who can replace the binary can also replace SHA256SUMS).
+# That gap is tracked separately and is the next layer to add via
+# cosign-signed checksums.
+echo " ⤓ Verifying SHA-256 against SHA256SUMS.txt…"
+sums=$(curl --fail --location --silent --show-error "$SUMS_URL") \
+  || die "Could not fetch SHA256SUMS.txt — release missing checksums?"
+expected=$(awk -v f="$BIN_ASSET" '$2 == f || $2 == "*"f { print $1; exit }' <<<"$sums")
+[[ -n "$expected" ]] \
+  || die "SHA256SUMS.txt has no entry for ${BIN_ASSET}."
+actual=$(sha256sum /usr/local/bin/dilla-server.new | awk '{print $1}')
+if [[ "$expected" != "$actual" ]]; then
+  rm -f /usr/local/bin/dilla-server.new
+  die "Checksum mismatch for ${BIN_ASSET} (expected ${expected:0:12}…, got ${actual:0:12}…). Refusing to swap."
+fi
 
 if cmp -s /usr/local/bin/dilla-server /usr/local/bin/dilla-server.new 2>/dev/null; then
   ok "Already up to date (${RELEASE_TAG})."
@@ -274,6 +293,7 @@ run_update() {
   msg_ok "CT ${ctid} architecture: ${arch}"
 
   local asset_url="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${bin_asset}"
+  local sums_url="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/SHA256SUMS.txt"
 
   msg_info "Installing in-container update helper"
   install_update_helper "$ctid"
@@ -287,6 +307,21 @@ run_update() {
     chmod 0755 /usr/local/bin/dilla-server.new
   "
   msg_ok "Downloaded new binary"
+
+  msg_info "Verifying SHA-256 against SHA256SUMS.txt"
+  pct exec "$ctid" -- env LANG=C.UTF-8 LC_ALL=C.UTF-8 bash -c "
+    set -Eeuo pipefail
+    sums=\$(curl --fail --location --silent --show-error '${sums_url}')
+    expected=\$(awk -v f='${bin_asset}' '\$2 == f || \$2 == \"*\"f { print \$1; exit }' <<<\"\$sums\")
+    [[ -n \"\$expected\" ]] || { echo 'SHA256SUMS.txt has no entry for ${bin_asset}' >&2; exit 1; }
+    actual=\$(sha256sum /usr/local/bin/dilla-server.new | awk '{print \$1}')
+    if [[ \"\$expected\" != \"\$actual\" ]]; then
+      rm -f /usr/local/bin/dilla-server.new
+      echo \"Checksum mismatch (expected \${expected:0:12}…, got \${actual:0:12}…)\" >&2
+      exit 1
+    fi
+  " || die "Checksum verification failed. Old binary untouched."
+  msg_ok "Checksum verified"
 
   if pct exec "$ctid" -- cmp -s /usr/local/bin/dilla-server /usr/local/bin/dilla-server.new 2>/dev/null; then
     msg_ok "Already up to date — no swap needed"
@@ -613,15 +648,31 @@ case "$arch" in
 esac
 
 asset_url="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${bin_asset}"
+sums_url="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/SHA256SUMS.txt"
 
 msg_info "Downloading ${bin_asset} from ${RELEASE_TAG} release"
+# Download to a temp path, verify SHA-256 against the SHA256SUMS.txt
+# published in the same release, then promote. Refuses to install on
+# checksum mismatch. (This only catches transport-level tampering and
+# corruption — a release-key compromise can swap both files. Tracked
+# follow-up: cosign-signed checksums.)
 pct exec "$CTID" -- bash -c "
   set -Eeuo pipefail
   curl --fail --location --silent --show-error \
-    -o /usr/local/bin/dilla-server '${asset_url}'
-  chmod 0755 /usr/local/bin/dilla-server
+    -o /usr/local/bin/dilla-server.new '${asset_url}'
+  chmod 0755 /usr/local/bin/dilla-server.new
+  sums=\$(curl --fail --location --silent --show-error '${sums_url}')
+  expected=\$(awk -v f='${bin_asset}' '\$2 == f || \$2 == \"*\"f { print \$1; exit }' <<<\"\$sums\")
+  [[ -n \"\$expected\" ]] || { echo 'SHA256SUMS.txt has no entry for ${bin_asset}' >&2; exit 1; }
+  actual=\$(sha256sum /usr/local/bin/dilla-server.new | awk '{print \$1}')
+  if [[ \"\$expected\" != \"\$actual\" ]]; then
+    rm -f /usr/local/bin/dilla-server.new
+    echo \"Checksum mismatch (expected \${expected:0:12}…, got \${actual:0:12}…)\" >&2
+    exit 1
+  fi
+  mv /usr/local/bin/dilla-server.new /usr/local/bin/dilla-server
 "
-msg_ok "Installed dilla-server binary"
+msg_ok "Installed dilla-server binary (sha-256 verified)"
 
 msg_info "Provisioning user, data dir, and systemd unit"
 pct exec "$CTID" -- bash -c "
