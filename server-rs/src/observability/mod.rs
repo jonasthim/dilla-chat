@@ -9,7 +9,7 @@
 use crate::config::Config;
 
 use axum::{
-    extract::Request,
+    extract::{MatchedPath, Request},
     http::header,
     middleware::Next,
     response::Response,
@@ -416,8 +416,15 @@ pub async fn http_middleware(
     let start = Instant::now();
 
     let method = request.method().to_string();
-    let path = request.uri().path().to_string();
-    let route = sanitize_route(&path);
+    // Prefer the router-matched template (e.g. "/api/v1/invites/{token}/info")
+    // so URL-path bearer secrets — invite tokens, federation-join JWTs — are
+    // never written to the access log. Falls back to a UUID-sanitised raw
+    // path for unmatched routes (404s) and when the extractor isn't set.
+    let route = request
+        .extensions()
+        .get::<MatchedPath>()
+        .map(|p| p.as_str().to_string())
+        .unwrap_or_else(|| sanitize_route(request.uri().path()));
 
     // Extract propagated trace context from request headers.
     let parent_cx = extract_context_from_request(&request);
@@ -461,10 +468,11 @@ pub async fn http_middleware(
     metrics.http_requests_total.add(1, metric_attrs);
     metrics.http_active_requests.add(-1, attrs);
 
-    // Structured log.
+    // Structured log. `route` is the matched template, never the raw URI —
+    // see comment at the top of this function for why.
     tracing::info!(
         method = %method,
-        path = %path,
+        path = %route,
         status = %status,
         duration_ms = %format!("{:.2}", duration_ms),
         "request"
@@ -629,6 +637,93 @@ mod tests {
     fn test_sanitize_route_only_uuid() {
         let input = "/550e8400-e29b-41d4-a716-446655440000";
         assert_eq!(sanitize_route(input), "/{id}");
+    }
+
+    // sanitize_route only catches UUIDs. Invite tokens (32-char hex, no
+    // dashes) and federation join JWTs (base64.dot.base64.dot.base64) are
+    // therefore NOT redacted by it — that's why http_middleware logs the
+    // axum MatchedPath template instead. These two tests pin that
+    // limitation so a future "fix" to sanitize_route doesn't quietly
+    // change the assumption the middleware relies on.
+    #[test]
+    fn test_sanitize_route_does_not_redact_invite_token() {
+        let input = "/api/v1/invites/9b4a8f2e1c6d5703a8f1e2b3c4d5e6f7/info";
+        assert_eq!(sanitize_route(input), input);
+    }
+
+    #[test]
+    fn test_sanitize_route_does_not_redact_federation_join_jwt() {
+        let input = "/api/v1/federation/join/eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjF9.abc";
+        assert_eq!(sanitize_route(input), input);
+    }
+
+    // Regression test for the access-log token-leak: a request to a route
+    // with a path parameter MUST be logged with the route template, never
+    // the raw token. Captures the structured log line via a custom writer
+    // and asserts the secret is absent.
+    #[tokio::test]
+    async fn test_http_middleware_logs_matched_path_not_raw_token() {
+        use axum::{routing::get, Router};
+        use std::io::Write;
+        use std::sync::{Arc as StdArc, Mutex};
+        use tower::ServiceExt;
+        use tracing_subscriber::fmt::MakeWriter;
+
+        // Custom writer collecting all log bytes into a shared Vec.
+        #[derive(Clone)]
+        struct VecWriter(StdArc<Mutex<Vec<u8>>>);
+        impl Write for VecWriter {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                self.0.lock().unwrap().extend_from_slice(buf);
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        }
+        impl<'a> MakeWriter<'a> for VecWriter {
+            type Writer = VecWriter;
+            fn make_writer(&'a self) -> Self::Writer { self.clone() }
+        }
+
+        let logs = StdArc::new(Mutex::new(Vec::<u8>::new()));
+        let writer = VecWriter(logs.clone());
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(writer)
+            .with_max_level(tracing::Level::INFO)
+            .finish();
+
+        // Bind the subscriber to the current thread for the duration of this
+        // test. The default tokio::test runtime is single-threaded, so all
+        // .await continuations stay on the same thread and pick up the
+        // subscriber.
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let secret_token = "9b4a8f2e1c6d5703a8f1e2b3c4d5e6f7";
+        let metrics = Arc::new(Metrics::new());
+        let app = Router::new()
+            .route("/api/v1/invites/{token}/info", get(|| async { "ok" }))
+            .layer(axum::middleware::from_fn_with_state(metrics, http_middleware));
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/api/v1/invites/{}/info", secret_token))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        let _ = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+
+        let captured = String::from_utf8_lossy(&logs.lock().unwrap()).to_string();
+        assert!(
+            !captured.contains(secret_token),
+            "raw invite token leaked into access log: {captured}",
+        );
+        assert!(
+            captured.contains("/api/v1/invites/{token}/info"),
+            "expected templated route in access log, got: {captured}",
+        );
     }
 
     #[tokio::test]
